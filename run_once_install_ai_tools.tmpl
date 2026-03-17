@@ -1,3 +1,4 @@
+#!/bin/sh
 {{- $inContainer := env "REMOTE_CONTAINERS" -}}
 {{ if $inContainer }}
 curl -fsSL https://claude.ai/install.sh | bash

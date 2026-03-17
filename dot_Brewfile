@@ -1,6 +1,12 @@
 tap "espressif/eim"
+# Open-source, cross-platform JavaScript runtime environment
+brew "node"
+# Secure and free password manager for all of your devices
+brew "bitwarden-cli"
 # Object-file caching compiler wrapper
 brew "ccache"
+# Manage your dotfiles across multiple diverse machines, securely
+brew "chezmoi"
 # Cross-platform make
 brew "cmake"
 # Secure runtime for JavaScript and TypeScript
@@ -11,8 +17,6 @@ brew "dfu-util"
 brew "gcc"
 # Small build system for use with gyp or CMake
 brew "ninja"
-# Open-source, cross-platform JavaScript runtime environment
-brew "node"
 # AI coding agent, built for the terminal
 brew "opencode"
 # Extremely fast Python package installer and resolver, written in Rust
