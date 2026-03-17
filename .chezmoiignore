@@ -1,0 +1,2 @@
+.claude/ide/*.lock
+.claude/tmp/**

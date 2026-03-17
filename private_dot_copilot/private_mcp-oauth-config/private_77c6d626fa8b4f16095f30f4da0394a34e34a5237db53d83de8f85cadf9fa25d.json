@@ -1,0 +1,8 @@
+{
+  "serverUrl": "https://mcp.context7.com/mcp/oauth",
+  "authorizationServerUrl": "https://context7.com",
+  "clientId": "PM3Ujks1qlTE6pgV",
+  "redirectUri": "http://127.0.0.1:37217/",
+  "issuedAt": 1773036768,
+  "isStatic": false
+}
