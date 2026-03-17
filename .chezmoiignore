@@ -1,2 +1,1 @@
-.claude/ide/*.lock
-.claude/tmp/**
+install.sh

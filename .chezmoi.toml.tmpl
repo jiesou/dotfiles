@@ -1,0 +1,26 @@
+{{- /* Checks if running interactively, which is not the case for Containders, GitHub Codespaces */ -}}
+{{- /* See: https://github.com/chezmoi/dotfiles/blob/526cb6f38e48b068ed9b5d961789fba4d8e7b9f2/.chezmoi.yaml.tmpl */ -}}
+{{- $interactive := stdinIsATTY -}}
+
+{{- /* Initializes the variables with a default value */ -}}
+{{- $passphrase := "YOUR_PASSPHRASE" -}}
+{{- if hasKey . "passphrase" -}}
+{{-   $passphrase = .passphrase -}}
+{{- else if $interactive -}}
+{{-   $passphrase = promptStringOnce . "passphrase" "passphrase" -}}
+{{- end -}}
+
+{{- if $interactive -}}
+{{-   writeToStdout "💡 Tip: you can re-enter your config / passphrase with `chezmoi init --data=false`.\n" -}}
+{{- end -}}
+
+sourceDir = {{ .chezmoi.sourceDir | quote }}
+encryption = "gpg"
+[data]
+    passphrase = {{ $passphrase | quote }}
+[gpg]
+    symmetric = true
+    args = ["--batch", "--passphrase", {{ $passphrase | quote }}, "--no-symkey-cache"]
+[git]
+    autoCommit = true
+    autoPush = true
