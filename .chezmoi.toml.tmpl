@@ -18,6 +18,7 @@ sourceDir = {{ .chezmoi.sourceDir | quote }}
 encryption = "gpg"
 [data]
     passphrase = {{ $passphrase | quote }}
+    isContainers = {{ env "REMOTE_CONTAINERS" | not | not }}
 [gpg]
     symmetric = true
     args = ["--batch", "--passphrase", {{ $passphrase | quote }}, "--no-symkey-cache"]
