@@ -1,5 +1,6 @@
 #!/bin/sh
 {{ if .isContainers }}
-curl -fsSL https://claude.ai/install.sh | bash
-curl -fsSL https://opencode.ai/install | bash
+echo "Installing AI Tools..."
+command -v claude || curl -fsSL https://claude.ai/install.sh | bash
+command -v opencode || curl -fsSL https://opencode.ai/install | bash
 {{ end }}
