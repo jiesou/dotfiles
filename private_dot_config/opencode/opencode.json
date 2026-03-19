@@ -6,5 +6,28 @@
       "url": "https://mcp.context7.com/mcp",
       "oauth": {}
     }
+  },
+  "provider": {
+    "qianfan": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Baidu Qianfan",
+      "options": {
+        "baseURL": "https://qianfan.baidubce.com/v2"
+      },
+      "models": {
+        "kimi-k2.5": {
+          "name": "Kimi-K2.5"
+        },
+        "deepseek-v3.2": {
+          "name": "DeepSeek-V3.2"
+        },
+        "glm-5": {
+          "name": "GLM-5"
+        },
+        "minimax-m2.5": {
+          "name": "MiniMax-M2.5"
+        }
+      }
+    }
   }
 }
