@@ -21,6 +21,8 @@ brew "ninja"
 brew "opencode"
 # Extremely fast Python package installer and resolver, written in Rust
 brew "uv"
+# ESP-IDF Installation Manager - CLI tool for setting up ESP-IDF development environment
+brew "espressif/eim/eim"
 # Terminal-based AI coding assistant
 cask "claude-code"
 # Brings the power of Copilot coding agent directly to your terminal
