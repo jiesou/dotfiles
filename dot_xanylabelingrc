@@ -26,6 +26,8 @@ canvas:
     show: true
     width: 2.0
   double_click: close
+  mask:
+    opacity: 80
   num_backups: 10
   rotation:
     large_increment: 1.0
@@ -61,6 +63,7 @@ file_dock:
   floatable: false
   movable: false
   show: true
+file_list_checkbox_editable: false
 file_search: null
 fit_to_content:
   column: true
@@ -88,6 +91,10 @@ language: zh_CN
 logger_level: info
 model_hub: github
 move_mode: auto
+remote_server_settings:
+  api_key: null
+  server_url: http://127.0.0.1:8000
+  timeout: 180
 shape:
   fill_color:
   - 220
@@ -181,11 +188,13 @@ shortcuts:
   show_hidden_polygons: W
   show_labels: Ctrl+L
   show_linking: Ctrl+K
+  show_masks: Ctrl+M
   show_navigator: F9
   show_overview: Ctrl+G
   show_texts: Ctrl+T
   toggle_auto_use_last_gid: Ctrl+Shift+G
   toggle_auto_use_last_label: Ctrl+Y
+  toggle_compare_view: Ctrl+Alt+C
   toggle_keep_prev_mode: Ctrl+P
   toggle_visibility_shapes: Ctrl+H
   undo: Ctrl+Z
@@ -203,6 +212,7 @@ show_groups: false
 show_label_text_field: true
 show_labels: false
 show_linking: true
+show_masks: true
 show_scores: true
 show_shapes: true
 show_texts: false
@@ -210,4 +220,7 @@ sort_labels: true
 store_data: false
 switch_to_checked: false
 system_clipboard: false
+training:
+  ultralytics:
+    project_readonly: true
 validate_label: null
