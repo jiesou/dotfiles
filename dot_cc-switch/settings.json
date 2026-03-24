@@ -1,0 +1,18 @@
+{
+  "showInTray": true,
+  "minimizeToTrayOnClose": true,
+  "enableClaudePluginIntegration": false,
+  "skipClaudeOnboarding": false,
+  "providerSwitchCommonConfigTipShown": true,
+  "providerSwitchCommonConfigTipShownCodex": false,
+  "visibleApps": {
+    "claude": true,
+    "codex": true,
+    "gemini": false,
+    "opencode": true,
+    "openclaw": true
+  },
+  "language": "en",
+  "launchOnStartup": false,
+  "skillSyncMethod": "auto"
+}

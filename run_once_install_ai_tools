@@ -5,3 +5,4 @@ read -p "Install AI Tools? [y/N]: " confirm
 echo "Installing AI Tools..."
 command -v claude || curl -fsSL https://claude.ai/install.sh | bash
 command -v opencode || curl -fsSL https://opencode.ai/install | bash
+command -v cc-switch || curl -fsSL https://github.com/SaladDay/cc-switch-cli/releases/latest/download/install.sh | bash
