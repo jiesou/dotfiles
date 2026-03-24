@@ -16,4 +16,5 @@ trust_level = "trusted"
 "gpt-5.3-codex" = "gpt-5.4"
 
 [mcp_servers.context7]
+type = "http"
 url = "https://mcp.context7.com/mcp"
