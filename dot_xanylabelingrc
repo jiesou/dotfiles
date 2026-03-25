@@ -21,10 +21,10 @@ canvas:
     - 243
     - 255
   crosshair:
-    color: '#00FF00'
-    opacity: 0.5
+    color: '#00ff00'
+    opacity: 1.0
     show: true
-    width: 2.0
+    width: 1.0
   double_click: close
   mask:
     opacity: 80
