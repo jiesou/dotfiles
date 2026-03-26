@@ -1,4 +1,4 @@
-model = "gpt-5.2-codex"
+model = "gpt-5.4"
 model_reasoning_effort = "medium"
 [projects."/var/home/chen/Documents/dev/Projects/lceda-gnd-return-path-cal"]
 trust_level = "trusted"
@@ -12,8 +12,12 @@ trust_level = "trusted"
 [projects."/var/home/chen/Documents/dev/Projects/ElectricDriveSystem"]
 trust_level = "trusted"
 
+[projects."/var/home/chen/Documents/dev/Projects/ElectricDriveCVClient"]
+trust_level = "trusted"
+
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
+"gpt-5.2-codex" = "gpt-5.4"
 
 [mcp_servers.context7]
 type = "http"
