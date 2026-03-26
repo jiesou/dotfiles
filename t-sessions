@@ -1,0 +1,12 @@
+[0;1;31m×[0m session-5.scope - Session 5 of User chen
+     Loaded: loaded (]8;;file://chenpc.lan/run/systemd/transient/session-5.scope\/run/systemd/transient/session-5.scope]8;;\; transient)
+  Transient: yes
+     Active: [0;1;31mfailed[0m (Result: resources)
+ Invocation: 7611afd08b4143e1ac9a7c49ae2a6dac
+   Mem peak: 0B
+        CPU: 0
+
+3月 25 19:17:51 chenpc.lan systemd[1]: session-5.scope: PID 202300 vanished before we could move it to target cgroup '/user.slice/user-1000.slice/session-5.scope', skipping: No such process
+3月 25 19:17:51 chenpc.lan systemd[1]: [0;1;38:5:185m[0;1;39m[0;1;38:5:185msession-5.scope: No PIDs left to attach to the scope's control group, refusing.[0m
+3月 25 19:17:51 chenpc.lan systemd[1]: [0;1;38:5:185m[0;1;39m[0;1;38:5:185msession-5.scope: Failed with result 'resources'.[0m
+3月 25 19:17:51 chenpc.lan systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start session-5.scope - Session 5 of User chen.[0m
