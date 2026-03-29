@@ -1,5 +1,6 @@
 model = "gpt-5.4"
 model_reasoning_effort = "medium"
+service_tier = "fast"
 [projects."/var/home/chen/Documents/dev/Projects/lceda-gnd-return-path-cal"]
 trust_level = "trusted"
 
@@ -15,6 +16,9 @@ trust_level = "trusted"
 [projects."/var/home/chen/Documents/dev/Projects/ElectricDriveCVClient"]
 trust_level = "trusted"
 
+[projects."/var/home/chen/Documents/dev/Projects/PlatformIOProjects/RobotCar-T1-MicroROS"]
+trust_level = "trusted"
+
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
 "gpt-5.2-codex" = "gpt-5.4"
@@ -22,3 +26,9 @@ trust_level = "trusted"
 [mcp_servers.context7]
 type = "http"
 url = "https://mcp.context7.com/mcp"
+
+[plugins."gmail@openai-curated"]
+enabled = true
+
+[plugins."github@openai-curated"]
+enabled = true

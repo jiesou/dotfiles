@@ -4,6 +4,7 @@
     "messages_first": "none",
     "messages_last": "none",
     "input_buffer_home": "home",
-    "input_buffer_end": "end"
+    "input_buffer_end": "end",
+    "submit": "enter,numpadenter"
   }
 }
