@@ -1,6 +1,5 @@
 model = "gpt-5.4"
-model_reasoning_effort = "medium"
-service_tier = "fast"
+model_reasoning_effort = "high"
 [projects."/var/home/chen/Documents/dev/Projects/lceda-gnd-return-path-cal"]
 trust_level = "trusted"
 
@@ -19,6 +18,21 @@ trust_level = "trusted"
 [projects."/var/home/chen/Documents/dev/Projects/PlatformIOProjects/RobotCar-T1-MicroROS"]
 trust_level = "trusted"
 
+[projects."/var/home/chen/Documents/dev/Projects/PlatformIOProjects/RobotCar-T1-MicroROS-IDF"]
+trust_level = "trusted"
+
+[projects."/var/home/chen/Documents/dev/Projects/PlatformIOProjects"]
+trust_level = "trusted"
+
+[projects."/var/home/chen/Documents/dev/Projects/PlatformIOProjects/AlarmESPMatrix32"]
+trust_level = "trusted"
+
+[projects."/var/home/chen/Documents/dev/Projects/Playground"]
+trust_level = "trusted"
+
+[projects."/var/home/chen/Documents/dev/Projects/Playground/fcitx5-vinput"]
+trust_level = "trusted"
+
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
 "gpt-5.2-codex" = "gpt-5.4"
@@ -32,3 +46,6 @@ enabled = true
 
 [plugins."github@openai-curated"]
 enabled = true
+
+[tui]
+status_line = ["model-with-reasoning", "context-remaining", "current-dir", "five-hour-limit"]
