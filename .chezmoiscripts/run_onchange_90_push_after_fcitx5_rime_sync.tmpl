@@ -1,0 +1,26 @@
+{{- $termux_target := "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime/sync" -}}
+{{- $flatpak_target := joinPath .chezmoi.homeDir ".var/app/org.fcitx.Fcitx5/data/fcitx5/rime/sync" -}}
+{{- $target_path := output "sh" "-c" (printf "if command -v termux-setup-storage >/dev/null 2>&1; then printf %%s %q; else printf %%s %q; fi" $termux_target $flatpak_target) | trim -}}
+{{- $encrypted_tar_file := joinPath .chezmoi.sourceDir "fcitx5-rime-sync.tar.asc" -}}
+#!/bin/sh
+set -eu
+
+# run on this change: {{ output "sh" "-c" (printf "set -eu\nif [ ! -d %q ]; then printf missing; exit 0; fi\ncd %q\nfind . -type f -print0 | LC_ALL=C sort -z | xargs -0 git hash-object | git hash-object --stdin\n" $target_path $target_path) }}
+
+TARGET_PATH={{ printf "%q" $target_path }}
+ENCRYPTED_TAR_FILE={{ printf "%q" $encrypted_tar_file }}
+
+if [ ! -d "$TARGET_PATH" ]; then
+  echo "fcitx5-rime-sync: target path not found, skip push" >&2
+  exit 0
+fi
+
+TMP_TAR_FILE="$(mktemp)"
+TMP_ENCRYPTED_FILE="$(mktemp)"
+trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_FILE"' EXIT HUP INT TERM
+
+tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
+chezmoi encrypt --output "$TMP_ENCRYPTED_FILE" "$TMP_TAR_FILE"
+
+mv "$TMP_ENCRYPTED_FILE" "$ENCRYPTED_TAR_FILE"
+
