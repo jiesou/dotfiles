@@ -1,11 +1,11 @@
 {{- $in_termux := env "TERMUX__PREFIX" | not | not -}}
 {{- $target_path := joinPath .chezmoi.homeDir ".var/app/org.fcitx.Fcitx5/data/fcitx5/rime/sync" -}}
 {{- if $in_termux -}}
-{{- $target_path = "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime/sync" -}}
+  {{- $target_path = "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime/sync" -}}
 {{- end -}}
 {{- $trigger_probe_cmd := printf "set -eu\nif [ ! -d %q ]; then printf missing; exit 0; fi\ncd %q\nfind . -type f -print0 | LC_ALL=C sort -z | xargs -0 git hash-object | git hash-object --stdin\n" $target_path $target_path -}}
 {{- if $in_termux -}}
-{{- $trigger_probe_cmd = printf "set -eu\nif ! sudo test -d %q; then printf missing; exit 0; fi\nsudo sh -c 'cd "$1" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 git hash-object | git hash-object --stdin' sh %q\n" $target_path $target_path -}}
+  {{- $trigger_probe_cmd = printf "set -eu\nif ! sudo test -d %q; then printf missing; exit 0; fi\nsudo sh -c \"cd '%s' && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 git hash-object | git hash-object --stdin\"\n" $target_path $target_path -}}
 {{- end -}}
 {{- $encrypted_tar_file := joinPath .chezmoi.sourceDir "fcitx5-rime-sync.tar.asc" -}}
 #!/bin/sh
@@ -16,14 +16,9 @@ set -eu
 TARGET_PATH={{ printf "%q" $target_path }}
 ENCRYPTED_TAR_FILE={{ printf "%q" $encrypted_tar_file }}
 
-if [ ! -d "$TARGET_PATH" ]; then
-  echo "fcitx5-rime-sync: target path not found, skip push" >&2
-  exit 0
-fi
-
 TMP_TAR_FILE="$(mktemp)"
 TMP_ENCRYPTED_TAR_FILE="$(mktemp)"
-trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_FILE"' EXIT HUP INT TERM
+trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"' EXIT HUP INT TERM
 
 {{- if not $in_termux }}
 tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
