@@ -1,6 +1,10 @@
-#!/bin/bash
-read -p "Install AI Tools? [y/N]: " confirm
-[[ "$confirm" != [yY]* ]] && exit 0
+#!/bin/sh
+printf "Install AI Tools? [y/N]: "
+read -r confirm
+case "$confirm" in
+    [yY]*) ;;
+    *) exit 0 ;;
+esac
 
 echo "Installing AI Tools..."
 command -v claude || curl -fsSL https://claude.ai/install.sh | bash

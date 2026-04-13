@@ -1,6 +1,8 @@
-{{- $termux_target := "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime/sync" -}}
-{{- $flatpak_target := joinPath .chezmoi.homeDir ".var/app/org.fcitx.Fcitx5/data/fcitx5/rime/sync" -}}
-{{- $target_path := output "sh" "-c" (printf "if command -v termux-setup-storage >/dev/null 2>&1; then printf %%s %q; else printf %%s %q; fi" $termux_target $flatpak_target) | trim -}}
+{{- $in_termux := env "TERMUX__PREFIX" | not | not -}}
+{{- $target_path := joinPath .chezmoi.homeDir ".var/app/org.fcitx.Fcitx5/data/fcitx5/rime/sync" -}}
+{{- if $in_termux -}}
+{{- $target_path = "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime/sync" -}}
+{{- end -}}
 {{- $encrypted_tar_file := joinPath .chezmoi.sourceDir "fcitx5-rime-sync.tar.asc" -}}
 #!/bin/sh
 set -eu
@@ -19,5 +21,9 @@ TMP_TAR_FILE="$(mktemp)"
 trap 'rm -f "$TMP_TAR_FILE"' EXIT HUP INT TERM
 
 chezmoi decrypt --output "$TMP_TAR_FILE" "$ENCRYPTED_TAR_FILE"
-tar -xpf "$TMP_TAR_FILE" -C "$TARGET_PATH"
-
+{{- if not $in_termux }}
+tar -x -f "$TMP_TAR_FILE" -C "$TARGET_PATH"
+{{- else }}
+sudo tar -x -f "$TMP_TAR_FILE" -C "$TARGET_PATH"
+sudo chown -R u0_a884:ext_data_rw "$TARGET_PATH"
+{{- end }}
