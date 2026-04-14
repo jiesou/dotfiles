@@ -9,11 +9,16 @@ set -eu
 
 # run on this change: {{ output "sh" "-c" (printf "if [ -f %q ]; then git hash-object %q; else printf missing; fi" $encrypted_tar_file $encrypted_tar_file)}}
 
+if ! git lfs version >/dev/null 2>&1; then
+  echo "pull-fcitx5-rime-sync: git-lfs not available, skip" >&2
+  exit 0
+fi
+
 TARGET_PATH={{ printf "%q" $target_path }}
 ENCRYPTED_TAR_FILE={{ printf "%q" $encrypted_tar_file }}
 
 if [ ! -f "$ENCRYPTED_TAR_FILE" ]; then
-  echo "fcitx5-rime-sync: encrypted tar file not found, skip pull" >&2
+  echo "pull-fcitx5-rime-sync: fcitx5-rime-sync.tar.asc is in Git LFS, but git-lfs not available, skip" >&2
   exit 0
 fi
 
