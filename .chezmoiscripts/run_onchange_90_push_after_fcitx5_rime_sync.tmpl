@@ -32,4 +32,4 @@ sudo tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
 {{- end }}
 chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
 mv "$TMP_ENCRYPTED_TAR_FILE" "$ENCRYPTED_TAR_FILE"
-
+echo "push-fcitx5-rime-sync: finished!"

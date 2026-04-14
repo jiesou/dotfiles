@@ -9,3 +9,9 @@ git config --global core.compression 9
 git config --global commit.gpgsign true
 git config --global gpg.format ssh
 git config --global user.signingkey "key::ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEL6xVngEgZAuK7yfyWcXRDilILL8PpNJfqek9U63JLu 84175239+jiesou@users.noreply.github.com"
+
+if git lfs version >/dev/null 2>&1; then
+  git lfs install
+else
+  echo "run_once_gitconfig: git-lfs not available, skip lfs install" >&2
+fi
