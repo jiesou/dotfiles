@@ -13,11 +13,6 @@ set -eu
 
 # run on this change: {{ output "sh" "-c" $trigger_probe_cmd | trim }}
 
-if ! git lfs version >/dev/null 2>&1; then
-  echo "push-fcitx5-rime-sync: fcitx5-rime-sync.tar.asc is in Git LFS, but git-lfs not available, skip" >&2
-  exit 0
-fi
-
 TARGET_PATH={{ printf "%q" $target_path }}
 ENCRYPTED_TAR_FILE={{ printf "%q" $encrypted_tar_file }}
 
@@ -32,4 +27,52 @@ sudo tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
 {{- end }}
 chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
 mv "$TMP_ENCRYPTED_TAR_FILE" "$ENCRYPTED_TAR_FILE"
+
+# Push to chezmoi-blob
+{{ $decryptedJson := output "chezmoi" "decrypt" (joinPath .chezmoi.sourceDir "secrets_chezmoi_blob.json.asc") -}}
+{{ $secrets := $decryptedJson | fromJson -}}
+S3_ACCESS_KEY_ID="{{ $secrets.S3_ACCESS_KEY_ID }}"
+S3_SECRET_ACCESS_KEY="{{ $secrets.S3_SECRET_ACCESS_KEY }}"
+S3_BASE_URL=https://chezmoi-blob.loliis.top
+REMOTE_KEY=files/fcitx5-rime-sync.tar.asc
+
+PRESIGN_JSON="$(
+  curl -fsS \
+    -X POST \
+    -H "content-type: application/json" \
+    -H "x-s3-access-key-id: $S3_ACCESS_KEY_ID" \
+    -H "x-s3-secret-access-key: $S3_SECRET_ACCESS_KEY" \
+    --data-binary "{\"key\":\"$REMOTE_KEY\",\"contentType\":\"application/octet-stream\"}" \
+    "$S3_BASE_URL/api/s3/presign"
+)"
+PRESIGN_JSON=$(printf '%s' "$PRESIGN_JSON" | tr -d '\n')
+
+UPLOAD_URL=$(printf '%s' "$PRESIGN_JSON" | sed -n 's/.*"upload":{"url":"\([^"]*\)".*/\1/p')
+AUTHORIZATION=$(printf '%s' "$PRESIGN_JSON" | sed -n 's/.*"authorization":"\([^"]*\)".*/\1/p')
+X_API_VERSION=$(printf '%s' "$PRESIGN_JSON" | sed -n 's/.*"x-api-version":"\([^"]*\)".*/\1/p')
+X_API_BLOB_REQUEST_ID=$(printf '%s' "$PRESIGN_JSON" | sed -n 's/.*"x-api-blob-request-id":"\([^"]*\)".*/\1/p')
+X_API_BLOB_REQUEST_ATTEMPT=$(printf '%s' "$PRESIGN_JSON" | sed -n 's/.*"x-api-blob-request-attempt":"\([^"]*\)".*/\1/p')
+X_VERCEL_BLOB_ACCESS=$(printf '%s' "$PRESIGN_JSON" | sed -n 's/.*"x-vercel-blob-access":"\([^"]*\)".*/\1/p')
+X_CONTENT_TYPE=$(printf '%s' "$PRESIGN_JSON" | sed -n 's/.*"x-content-type":"\([^"]*\)".*/\1/p')
+
+[ -n "$UPLOAD_URL" ]
+[ -n "$AUTHORIZATION" ]
+[ -n "$X_API_VERSION" ]
+[ -n "$X_API_BLOB_REQUEST_ID" ]
+[ -n "$X_API_BLOB_REQUEST_ATTEMPT" ]
+[ -n "$X_VERCEL_BLOB_ACCESS" ]
+[ -n "$X_CONTENT_TYPE" ]
+
+curl -fsS \
+  -X PUT \
+  -H "authorization: $AUTHORIZATION" \
+  -H "x-api-version: $X_API_VERSION" \
+  -H "x-api-blob-request-id: $X_API_BLOB_REQUEST_ID" \
+  -H "x-api-blob-request-attempt: $X_API_BLOB_REQUEST_ATTEMPT" \
+  -H "x-vercel-blob-access: $X_VERCEL_BLOB_ACCESS" \
+  -H "x-content-type: $X_CONTENT_TYPE" \
+  --data-binary @"$ENCRYPTED_TAR_FILE" \
+  "$UPLOAD_URL" \
+  >/dev/null
+
 echo "push-fcitx5-rime-sync: finished!"
