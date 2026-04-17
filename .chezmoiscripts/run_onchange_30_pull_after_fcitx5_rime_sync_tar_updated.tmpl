@@ -3,36 +3,25 @@
 {{- if $in_termux -}}
   {{- $target_path = "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime/sync" -}}
 {{- end -}}
-{{- $encrypted_tar_file := joinPath .chezmoi.sourceDir "fcitx5-rime-sync.tar.asc" -}}
 #!/bin/sh
 set -eu
 
-# run on this change: {{ output "sh" "-c" (printf "if [ -f %q ]; then git hash-object %q; else printf missing; fi" $encrypted_tar_file $encrypted_tar_file)}}
-
 TARGET_PATH={{ printf "%q" $target_path }}
-ENCRYPTED_TAR_FILE={{ printf "%q" $encrypted_tar_file }}
-
 TMP_TAR_FILE="$(mktemp)"
-trap 'rm -f "$TMP_TAR_FILE"' EXIT HUP INT TERM
+TMP_ENCRYPTED_TAR_FILE="$(mktemp)"
+{{ template "chezmoi-blob.sh.tmpl" . }}
+trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"' EXIT HUP INT TERM
 
 # Pull from chezmoi-blob
-S3_BASE_URL=https://chezmoi-blob.loliis.top
-S3_BUCKET=chezmoi-blob
-REMOTE_KEY=files/fcitx5-rime-sync.tar.asc
-response_status=$(curl -sL \
-  -w "%{http_code}" \
-  "$S3_BASE_URL/$S3_BUCKET/$REMOTE_KEY" \
-  -o "$ENCRYPTED_TAR_FILE")
-if [ "$response_status" = "404" ]; then
-    echo "pull-fcitx5-rime-sync: chezmoi-blob not found, skip"
-    # 如果 404 了，可以选择直接退出脚本，或者跳过解密环节
-    exit 0 
-elif [ "$response_status" != "200" ]; then
-    echo "pull-fcitx5-rime-sync: chezmoi-blob download failed with status $response_status"
-    exit 1
-fi
+REMOTE_KEY=fcitx5-rime-sync.tar.asc
 
-chezmoi decrypt --output "$TMP_TAR_FILE" "$ENCRYPTED_TAR_FILE"
+chezmoi_blob \
+  get \
+  "$REMOTE_KEY" \
+  "$TMP_ENCRYPTED_TAR_FILE" \
+|| echo "pull-fcitx5-rime-sync: failed to pull file from chezmoi-blob, skip"
+
+chezmoi decrypt --output "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"
 {{- if not $in_termux }}
 tar -x -f "$TMP_TAR_FILE" -C "$TARGET_PATH"
 {{- else }}
