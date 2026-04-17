@@ -7,16 +7,18 @@
 {{- if $in_termux -}}
   {{- $trigger_probe_cmd = printf "set -eu\nif ! sudo test -d %q; then printf missing; exit 0; fi\nsudo sh -c \"cd '%s' && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 git hash-object | git hash-object --stdin\"\n" $target_path $target_path -}}
 {{- end -}}
+{{- $trigger_hash := output "sh" "-c" $trigger_probe_cmd | trim -}}
 #!/bin/sh
 set -eu
+# run on this change: {{ $trigger_hash }}
 
-# run on this change: {{ output "sh" "-c" $trigger_probe_cmd | trim }}
-
+TRIGGER_HASH={{ printf "%q" $trigger_hash }}
 TARGET_PATH={{ printf "%q" $target_path }}
 TMP_TAR_FILE="$(mktemp)"
 TMP_ENCRYPTED_TAR_FILE="$(mktemp)"
+TMP_TRIGGER_HASH_FILE="$(mktemp)"
 {{ template "chezmoi-blob.sh.tmpl" . }}
-trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"' EXIT HUP INT TERM
+trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TRIGGER_HASH_FILE"' EXIT HUP INT TERM
 
 {{- if not $in_termux }}
 tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
@@ -27,10 +29,16 @@ chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
 
 # Push to chezmoi-blob
 REMOTE_KEY=fcitx5-rime-sync.tar.asc
-
 chezmoi_blob \
   put \
   "$TMP_ENCRYPTED_TAR_FILE" \
   "$REMOTE_KEY"
+echo "$TRIGGER_HASH" > "$TMP_TRIGGER_HASH_FILE"
+TRIGGER_HASH_FILE_REMOTE_KEY="$REMOTE_KEY.hash"
+chezmoi_blob \
+  put \
+  "$TMP_TRIGGER_HASH_FILE" \
+  "$TRIGGER_HASH_FILE_REMOTE_KEY" \
+  text/plain
 
 echo "push-fcitx5-rime-sync: finished!"

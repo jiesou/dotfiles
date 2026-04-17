@@ -5,6 +5,7 @@
 {{- end -}}
 #!/bin/sh
 set -eu
+# run on this change: {{ output "sh" "-c" "curl -fsSL 'https://JWtlXYH8eujeKSEx.public.blob.vercel-storage.com/bucket/fcitx5-rime-sync.tar.asc.hash' || true" }}
 
 TARGET_PATH={{ printf "%q" $target_path }}
 TMP_TAR_FILE="$(mktemp)"
@@ -14,12 +15,11 @@ trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"' EXIT HUP INT TERM
 
 # Pull from chezmoi-blob
 REMOTE_KEY=fcitx5-rime-sync.tar.asc
-
 chezmoi_blob \
   get \
   "$REMOTE_KEY" \
   "$TMP_ENCRYPTED_TAR_FILE" \
-|| echo "pull-fcitx5-rime-sync: failed to pull file from chezmoi-blob, skip"
+|| echo "pull-fcitx5-rime-sync: failed to pull file from chezmoi-blob, skip" && exit 0
 
 chezmoi decrypt --output "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"
 {{- if not $in_termux }}

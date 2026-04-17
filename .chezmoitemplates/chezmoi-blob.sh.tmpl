@@ -5,8 +5,8 @@ chezmoi_blob_s3_access_key_id="{{ $secrets.S3_ACCESS_KEY_ID }}"
 chezmoi_blob_s3_secret_access_key="{{ $secrets.S3_SECRET_ACCESS_KEY }}"
 
 chezmoi_blob_usage() {
-  echo "usage: chezmoi_blob_client put <local-file> <remote-key> [content-type]" >&2
-  echo "       chezmoi_blob_client get <remote-key> <output-file>" >&2
+  echo "usage: chezmoi_blob put <local-file> <remote-key> [content-type]" >&2
+  echo "       chezmoi_blob get <remote-key> <output-file>" >&2
   return 1
 }
 
@@ -25,7 +25,7 @@ chezmoi_blob() {
     put)
       local_file=${2-}
       remote_key=${3-}
-      [ -f "$local_file" ] || { echo "missing file: $local_file" >&2; return 1; }
+      [ -f "$local_file" ] || { echo "chezmoi-blob: missing file $local_file" >&2; return 1; }
 
       # Get presigned URL for uploading
       body=$(printf '{"operation":"put_object","bucket":"%s","key":"%s","contentType":"%s"}' \
@@ -39,17 +39,16 @@ chezmoi_blob() {
         --data-binary "$body" \
         "$chezmoi_blob_s3_base_url/api/s3/presign")
       chezmoi_blob_json=$(printf '%s' "$chezmoi_blob_json" | tr -d '\n')
-      echo "got presign response: $chezmoi_blob_json" >&2
 
       # Forward upload request directly to Storage
       upload_url=$(printf '%s' "$chezmoi_blob_json" | sed -n 's/.*"upload":{"url":"\([^"]*\)".*/\1/p')
       upload_headers=$(printf '%s' "$chezmoi_blob_json" | sed -n 's/.*"headers":{\([^}]*\)}.*/\1/p')
-      [ -n "$upload_url" ] && [ -n "$upload_headers" ] || { echo "invalid presign response" >&2; return 1; }
+      [ -n "$upload_url" ] && [ -n "$upload_headers" ] || { echo "chezmoi-blob: invalid presign response" >&2; return 1; }
       printf '%s' "$upload_headers" |
         tr ',' '\n' |
         sed 's/^"//; s/"$//; s/":"\(.*\)$/\: \1/; s/^/header = "/; s/$/"/' |
         curl -fsSL -X PUT -K - --data-binary @"$local_file" "$upload_url" >/dev/null
-      echo "$(chezmoi_blob_json_get publicUrl)"
+      echo "chezmoi-blob: uploaded to $(chezmoi_blob_json_get publicUrl)"
       ;;
     get)
       remote_key=${2-}
@@ -66,13 +65,12 @@ chezmoi_blob() {
         --data-binary "$body" \
         "$chezmoi_blob_s3_base_url/api/s3/presign")
       chezmoi_blob_json=$(printf '%s' "$chezmoi_blob_json" | tr -d '\n')
-      echo "got presign response: $chezmoi_blob_json" >&2
 
       # Download file directly from Storage
       download_url=$(printf '%s' "$chezmoi_blob_json" | sed -n 's/.*"download":{"url":"\([^"]*\)".*/\1/p')
-      [ -n "$download_url" ] || { echo "invalid presign response" >&2; return 1; }
+      [ -n "$download_url" ] || { echo "chezmoi-blob: invalid presign response" >&2; return 1; }
       curl -fsSL "$download_url" -o "$local_file"
-      echo "$(chezmoi_blob_json_get publicUrl)"
+      echo "chezmoi-blob: downloaded from $(chezmoi_blob_json_get publicUrl)"
       ;;
     *)
       chezmoi_blob_usage
