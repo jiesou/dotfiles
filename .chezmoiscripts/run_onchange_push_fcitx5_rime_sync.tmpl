@@ -1,31 +1,29 @@
 #!/bin/sh
-{{- $fcitx5_rime_sync := includeTemplate "fcitx5-rime-sync.yaml.tmpl" . | fromYaml -}}
-{{- if not (stat $fcitx5_rime_sync.target_path) }}
-exit 0
-{{- else }}
-{{- $trigger_hash_cmd := printf "find %q -type f -print0 | sort -z | xargs -0 cat" $fcitx5_rime_sync.target_path -}}
-{{- $trigger_hash := "" -}}
-{{- if $fcitx5_rime_sync.in_termux -}}
-  {{- $trigger_hash = output "sudo" "sh" "-c" $trigger_hash_cmd | sha256sum -}}
-{{- else -}}
-  {{- $trigger_hash = output "sh" "-c" $trigger_hash_cmd | sha256sum -}}
-{{- end }}
+{{ $fcitx5_rime_sync := includeTemplate "fcitx5-rime-sync.yaml.tmpl" . | fromYaml }}
+{{ $trigger_hash_cmd := printf "find %q -type f -print0 | sort -z | xargs -0 cat" $fcitx5_rime_sync.target_path }}
+{{ $trigger_hash := "" }}
+{{ if $fcitx5_rime_sync.in_termux }}
+  {{ $trigger_hash = output "sudo" "sh" "-c" $trigger_hash_cmd | sha256sum }}
+{{ else }}
+  {{ $trigger_hash = output "sh" "-c" $trigger_hash_cmd | sha256sum }}
+{{ end }}
 set -eu
 # run on this change: {{ $trigger_hash }}
 
 TRIGGER_HASH={{ printf "%q" $trigger_hash }}
 TARGET_PATH={{ printf "%q" $fcitx5_rime_sync.target_path }}
+if ! {{ $fcitx5_rime_sync.cmd_prefix }} [ -d "$TARGET_PATH" ]; then
+    echo "push-fcitx5-rime-sync: target path does not exist, skipping..."
+    exit 0
+fi
+
 TMP_TAR_FILE="$(mktemp)"
 TMP_ENCRYPTED_TAR_FILE="$(mktemp)"
 TMP_TRIGGER_HASH_FILE="$(mktemp)"
 {{ template "chezmoi-blob.sh.tmpl" . }}
 trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TRIGGER_HASH_FILE"' EXIT HUP INT TERM
 
-{{- if not $fcitx5_rime_sync.in_termux }}
-tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
-{{- else }}
-sudo tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
-{{- end }}
+{{ $fcitx5_rime_sync.cmd_prefix }} tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
 chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
 
 # Push to chezmoi-blob
@@ -40,7 +38,5 @@ chezmoi_blob \
   put \
   "$TMP_TRIGGER_HASH_FILE" \
   "$TRIGGER_HASH_FILE_REMOTE_KEY" \
-  text/plain
 
 echo "push-fcitx5-rime-sync: finished!"
-{{- end }}
