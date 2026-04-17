@@ -1,0 +1,7 @@
+{{- $in_termux := env "TERMUX__PREFIX" | not | not -}}
+{{- $target_path := joinPath .chezmoi.homeDir ".var/app/org.fcitx.Fcitx5/data/fcitx5/rime/sync" -}}
+{{- if $in_termux -}}
+  {{- $target_path = "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime/sync" -}}
+{{- end -}}
+in_termux: {{ $in_termux }}
+target_path: {{ $target_path | quote }}

@@ -1,13 +1,12 @@
-{{- $in_termux := env "TERMUX__PREFIX" | not | not -}}
-{{- $target_path := joinPath .chezmoi.homeDir ".var/app/org.fcitx.Fcitx5/data/fcitx5/rime/sync" -}}
-{{- if $in_termux -}}
-  {{- $target_path = "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime/sync" -}}
-{{- end -}}
 #!/bin/sh
+{{- $fcitx5_rime_sync := includeTemplate "fcitx5-rime-sync.yaml.tmpl" . | fromYaml -}}
+{{- if not (stat $fcitx5_rime_sync.target_path) }}
+exit 0
+{{- else }}
 set -eu
 # run on this change: {{ output "sh" "-c" "curl -fsSL 'https://JWtlXYH8eujeKSEx.public.blob.vercel-storage.com/bucket/fcitx5-rime-sync.tar.asc.hash' || true" }}
 
-TARGET_PATH={{ printf "%q" $target_path }}
+TARGET_PATH={{ printf "%q" $fcitx5_rime_sync.target_path }}
 TMP_TAR_FILE="$(mktemp)"
 TMP_ENCRYPTED_TAR_FILE="$(mktemp)"
 {{ template "chezmoi-blob.sh.tmpl" . }}
@@ -22,7 +21,7 @@ chezmoi_blob \
 || echo "pull-fcitx5-rime-sync: failed to pull file from chezmoi-blob, skip" && exit 0
 
 chezmoi decrypt --output "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"
-{{- if not $in_termux }}
+{{- if not $fcitx5_rime_sync.in_termux }}
 tar -x -f "$TMP_TAR_FILE" -C "$TARGET_PATH"
 {{- else }}
 sudo tar -x -f "$TMP_TAR_FILE" -C "$TARGET_PATH"
@@ -30,3 +29,4 @@ sudo chown -R u0_a884:ext_data_rw "$TARGET_PATH"
 {{- end }}
 
 echo "pull-fcitx5-rime-sync: finished!"
+{{- end }}
