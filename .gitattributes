@@ -1,3 +1,0 @@
-fcitx5-rime-sync.tar.asc filter=lfs diff=lfs merge=lfs -text
-/var/home/chen/.local/share/chezmoi/fcitx5-rime-sync.tar.asc filter=lfs diff=lfs merge=lfs -text
-.chezmoiscripts/fcitx5-rime-sync.tar.asc filter=lfs diff=lfs merge=lfs -text
