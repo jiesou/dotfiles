@@ -1,8 +1,9 @@
 #!/bin/sh
+{{ $termux := includeTemplate "termux.yaml.tmpl" . | fromYaml }}
 {{ $fcitx5_rime_sync := includeTemplate "fcitx5-rime-sync.yaml.tmpl" . | fromYaml }}
 {{ $trigger_hash_cmd := printf "find %q -type f -print0 | sort -z | xargs -0 cat" $fcitx5_rime_sync.target_path }}
 {{ $trigger_hash := "" }}
-{{ if $fcitx5_rime_sync.in_termux }}
+{{ if $termux.in_termux }}
   {{ $trigger_hash = output "sudo" "sh" "-c" $trigger_hash_cmd | sha256sum }}
 {{ else }}
   {{ $trigger_hash = output "sh" "-c" $trigger_hash_cmd | sha256sum }}
@@ -12,7 +13,7 @@ set -eu
 
 TRIGGER_HASH={{ printf "%q" $trigger_hash }}
 TARGET_PATH={{ printf "%q" $fcitx5_rime_sync.target_path }}
-if ! {{ $fcitx5_rime_sync.cmd_prefix }} [ -d "$TARGET_PATH" ]; then
+if ! {{ $termux.cmd_prefix }} [ -d "$TARGET_PATH" ]; then
     echo "push-fcitx5-rime-sync: target path does not exist, skipping..."
     exit 0
 fi
@@ -23,7 +24,7 @@ TMP_TRIGGER_HASH_FILE="$(mktemp)"
 {{ template "chezmoi-blob.sh.tmpl" . }}
 trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TRIGGER_HASH_FILE"' EXIT HUP INT TERM
 
-{{ $fcitx5_rime_sync.cmd_prefix }} tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
+{{ $termux.cmd_prefix }} tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
 chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
 
 # Push to chezmoi-blob

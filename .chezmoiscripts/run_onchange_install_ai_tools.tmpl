@@ -1,0 +1,20 @@
+#!/bin/sh
+{{ $termux := includeTemplate "termux.yaml.tmpl" . | fromYaml }}
+set -eu
+
+printf "Install AI Tools? [y/N]: "
+read -r confirm
+case "$confirm" in
+    [yY]*) ;;
+    *) exit 0 ;;
+esac
+
+echo "Installing AI Tools..."
+{{- if not $termux.in_termux }}
+  command -v claude || curl -fsSL https://claude.ai/install.sh | bash
+  command -v opencode || curl -fsSL https://opencode.ai/install | bash
+  command -v cc-switch || curl -fsSL https://github.com/SaladDay/cc-switch-cli/releases/latest/download/install.sh | bash
+{{ else }}
+  command -v codex || npm install -g @mmmbuto/codex-cli-termux@latest
+{{ end }}
+

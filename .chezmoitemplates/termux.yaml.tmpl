@@ -1,0 +1,7 @@
+{{ $in_termux := env "TERMUX__PREFIX" | not | not }}
+{{ $cmd_prefix := "" }}
+{{ if $in_termux }}
+  {{ $cmd_prefix = "sudo " }}
+{{ end }}
+in_termux: {{ $in_termux }}
+cmd_prefix: {{ $cmd_prefix | quote }}

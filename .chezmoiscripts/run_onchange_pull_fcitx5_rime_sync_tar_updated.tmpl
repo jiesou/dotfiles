@@ -1,10 +1,11 @@
 #!/bin/sh
+{{ $termux := includeTemplate "termux.yaml.tmpl" . | fromYaml }}
 {{ $fcitx5_rime_sync := includeTemplate "fcitx5-rime-sync.yaml.tmpl" . | fromYaml }}
 set -eu
 # run on this change: {{ output "sh" "-c" "curl -fsSL 'https://JWtlXYH8eujeKSEx.public.blob.vercel-storage.com/bucket/fcitx5-rime-sync.tar.asc.hash' || true" }}
 
 TARGET_PATH={{ printf "%q" $fcitx5_rime_sync.target_path }}
-if ! {{ $fcitx5_rime_sync.cmd_prefix }} [ -d "$TARGET_PATH" ]; then
+if ! {{ $termux.cmd_prefix }} [ -d "$TARGET_PATH" ]; then
     echo "pull-fcitx5-rime-sync: target path does not exist, skip"
     exit 0
 fi
@@ -23,8 +24,8 @@ chezmoi_blob \
 || echo "pull-fcitx5-rime-sync: failed to pull file from chezmoi-blob, skip" && exit 0
 
 chezmoi decrypt --output "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"
-{{ $fcitx5_rime_sync.cmd_prefix }} tar -x -f "$TMP_TAR_FILE" -C "$TARGET_PATH"
-{{- if $fcitx5_rime_sync.in_termux }}
+{{ $termux.cmd_prefix }} tar -x -f "$TMP_TAR_FILE" -C "$TARGET_PATH"
+{{- if $termux.in_termux }}
 sudo chown -R u0_a884:ext_data_rw "$TARGET_PATH"
 {{- end }}
 
