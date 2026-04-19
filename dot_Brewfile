@@ -25,6 +25,8 @@ brew "uv"
 brew "espressif/eim/eim"
 # Terminal-based AI coding assistant
 cask "claude-code"
+# OpenAI's coding agent that runs in your terminal
+cask "codex"
 # Brings the power of Copilot coding agent directly to your terminal
 cask "copilot-cli"
 vscode "actboy168.lua-debug"
@@ -130,7 +132,6 @@ flatpak "org.gnome.Showtime"
 flatpak "org.gnome.SimpleScan"
 flatpak "org.gnome.Snapshot"
 flatpak "org.gnome.TextEditor"
-flatpak "org.gnome.Weather"
 flatpak "org.gnome.World.PikaBackup"
 flatpak "org.gnome.baobab"
 flatpak "org.gnome.clocks"
