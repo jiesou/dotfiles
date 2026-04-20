@@ -15,6 +15,7 @@ TMP_ENCRYPTED_TAR_FILE="$(mktemp)"
 {{ template "chezmoi-blob.sh.tmpl" . }}
 trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"' EXIT HUP INT TERM
 
+echo "pull-fcitx5-rime-sync: triggered, pulling..."
 # pull from chezmoi-blob
 REMOTE_KEY=fcitx5-rime-sync.tar.asc
 chezmoi_blob \

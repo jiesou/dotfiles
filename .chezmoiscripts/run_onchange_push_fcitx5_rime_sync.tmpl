@@ -24,6 +24,7 @@ TMP_TRIGGER_HASH_FILE="$(mktemp)"
 {{ template "chezmoi-blob.sh.tmpl" . }}
 trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TRIGGER_HASH_FILE"' EXIT HUP INT TERM
 
+echo "push-fcitx5-rime-sync: triggered, packing..."
 {{ $termux.cmd_prefix }} tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
 chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
 
@@ -43,9 +44,29 @@ chezmoi_blob \
 # after push, mark pull script as "not changed", so it wont override local next time
 _pull_tmpl={{ joinPath .chezmoi.sourceDir ".chezmoiscripts" "run_onchange_pull_fcitx5_rime_sync_tar_updated.tmpl" | quote }}
 _pull_key={{ joinPath .chezmoi.homeDir ".chezmoiscripts" "pull_fcitx5_rime_sync_tar_updated" | quote }}
-_pull_hash=$(chezmoi execute-template < "$_pull_tmpl" | sha256sum | awk '{print $1}')
-echo "push-fcitx5-rime-sync: pull script marked as 'not changed', new hash: $_pull_hash"
+
+echo "push-fcitx5-rime-sync: waiting for remote hash update..."
+_old_pull_hash=$(chezmoi execute-template < "$_pull_tmpl" | sha256sum | awk '{print $1}')
+_pull_hash="$_old_pull_hash"
+for _i in $(seq 1 10); do
+  _pull_hash=$(chezmoi execute-template < "$_pull_tmpl" | sha256sum | awk '{print $1}')
+  echo "  waiting $_i"
+  if [ "$_pull_hash" != "$_old_pull_hash" ]; then
+    break
+  fi
+  sleep 1
+done
+
+if [ "$_pull_hash" = "$_old_pull_hash" ]; then
+  echo "push-fcitx5-rime-sync: hash did not change within 10s, skip marking"
+  exit 0
+fi
+
 _pull_value="{\"type\":\"script\",\"contentsSHA256\":\"$_pull_hash\"}"
+printf '%s\n' \
+  "push-fcitx5-rime-sync: mark pull script as 'done'" \
+  "  old hash: $_old_pull_hash" \
+  "  new hash: $_pull_hash"
 (
   for _i in $(seq 1 30); do
     if chezmoi state set \
