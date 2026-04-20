@@ -41,9 +41,8 @@ chezmoi_blob \
   "$TMP_TRIGGER_HASH_FILE" \
   "$TRIGGER_HASH_FILE_REMOTE_KEY" \
 
-# after push, mark pull script as "not changed", so it wont override local next time
+# after push, mark pull script as "done", so it wont override local next time
 _pull_tmpl={{ joinPath .chezmoi.sourceDir ".chezmoiscripts" "run_onchange_pull_fcitx5_rime_sync_tar_updated.tmpl" | quote }}
-_pull_key={{ joinPath .chezmoi.homeDir ".chezmoiscripts" "pull_fcitx5_rime_sync_tar_updated" | quote }}
 
 echo "push-fcitx5-rime-sync: waiting for remote hash update..."
 _old_pull_hash=$(chezmoi execute-template < "$_pull_tmpl" | sha256sum | awk '{print $1}')
@@ -62,6 +61,7 @@ if [ "$_pull_hash" = "$_old_pull_hash" ]; then
   exit 0
 fi
 
+_pull_key={{ joinPath .chezmoi.homeDir ".chezmoiscripts" "pull_fcitx5_rime_sync_tar_updated" | quote }}
 _pull_value="{\"type\":\"script\",\"contentsSHA256\":\"$_pull_hash\"}"
 printf '%s\n' \
   "push-fcitx5-rime-sync: mark pull script as 'done'" \
@@ -77,7 +77,6 @@ printf '%s\n' \
     fi
     sleep 0.3
   done
-) &
-disown
+) >/dev/null 2>&1 < /dev/null &
 
 echo "push-fcitx5-rime-sync: finished!"
