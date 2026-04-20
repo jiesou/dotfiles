@@ -27,7 +27,7 @@ trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TRIGGER_HASH_FILE"' 
 {{ $termux.cmd_prefix }} tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
 chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
 
-# Push to chezmoi-blob
+# push to chezmoi-blob
 REMOTE_KEY=fcitx5-rime-sync.tar.asc
 chezmoi_blob \
   put \
@@ -39,5 +39,24 @@ chezmoi_blob \
   put \
   "$TMP_TRIGGER_HASH_FILE" \
   "$TRIGGER_HASH_FILE_REMOTE_KEY" \
+
+# after push, mark pull script as "not changed", so it wont override local next time
+_pull_tmpl={{ joinPath .chezmoi.sourceDir ".chezmoiscripts" "run_onchange_pull_fcitx5_rime_sync_tar_updated.tmpl" | quote }}
+_pull_key={{ joinPath .chezmoi.homeDir ".chezmoiscripts" "pull_fcitx5_rime_sync_tar_updated" | quote }}
+_pull_hash=$(chezmoi execute-template < "$_pull_tmpl" | sha256sum | awk '{print $1}')
+echo "push-fcitx5-rime-sync: pull script marked as 'not changed', new hash: $_pull_hash"
+_pull_value="{\"type\":\"script\",\"contentsSHA256\":\"$_pull_hash\"}"
+(
+  for _i in $(seq 1 30); do
+    if chezmoi state set \
+        --bucket entryState \
+        --key "$_pull_key" \
+        --value "$_pull_value" 2>/dev/null; then
+      break
+    fi
+    sleep 0.3
+  done
+) &
+disown
 
 echo "push-fcitx5-rime-sync: finished!"
