@@ -42,6 +42,9 @@ trust_level = "trusted"
 [projects."/var/home/chen/Documents/dev/.blog"]
 trust_level = "trusted"
 
+[projects."/var/home/chen/.local/share/chezmoi"]
+trust_level = "trusted"
+
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
 "gpt-5.2-codex" = "gpt-5.4"
