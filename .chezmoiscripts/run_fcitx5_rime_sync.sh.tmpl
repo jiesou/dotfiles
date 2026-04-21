@@ -7,14 +7,14 @@
 set -eu
 
 TARGET_PATH={{ printf "%q" $target_path }}
-STATE_FILE="$CHEZMOI_SOURCE_DIR/.chezmoitemplates/fcitx5-rime-sync.trigger_state_hash"
+STATE_FILE="$CHEZMOI_SOURCE_DIR/.chezmoitemplates/fcitx5-rime-sync.trigger_state_hash.local"
 REMOTE_KEY="fcitx5-rime-sync.tar.asc"
 REMOTE_HASH_KEY="$REMOTE_KEY.hash"
 
-read_hash_file() {
+read_file() {
   file=${1-}
   [ -f "$file" ] || return 0
-  tr -d '\r\n' < "$file"
+  cat "$file"
 }
 
 if ! {{ $termux.cmd_prefix }}[ -d "$TARGET_PATH" ]; then
@@ -28,10 +28,10 @@ TMP_REMOTE_HASH_FILE="$(mktemp)"
 {{ includeTemplate "chezmoi-blob.sh.tmpl" . }}
 trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE" "$TMP_REMOTE_HASH_FILE"' EXIT HUP INT TERM
 
-state_hash=$(read_hash_file "$STATE_FILE")
+state_hash=$(read_file "$STATE_FILE")
 remote_hash=""
 if chezmoi_blob get "$REMOTE_HASH_KEY" "$TMP_REMOTE_HASH_FILE" >/dev/null 2>&1; then
-  remote_hash=$(read_hash_file "$TMP_REMOTE_HASH_FILE")
+  remote_hash=$(read_file "$TMP_REMOTE_HASH_FILE")
 fi
 
 if [ -n "$remote_hash" ] && [ "$remote_hash" != "$state_hash" ]; then
@@ -43,7 +43,6 @@ if [ -n "$remote_hash" ] && [ "$remote_hash" != "$state_hash" ]; then
     sudo chown -R u0_a884:ext_data_rw "$TARGET_PATH"
   {{- end }}
 
-  mkdir -p "$(dirname "$STATE_FILE")"
   printf '%s\n' "$remote_hash" > "$STATE_FILE"
   echo "fcitx5-rime-sync: pulled"
   exit 0
@@ -58,7 +57,6 @@ if [ "$local_hash" != "$state_hash" ]; then
   chezmoi_blob put "$TMP_ENCRYPTED_TAR_FILE" "$REMOTE_KEY"
   chezmoi_blob put "$TMP_REMOTE_HASH_FILE" "$REMOTE_HASH_KEY"
   
-  mkdir -p "$(dirname "$STATE_FILE")"
   printf '%s\n' "$local_hash" > "$STATE_FILE"
   echo "fcitx5-rime-sync: pushed"
   exit 0
