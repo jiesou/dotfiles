@@ -54,9 +54,13 @@ if [ "$local_hash" != "$state_hash" ]; then
   {{ $termux.cmd_prefix }}tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
   chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
   printf '%s\n' "$local_hash" > "$TMP_REMOTE_HASH_FILE"
-  chezmoi_blob put "$TMP_ENCRYPTED_TAR_FILE" "$REMOTE_KEY"
-  chezmoi_blob put "$TMP_REMOTE_HASH_FILE" "$REMOTE_HASH_KEY"
-  
+  chezmoi_blob put "$TMP_ENCRYPTED_TAR_FILE" "$REMOTE_KEY" &
+  PID1=$!
+  chezmoi_blob put "$TMP_REMOTE_HASH_FILE" "$REMOTE_HASH_KEY" &
+  PID2=$!
+  wait $PID1 || exit 1
+  wait $PID2 || exit 1
+
   printf '%s\n' "$local_hash" > "$STATE_FILE"
   echo "fcitx5-rime-sync: pushed"
   exit 0
