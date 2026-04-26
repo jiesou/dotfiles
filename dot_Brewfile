@@ -1,8 +1,4 @@
 tap "espressif/eim"
-# Open-source, cross-platform JavaScript runtime environment
-brew "node"
-# Secure and free password manager for all of your devices
-brew "bitwarden-cli"
 # Object-file caching compiler wrapper
 brew "ccache"
 # Manage your dotfiles across multiple diverse machines, securely
@@ -15,8 +11,12 @@ brew "deno"
 brew "dfu-util"
 # GNU compiler collection
 brew "gcc"
+# Ambitious Vim-fork focused on extensibility and agility
+brew "neovim"
 # Small build system for use with gyp or CMake
 brew "ninja"
+# Open-source, cross-platform JavaScript runtime environment
+brew "node"
 # AI coding agent, built for the terminal
 brew "opencode"
 # Extremely fast Python package installer and resolver, written in Rust
@@ -54,6 +54,7 @@ vscode "prisma.prisma"
 vscode "qassimfarid.ejs-language-support"
 vscode "qwtel.sqlite-viewer"
 vscode "slint.slint"
+vscode "sst-dev.opencode"
 vscode "sumneko.lua"
 vscode "vue.volar"
 flatpak "app.zen_browser.zen"
@@ -84,6 +85,7 @@ flatpak "com.tencent.WeChat"
 flatpak "com.termius.Termius"
 flatpak "com.usebottles.bottles"
 flatpak "com.valvesoftware.Steam"
+flatpak "de.leopoldluley.Clapgrep"
 flatpak "im.riot.Riot"
 flatpak "io.dbeaver.DBeaverCommunity"
 flatpak "io.github.flattool.Ignition"

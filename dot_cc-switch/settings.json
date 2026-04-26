@@ -5,6 +5,7 @@
   "skipClaudeOnboarding": false,
   "providerSwitchCommonConfigTipShown": true,
   "providerSwitchCommonConfigTipShownCodex": false,
+  "currentProviderClaude": "deepseek-ai",
   "visibleApps": {
     "claude": true,
     "codex": true,
@@ -12,7 +13,7 @@
     "opencode": true,
     "openclaw": true
   },
-  "language": "en",
+  "language": "zh",
   "launchOnStartup": false,
   "skillSyncMethod": "auto"
 }
