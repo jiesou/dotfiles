@@ -11,14 +11,14 @@ brew "deno"
 brew "dfu-util"
 # GNU compiler collection
 brew "gcc"
+# GitHub command-line tool
+brew "gh"
 # Ambitious Vim-fork focused on extensibility and agility
 brew "neovim"
 # Small build system for use with gyp or CMake
 brew "ninja"
 # Open-source, cross-platform JavaScript runtime environment
 brew "node"
-# AI coding agent, built for the terminal
-brew "opencode"
 # Extremely fast Python package installer and resolver, written in Rust
 brew "uv"
 # ESP-IDF Installation Manager - CLI tool for setting up ESP-IDF development environment
@@ -99,9 +99,11 @@ flatpak "io.github.nozwock.Packet"
 flatpak "io.github.pieterdd.RcloneShuttle"
 flatpak "io.github.ra3xdh.qucs_s"
 flatpak "io.github.radiolamp.mangojuice"
+flatpak "io.github.ungoogled_software.ungoogled_chromium"
 flatpak "io.github.vikdevelop.SaveDesktop"
 flatpak "io.gitlab.adhami3310.Impression"
 flatpak "io.missioncenter.MissionCenter"
+flatpak "io.mpv.Mpv"
 flatpak "io.mrarm.mcpelauncher"
 flatpak "io.podman_desktop.PodmanDesktop"
 flatpak "it.mijorus.gearlever"

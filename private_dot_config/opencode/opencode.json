@@ -1,19 +1,19 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "context7": {
-      "enabled": true,
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp"
-    },
     "chrome-devtools": {
-      "type": "local",
       "command": [
         "npx",
         "-y",
         "chrome-devtools-mcp@latest",
         "--autoConnect"
-      ]
+      ],
+      "type": "local"
+    },
+    "context7": {
+      "enabled": true,
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp"
     }
   },
   "plugin": [],
