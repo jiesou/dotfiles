@@ -59,16 +59,14 @@ if [ -n "$remote_hash" ] && [ "$remote_hash" != "$state_remote_hash" ]; then
 fi
 
 # --- push: upload only if our device directory changed ---
+echo "fcitx5-rime-sync: checking..."
 latest_state_device_hash=$({{ $termux.cmd_prefix }} sh -c "$HASH_COMMAND" -- "$TARGET_SYNC_PATH/$installation_id")
 if [ "$latest_state_device_hash" != "$state_device_hash" ]; then
-  echo "fcitx5-rime-sync: pushing... packing..."
+  echo "fcitx5-rime-sync: pushing..."
   {{ $termux.cmd_prefix }}tar -c -f "$TMP_TAR_FILE" -C "$TARGET_SYNC_PATH" .
-  echo "fcitx5-rime-sync: pushing... crypting..."
   chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
-  echo "fcitx5-rime-sync: pushing... hashing..."
   latest_state_remote_hash=$({{ $termux.cmd_prefix }} sh -c "$HASH_COMMAND" -- "$TARGET_SYNC_PATH")
   printf '%s\n' "$latest_state_remote_hash" > "$TMP_REMOTE_HASH_FILE"
-  echo "fcitx5-rime-sync: pushing..."
   chezmoi_blob put "$TMP_ENCRYPTED_TAR_FILE" "$REMOTE_KEY" &
   PID1=$!
   chezmoi_blob put "$TMP_REMOTE_HASH_FILE" "$REMOTE_HASH_KEY" &
