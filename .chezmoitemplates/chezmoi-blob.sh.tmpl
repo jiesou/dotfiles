@@ -73,7 +73,8 @@ chezmoi_blob() {
       # Quicker for fixed pattern url
       download_url="https://jwtlxyh8eujeksex.public.blob.vercel-storage.com/bucket/$remote_key"
       curl -fsSL "$download_url" -o "$local_file"
-      echo "  chezmoi-blob: downloaded from $(chezmoi_blob_json_get publicUrl)"
+      echo "  chezmoi-blob: downloaded from $download_url"
+      # echo "  chezmoi-blob: downloaded from $(chezmoi_blob_json_get publicUrl)"
       ;;
     *)
       chezmoi_blob_usage

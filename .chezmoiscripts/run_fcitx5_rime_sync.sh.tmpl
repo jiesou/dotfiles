@@ -79,7 +79,6 @@ if [ "$latest_state_device_hash" != "$state_device_hash" ]; then
   printf '%s\n' "$latest_state_remote_hash" > "$STATE_REMOTE_FILE"
   printf '%s\n' "$latest_state_device_hash" > "$STATE_DEVICE_FILE"
   echo "fcitx5-rime-sync: pushed"
-  exit 0
 fi
 
 echo "fcitx5-rime-sync: already up to date"
