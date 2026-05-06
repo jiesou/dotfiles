@@ -1,16 +1,21 @@
 #!/bin/sh
 {{ $termux := includeTemplate "termux.yaml.tmpl" . | fromYaml }}
-{{- $target_path := joinPath .chezmoi.homeDir ".var/app/org.fcitx.Fcitx5/data/fcitx5/rime/sync" }}
+{{- $target_path := joinPath .chezmoi.homeDir ".var/app/org.fcitx.Fcitx5/data/fcitx5/rime" }}
 {{- if $termux.in_termux }}
-  {{- $target_path = "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime/sync" }}
+  {{- $target_path = "/storage/emulated/0/Android/data/org.fcitx.fcitx5.android/files/data/rime" }}
 {{- end }}
 set -eu
 
 TARGET_PATH={{ printf "%q" $target_path }}
-STATE_FILE="$CHEZMOI_SOURCE_DIR/.chezmoitemplates/fcitx5-rime-sync.trigger_state_hash.local"
+TARGET_SYNC_PATH="$TARGET_PATH/sync"
+TARGET_INSTALL_YAML_PATH="$TARGET_PATH/installation.yaml"
+STATE_FILE="$CHEZMOI_SOURCE_DIR/.chezmoitemplates/fcitx5-rime-sync.trigger_state_hash"
+STATE_REMOTE_FILE="$STATE_FILE.remote.local"
+STATE_DEVICE_FILE="$STATE_FILE.device.local"
 REMOTE_KEY="fcitx5-rime-sync.tar.asc"
 REMOTE_HASH_KEY="$REMOTE_KEY.hash"
 
+HASH_COMMAND='find "$1" -type f -exec sha256sum {} + | LC_ALL=C sort | sha256sum | awk "{print \$1}"'
 read_file() {
   file=${1-}
   [ -f "$file" ] || return 0
@@ -18,7 +23,7 @@ read_file() {
 }
 
 if ! {{ $termux.cmd_prefix }}[ -d "$TARGET_PATH" ]; then
-  echo "fcitx5-rime-sync: target path does not exist, skip"
+  echo "fcitx5-rime-sync: target path does not exist, skip sync"
   exit 0
 fi
 
@@ -28,32 +33,42 @@ TMP_REMOTE_HASH_FILE="$(mktemp)"
 {{ includeTemplate "chezmoi-blob.sh.tmpl" . }}
 trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE" "$TMP_REMOTE_HASH_FILE"' EXIT HUP INT TERM
 
-state_hash=$(read_file "$STATE_FILE")
+state_remote_hash=$(read_file "$STATE_REMOTE_FILE")
+state_device_hash=$(read_file "$STATE_DEVICE_FILE")
+installation_id=$({{ $termux.cmd_prefix }}awk -F'"' '/installation_id/{print $2; exit}' "$TARGET_INSTALL_YAML_PATH")
+
+echo "fcitx5-rime-sync: $installation_id fetching..."
+
 remote_hash=""
 if chezmoi_blob get "$REMOTE_HASH_KEY" "$TMP_REMOTE_HASH_FILE" >/dev/null 2>&1; then
   remote_hash=$(read_file "$TMP_REMOTE_HASH_FILE")
 fi
 
-if [ -n "$remote_hash" ] && [ "$remote_hash" != "$state_hash" ]; then
+# --- pull: apply remote changes except our own device directory ---
+if [ -n "$remote_hash" ] && [ "$remote_hash" != "$state_remote_hash" ]; then
   echo "fcitx5-rime-sync: pulling..."
   chezmoi_blob get "$REMOTE_KEY" "$TMP_ENCRYPTED_TAR_FILE"
   chezmoi decrypt --output "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE"
-  {{ $termux.cmd_prefix }}tar -x -f "$TMP_TAR_FILE" -C "$TARGET_PATH"
+  {{ $termux.cmd_prefix }}tar -x --exclude="$installation_id" -f "$TMP_TAR_FILE" -C "$TARGET_SYNC_PATH"
   {{ if $termux.in_termux -}}
-    sudo chown -R u0_a884:ext_data_rw "$TARGET_PATH"
+    sudo chown -R u0_a884:ext_data_rw "$TARGET_SYNC_PATH"
   {{- end }}
 
-  printf '%s\n' "$remote_hash" > "$STATE_FILE"
+  printf '%s\n' "$remote_hash" > "$STATE_REMOTE_FILE"
   echo "fcitx5-rime-sync: pulled"
-  exit 0
 fi
 
-local_hash=$({{ $termux.cmd_prefix }}sh -ceu 'find "$1" -type f -exec sha256sum {} + 2>/dev/null | LC_ALL=C sort | sha256sum | awk "{print \$1}"' sh "$TARGET_PATH")
-if [ "$local_hash" != "$state_hash" ]; then
-  echo "fcitx5-rime-sync: pushing..."
-  {{ $termux.cmd_prefix }}tar -c -f "$TMP_TAR_FILE" -C "$TARGET_PATH" .
+# --- push: upload only if our device directory changed ---
+latest_state_device_hash=$({{ $termux.cmd_prefix }} sh -c "$HASH_COMMAND" -- "$TARGET_SYNC_PATH/$installation_id")
+if [ "$latest_state_device_hash" != "$state_device_hash" ]; then
+  echo "fcitx5-rime-sync: pushing... packing..."
+  {{ $termux.cmd_prefix }}tar -c -f "$TMP_TAR_FILE" -C "$TARGET_SYNC_PATH" .
+  echo "fcitx5-rime-sync: pushing... crypting..."
   chezmoi encrypt --output "$TMP_ENCRYPTED_TAR_FILE" "$TMP_TAR_FILE"
-  printf '%s\n' "$local_hash" > "$TMP_REMOTE_HASH_FILE"
+  echo "fcitx5-rime-sync: pushing... hashing..."
+  latest_state_remote_hash=$({{ $termux.cmd_prefix }} sh -c "$HASH_COMMAND" -- "$TARGET_SYNC_PATH")
+  printf '%s\n' "$latest_state_remote_hash" > "$TMP_REMOTE_HASH_FILE"
+  echo "fcitx5-rime-sync: pushing..."
   chezmoi_blob put "$TMP_ENCRYPTED_TAR_FILE" "$REMOTE_KEY" &
   PID1=$!
   chezmoi_blob put "$TMP_REMOTE_HASH_FILE" "$REMOTE_HASH_KEY" &
@@ -61,7 +76,8 @@ if [ "$local_hash" != "$state_hash" ]; then
   wait $PID1 || exit 1
   wait $PID2 || exit 1
 
-  printf '%s\n' "$local_hash" > "$STATE_FILE"
+  printf '%s\n' "$latest_state_remote_hash" > "$STATE_REMOTE_FILE"
+  printf '%s\n' "$latest_state_device_hash" > "$STATE_DEVICE_FILE"
   echo "fcitx5-rime-sync: pushed"
   exit 0
 fi

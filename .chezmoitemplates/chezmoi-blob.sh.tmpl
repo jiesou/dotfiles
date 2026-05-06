@@ -48,29 +48,32 @@ chezmoi_blob() {
         tr ',' '\n' |
         sed 's/^"//; s/"$//; s/":"\(.*\)$/\: \1/; s/^/header = "/; s/$/"/' |
         curl -fsSL -X PUT -K - --data-binary @"$local_file" "$upload_url" >/dev/null
-      echo "chezmoi-blob: uploaded to $(chezmoi_blob_json_get publicUrl)"
+      echo "  chezmoi-blob: uploaded to $(chezmoi_blob_json_get publicUrl)"
       ;;
     get)
       remote_key=${2-}
       local_file=${3-}
 
       # Get public download URL for downloading
-      body=$(printf '{"operation":"get_object","bucket":"%s","key":"%s"}' \
-        "$(chezmoi_blob_json_escape "$chezmoi_blob_s3_bucket")" \
-        "$(chezmoi_blob_json_escape "$remote_key")")
-      chezmoi_blob_json=$(curl -fsSL -X POST \
-        -H "content-type: application/json" \
-        -H "x-s3-access-key-id: $chezmoi_blob_s3_access_key_id" \
-        -H "x-s3-secret-access-key: $chezmoi_blob_s3_secret_access_key" \
-        --data-binary "$body" \
-        "$chezmoi_blob_s3_base_url/api/s3/presign")
-      chezmoi_blob_json=$(printf '%s' "$chezmoi_blob_json" | tr -d '\n')
+      # body=$(printf '{"operation":"get_object","bucket":"%s","key":"%s"}' \
+        # "$(chezmoi_blob_json_escape "$chezmoi_blob_s3_bucket")" \
+        # "$(chezmoi_blob_json_escape "$remote_key")")
+      # chezmoi_blob_json=$(curl -fsSL -X POST \
+        # -H "content-type: application/json" \
+        # -H "x-s3-access-key-id: $chezmoi_blob_s3_access_key_id" \
+        # -H "x-s3-secret-access-key: $chezmoi_blob_s3_secret_access_key" \
+        # --data-binary "$body" \
+        # "$chezmoi_blob_s3_base_url/api/s3/presign")
+      # chezmoi_blob_json=$(printf '%s' "$chezmoi_blob_json" | tr -d '\n')
 
-      # Download file directly from Storage
-      download_url=$(printf '%s' "$chezmoi_blob_json" | sed -n 's/.*"download":{"url":"\([^"]*\)".*/\1/p')
-      [ -n "$download_url" ] || { echo "chezmoi-blob: invalid presign response" >&2; return 1; }
+      # # Download file directly from Storage
+      # download_url=$(printf '%s' "$chezmoi_blob_json" | sed -n 's/.*"download":{"url":"\([^"]*\)".*/\1/p')
+      # [ -n "$download_url" ] || { echo "chezmoi-blob: invalid presign response" >&2; return 1; }
+
+      # Quicker for fixed pattern url
+      download_url="https://jwtlxyh8eujeksex.public.blob.vercel-storage.com/bucket/$remote_key"
       curl -fsSL "$download_url" -o "$local_file"
-      echo "chezmoi-blob: downloaded from $(chezmoi_blob_json_get publicUrl)"
+      echo "  chezmoi-blob: downloaded from $(chezmoi_blob_json_get publicUrl)"
       ;;
     *)
       chezmoi_blob_usage
