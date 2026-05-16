@@ -33,11 +33,16 @@ TMP_REMOTE_HASH_FILE="$(mktemp)"
 {{ includeTemplate "chezmoi-blob.sh.tmpl" . }}
 trap 'rm -f "$TMP_TAR_FILE" "$TMP_ENCRYPTED_TAR_FILE" "$TMP_REMOTE_HASH_FILE"' EXIT HUP INT TERM
 
+(
+# prevent `chezmoi decrypt` gpg obtaining tty, cause hang
+set -m
+trap 'kill -TERM $$ 2>/dev/null' EXIT
+
 state_remote_hash=$(read_file "$STATE_REMOTE_FILE")
 state_device_hash=$(read_file "$STATE_DEVICE_FILE")
 installation_id=$({{ $termux.cmd_prefix }}awk -F'"' '/installation_id/{print $2; exit}' "$TARGET_INSTALL_YAML_PATH")
 
-echo "fcitx5-rime-sync: $installation_id fetching..."
+echo "fcitx5-rime-sync: $installation_id fetching... (press Enter to skip)" >&2
 
 remote_hash=""
 if chezmoi_blob get "$REMOTE_HASH_KEY" "$TMP_REMOTE_HASH_FILE" >/dev/null 2>&1; then
@@ -80,3 +85,11 @@ if [ "$latest_state_device_hash" != "$state_device_hash" ]; then
 fi
 
 echo "fcitx5-rime-sync: already up to date"
+) &
+JOB_PID=$!
+
+# --- Press Enter to skip ---
+if read -r _ </dev/tty 2>/dev/null; then
+  echo "fcitx5-rime-sync: skipped" >&2
+  kill "$JOB_PID"
+fi
