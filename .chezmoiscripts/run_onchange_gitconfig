@@ -13,5 +13,5 @@ git config --global user.signingkey "key::ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE
 if git lfs version >/dev/null 2>&1; then
   git lfs install
 else
-  echo "run_once_gitconfig: git-lfs not available, skip lfs install" >&2
+  echo "run_onchange_gitconfig: git-lfs not available, skip lfs install" >&2
 fi

@@ -13,10 +13,14 @@ brew "dfu-util"
 brew "gcc"
 # GitHub command-line tool
 brew "gh"
+# Update of iperf: measures TCP, UDP, and SCTP bandwidth
+brew "iperf3"
 # Ambitious Vim-fork focused on extensibility and agility
 brew "neovim"
 # Small build system for use with gyp or CMake
 brew "ninja"
+# Port scanning utility for large networks
+brew "nmap"
 # Open-source, cross-platform JavaScript runtime environment
 brew "node"
 # Extremely fast Python package installer and resolver, written in Rust
@@ -31,7 +35,6 @@ cask "codex"
 cask "copilot-cli"
 vscode "actboy168.lua-debug"
 vscode "alibaba-cloud.tongyi-lingma"
-vscode "anthropic.claude-code"
 vscode "codezombiech.gitignore"
 vscode "davidanson.vscode-markdownlint"
 vscode "dbaeumer.vscode-eslint"
@@ -53,7 +56,6 @@ vscode "prisma.prisma"
 vscode "qassimfarid.ejs-language-support"
 vscode "qwtel.sqlite-viewer"
 vscode "slint.slint"
-vscode "sst-dev.opencode"
 vscode "sumneko.lua"
 vscode "vue.volar"
 flatpak "app.zen_browser.zen"

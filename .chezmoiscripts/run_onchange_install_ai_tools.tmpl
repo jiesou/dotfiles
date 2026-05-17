@@ -2,14 +2,14 @@
 {{ $termux := includeTemplate "termux.yaml.tmpl" . | fromYaml }}
 set -eu
 
-printf "Install AI Tools? [y/N]: "
+printf "run_onchange_install_ai_tools: ? [y/N]: "
 read -r confirm
 case "$confirm" in
     [yY]*) ;;
     *) exit 0 ;;
 esac
 
-echo "Installing AI Tools..."
+echo "run_onchange_install_ai_tools: Installing..."
 {{- if not $termux.in_termux }}
   command -v opencode || curl -fsSL https://opencode.ai/install | bash
 {{ else }}
