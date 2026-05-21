@@ -6,5 +6,8 @@
     "input_buffer_home": "home",
     "input_buffer_end": "end",
     "submit": "enter,numpadenter"
-  }
+  },
+  "plugin": [
+    "oc-tps@latest"
+  ]
 }
