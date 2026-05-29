@@ -5,7 +5,7 @@
   "skipClaudeOnboarding": false,
   "providerSwitchCommonConfigTipShown": true,
   "providerSwitchCommonConfigTipShownCodex": false,
-  "currentProviderClaude": "deepseek-ai",
+  "currentProviderClaude": "alw",
   "visibleApps": {
     "claude": true,
     "codex": true,
