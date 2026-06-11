@@ -1,11 +1,7 @@
 ---
 name: lcsc-coupon-optimizer
 description: >
-  立创商城 (szlcsc.com) 采购满减凑单优化。根据用户提供的 BOM 表或采购清单，
-  利用厂家满减优惠券（满16减15、满21减20）和全场包邮门槛（满9.9元包邮），
-  通过调整数量和兼容替换，给出最优凑单方案。
-  Use when: (1) 用户提供电子元件 BOM 表需要下单, (2) 用户要求优化立创商城购物车以利用优惠券,
-  (3) 用户在 szlcsc.com 上需要凑满减/凑包邮, (4) 用户提到"立创商城"、"LCSC"、"凑单"、"满减"等关键词。
+  szlcsc.com electronic components purchase. Use when the user provides the electronic BOM about szlcsc
 ---
 
 # LCSC 满减凑单优化

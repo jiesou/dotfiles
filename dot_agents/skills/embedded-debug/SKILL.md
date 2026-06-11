@@ -37,7 +37,6 @@ Swap `interface/cmsis-dap.cfg` for `interface/stlink-v2.cfg` etc. Swap `target/s
 
 ```bash
 tail -50 /tmp/ser.log; : > /tmp/ser.log  # read then truncate, next read is fresh
-timeout 5 cat /dev/ttyACM0               # direct read, blocking 5s
 ```
 
 ## Send command
@@ -50,6 +49,7 @@ printf 'AT\r\n' > /dev/ttyACM0
 
 ```bash
 fuser -k /dev/ttyACM0 2>/dev/null
+kill -9 $(lsof -t /tmp/ser.log) 2>/dev/null
 ```
 
 ## Crash format decode

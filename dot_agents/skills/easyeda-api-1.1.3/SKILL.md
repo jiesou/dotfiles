@@ -1,16 +1,7 @@
 ---
 name: easyeda-api
 description: >-
-  EasyEDA Pro API skill for AI agents. Use when working with EasyEDA Pro EDA software,
-  including PCB design, schematic editing, footprint/symbol management, and project operations.
-  Supports live debugging in EasyEDA and EasyEDA extension development. Provides complete API
-  reference (120+ classes, 62 enums, 70 interfaces), extension-development documentation, and a
-  WebSocket bridge server to execute code in the running EasyEDA Pro client.
-  Trigger on: "嘉立创EDA，启动！", "立创EDA，启动！", "EDA，启动！",
-  "EasyEDA", "PCB", "schematic", "footprint", "EDA", "circuit board",
-  "嘉立创EDA", "原理图", "PCB设计".
-  **IMPORTANT**: 嘉立创EDA's English name is **EasyEDA**. They are the SAME product.
-  Never use other transliterations like "EasyEDA Pro" (unless specifically versioned), "EASYEDA", "easyeda", etc. Always use "EasyEDA" for English references and "嘉立创EDA" for Chinese references.
+  EasyEDA Pro API skill for AI agents. Use when working with EasyEDA Pro EDA software
 license: MIT
 compatibility: Requires Node.js 18+, EasyEDA Pro desktop client with extension support
 metadata:
@@ -25,6 +16,8 @@ metadata:
 ---
 
 # EasyEDA Pro API Skill
+
+> 嘉立创EDA's English name is **EasyEDA**. They are the SAME product.
 
 Control EasyEDA Pro (嘉立创EDA专业版) programmatically through AI. This skill provides:
 
