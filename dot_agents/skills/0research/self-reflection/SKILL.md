@@ -1,105 +1,80 @@
 ---
 name: self-reflection
 description: >
-  Use when solving any technical or analytical problem that benefits
-  from independent verification. NOT for simple lookup questions.
+  Use when solving any problem that benefits from independent verification.
+  NOT for simple lookup questions.
 ---
 
-## Core Mindset
+# Self-Reflection
 
-Loading this skill means: **your own world knowledge is wrong by default.**
+You probably got most things right.
+This skill catches the few things you got wrong.
 
-Do not trust what you "know" — trust only what tool results prove. Every
-statement in your output must be backed by a tool execution (search, read,
-fetch, run code). If a claim has no tool result behind it, treat it as
-false.
-
-## The Loop
-
-Example:
-```
-List every factual claims
-  ├── Batch 1: claims 1-4  → 4 subagents in parallel (one task() each)
-  └── Batch 2: claims 4-6  → 3 subagents in parallel
-          ↓
-   You process all claims, fix the output → 1 Revision complete
-          ↓
-   Re-list factual claims against new output → repeat
-          ↓
-   Stop when every claim is indisputable right.
-```
-
-## Step-by-Step
-
-### Step 1: List Factual Claims
-
-Examine your output. Extract **every factual claims** from it. (7 as example)
-Each claim must be concrete and verifiable —
-a number, a causal statement, a assertion, a relationship. Avoid vague items.
-
-### Step 2: Batch & Dispatch to Parallel SubAgents
-
-For each claim, launch one isolated `task()` subagent.
-All subagents in a batch fire simultaneously in a single message.
-
-SubAgent prompt template:
+## Quick Flow
 
 ```
-You are an independent audit. Answer ONLY using tool results you
-find. Do not guess. Do not rely on your own knowledge.
-
-Claim: [the exact factual claim to verify]
-
-Context: [context needed to understand the claim]
-
-Output: claim correct (yes/partial/no), confidence 0-10, severity (high/mid/low), reasoning, verification evidence (tool results).
+flag claims → verify in parallel → fix → loop (optional) → done
 ```
 
-### Step 3: Collect Results
+## How-To
 
-Wait for all subagents in the batch to finish. Read their outputs.
-Record each claim's score, severity, and evidence. Move to the next
-batch until all are done.
+### 1. Flag
 
-### Step 4: One Revision
+Scan your previous output (or user-specified statements) for every factual claim.
+A factual claim must be small and verifiable —
+  a number, a causal statement, an assertion, a relationship.
+Skip vague or subjective statements.
 
-All claims verified. You (the main agent) now processes every claim:
-- Fix errors confirmed by subagents
-- Strengthen weak claims by adding temporal and spatial conditions.
-- Pointed out unsupportable claims
-This produces the revised output. One Revision done.
+### 2. Verify
 
-### Step 5: Next Revision
+For each flagged claim, launch a `task()` subagent.
+- Each subagent runs in an **isolated, independent context** —
+  no access to chat history or prior tool results, context should be fair and unbiased.
+- Verify in parallel: Fire all subagents simultaneously in a single message!
 
-Against the **new** output, re-list factual claims (the list will differ
-from the previous round — might have 15 now). Repeat Step 2-4.
-Stop only when every claim is indisputable right.
-
-## Use todowrite
-
-This workflow has many moving parts (batches, revisions, subagents).
-Track everything with `todowrite`:
+Subagent prompt template:
 
 ```
-R1: list 7 claims         → todo: in_progress
-R1: batch 1 (claims 1-4)   → todo: in_progress
-R1: batch 1 done           → todo: completed → batch 2: in_progress
-...
-R1: all 7 verified        → todo: completed
-R1: fix & revision done    → todo: completed → R2: in_progress
-R2: list 15 claims         → todo: in_progress
+You are an independent auditor. Verify the accuracy of the small claim below.
+Answer ONLY from your own tool calls. Do NOT rely on prior knowledge.
+
+Claim: [exact claim]
+Context: [relevant context]
+
+Output a brief audit result:
+- Claim Accuracy: yes / partial / no
+- Confidence: 0–10
+If not accurate:
+- Evidence: quote or summarize what was found
+- Reasoning: 1–2 sentences
 ```
 
-Without explicit tracking, you will lose state mid-workflow.
+### 3. Fix
 
-## Rules
+After all claims are verified, correct every wrong claim:
+- Fix obvious errors directly.
+- Back corrected statements with clear evidence.
+- Strengthen weak statements by adding qualifiers or conditions.
+- Clearly flag any unsupportable claims as unreliable.
 
-- Each subagent runs in an **isolated, independent context** — no access to
-  other subagents' work or prior revision results
-- Every claim must be **specific and verifiable**, not a vague suspicion
-- No skipping — even if you are certain a claim is correct, dispatch it
-- Subagents **only investigate** — they do not fix. Fixing is the main
-  agent's job during the revision phase
-- Do not cut corners to PASS faster. Do not weaken or drop claims to
-  reduce workload. Instead, identify errors precisely, fix them properly,
-  and make every claim more rigorous
+### 4. Loop (Optional)
+
+If the user needs a fully correct output (not just a /self-reflection),
+run the Loop workflow to iteratively verify and fix until the output is
+indisputably correct.
+
+Start `todowrite` to track each iteration "Round":
+
+```
+R1: flag 5 claims
+R1: verify batch 1 (3 subagents, claims 1–3)
+R1: verify batch 2 (2 subagents, claims 4–5)
+R1: fix statements
+R2: flag 3 claims
+R2: verify batch (3 subagents, claims 1–3)
+R2: fix statements
+R2: done — output is correct
+```
+
+Update items in your todo list anytime.
+Stop when the output is indisputably correct.
