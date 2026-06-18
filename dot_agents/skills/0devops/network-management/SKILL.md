@@ -3,11 +3,25 @@ name: network-management
 description: Network topology, SSH access, routing, OpenClash config for all routers and subnets.
 ---
 
+## HytronHK 香港 VPS
+
+| 属性 | 值 |
+|------|-----|
+| 地址 | `hytron-hk.qqo.pp.ua` |
+| 用户 | root |
+| 密码 | Vhqm-axmc-W41w-hJ8t-RqB3 |
+| 系统 | Ubuntu 24.04 |
+| IP | 45.207.152.77 |
+| ASN | AS151407 / AS202662 Hytron Network Services Limited (Akile LTD 下游) |
+| 用途 | Trojan+Shadowsocks 代理落地 (sing-box) |
+| DNS 解锁 | AKDNS 已配置 (`166.0.199.207`)，使用 `akile-network/aktools` 脚本一键安装 |
+
 # 网络管理
 
 ## 操作原则
 
-- **长程 SSH 任务全都用 tmux 执行**（通过 `tmux_run_command` / `tmux_safe_execute` 如果可用），避免因网络中断导致任务意外终止。
+- **长程 SSH 任务全都用 tmux 执行**（每个 ssh 连接必须独立 `tmux_create_session`）。
+- 不要直接用 bash tool 在宿主机操作。
 
 ## 三条宽带
 
@@ -285,6 +299,7 @@ ssh root@192.168.13.1 '/etc/init.d/openclash restart'
 2. 如果不是运营商的问题，重启（直接拔电插电）NanoPi R2S 能解决 99% 的问题
 3. 如果 R2S 不可恢复，用 `TP-LINK_wy` 和 `TP-LINK-5` WiFi 即可，见 #关于其他线路 章节
 4. 如果 运营商问题 和 R2S故障 叠加，可以将终端设备默认网关指向 192.168.11.131，通过二层网络转发，出口走WY信息中心联通300M网络，见 #关于其他线路 章节
+5. **重要：** 绝大多数问题和 openclash/mihomo **无关** ，不要绕弯路去研究 openclash
 
 ## 验证命令
 

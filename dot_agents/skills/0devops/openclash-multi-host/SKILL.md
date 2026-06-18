@@ -116,6 +116,4 @@ found && /^  [^ ]/ { found=0 }
 
 - **配置不同**：三台 CommonProxy 的 use 列表不同，LoadProxy 也不同。不要假设某 provider 在某台存在。
 - **busybox awk**：不支持 `-i inplace`，必须写 temp file 再 mv。`oc-sync.sh` 已处理。
-- **SSH key**：用 key 认证，`StrictHostKeyChecking=no`。
-- **fuser -k**：烧录程序前执行 `fuser -k /dev/ttyUSB* /dev/ttyACM*` 释放串口。
 - **YAML 缩进严格**：awk 插入行必须保持 2 空格缩进对齐。
