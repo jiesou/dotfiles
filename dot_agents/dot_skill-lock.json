@@ -54,6 +54,15 @@
       "skillFolderHash": "3013fdeb8a11b10b1eb795ec3ae8bfca38f7c26d",
       "installedAt": "2026-06-15T03:03:11.602Z",
       "updatedAt": "2026-06-15T03:03:11.602Z"
+    },
+    "qu-ai-wei": {
+      "source": "lifelonglazylearner/qu-ai-wei",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/lifelonglazylearner/qu-ai-wei.git",
+      "skillPath": "SKILL.md",
+      "skillFolderHash": "b82808e444b6c1fe3c3c7a6acddd763fd1f5bea8",
+      "installedAt": "2026-06-20T11:48:15.215Z",
+      "updatedAt": "2026-06-20T11:48:15.215Z"
     }
   },
   "lastSelectedAgents": [

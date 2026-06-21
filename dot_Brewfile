@@ -2,6 +2,8 @@ tap "anomalyco/tap"
 tap "espressif/eim"
 # Arduino command-line interface
 brew "arduino-cli"
+# Incredibly fast JavaScript runtime, bundler, test runner, and package manager
+brew "bun"
 # Object-file caching compiler wrapper
 brew "ccache"
 # Manage your dotfiles across multiple diverse machines, securely
@@ -14,8 +16,6 @@ brew "ddrescue"
 brew "deno"
 # USB programmer
 brew "dfu-util"
-# GNU compiler collection
-brew "gcc"
 # GitHub command-line tool
 brew "gh"
 # Update of iperf: measures TCP, UDP, and SCTP bandwidth
@@ -171,4 +171,3 @@ flatpak "org.videolan.VLC"
 flatpak "org.wireshark.Wireshark"
 flatpak "page.codeberg.libre_menu_editor.LibreMenuEditor"
 flatpak "page.tesk.Refine"
-flatpak "sh.loft.devpod"
