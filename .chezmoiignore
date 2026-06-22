@@ -1,1 +1,9 @@
 install.sh
+**/__pycache__
+**/__pycache__/**
+**/.venv/**
+**/.git/**
+**/*.pyc
+**/package-lock.json
+**/crash.log
+**/backups/**

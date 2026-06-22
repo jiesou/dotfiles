@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenCode Token Usage Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #111; color: #ccc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; padding: 40px 20px; }
+.container { width: 1200px; max-width: 100%; }
+h1 { text-align: center; font-weight: 500; font-size: 22px; margin-bottom: 8px; color: #eee; }
+.sub { text-align: center; font-size: 13px; color: #888; margin-bottom: 24px; }
+.chart-wrapper { background: #1a1a2e; border-radius: 12px; padding: 24px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>OpenCode 2026年6月 每日 Token 用量</h1>
+  <p class="sub">基于用量费用反推（缓存命中率 ≈ 98.6%）</p>
+  <div class="chart-wrapper">
+    <canvas id="chart"></canvas>
+  </div>
+</div>
+<script>
+const MODELS = ["deepseek-v4-flash","deepseek-v4-pro","kimi-k2.6","minimax-m3","qwen3.7-plus","glm-5.2","kimi-k2.7-code","mimo-v2.5","mimo-v2.5-pro"];
+
+const COLORS = {
+  "deepseek-v4-flash":  "#4fc3f7",
+  "deepseek-v4-pro":    "#1565c0",
+  "kimi-k2.6":          "#7c4dff",
+  "minimax-m3":         "#00c853",
+  "qwen3.7-plus":       "#ff6d00",
+  "glm-5.2":            "#e53935",
+  "kimi-k2.7-code":     "#d500f9",
+  "mimo-v2.5":          "#ffd600",
+  "mimo-v2.5-pro":      "#ff9100",
+};
+
+// Pricing per 1M tokens (USD)
+const PRICING = {
+  "deepseek-v4-flash":  { in: 0.14,  out: 0.28,  cache: 0.0028 },
+  "deepseek-v4-pro":    { in: 1.74,  out: 3.48,  cache: 0.0145 },
+  "mimo-v2.5":          { in: 0.14,  out: 0.28,  cache: 0.0028 },
+  "mimo-v2.5-pro":      { in: 1.74,  out: 3.48,  cache: 0.0145 },
+  "kimi-k2.6":          { in: 0.95,  out: 4.00,  cache: 0.16  },
+  "kimi-k2.7-code":     { in: 0.95,  out: 4.00,  cache: 0.19  },
+  "minimax-m3":         { in: 0.30,  out: 1.20,  cache: 0.06  },
+  "qwen3.7-plus":       { in: 0.40,  out: 1.60,  cache: 0.04  },
+  "glm-5.2":            { in: 1.40,  out: 4.40,  cache: 0.26  },
+  "glm-5.1":            { in: 1.40,  out: 4.40,  cache: 0.26  },
+  "glm-5":              { in: 1.00,  out: 3.20,  cache: 0.20  },
+};
+
+const CACHE_HIT_RATE = 0.986;
+const FLASH_RATIO = 142;
+const OTHER_RATIO = 100;
+
+function estimateTokens(costUsd, model) {
+  const p = PRICING[model] || { in: 1.0, out: 2.0, cache: 0.0 };
+  const ratio = model === "deepseek-v4-flash" ? FLASH_RATIO : OTHER_RATIO;
+  const effIn = CACHE_HIT_RATE * p.cache + (1 - CACHE_HIT_RATE) * p.in;
+  if (ratio * effIn + p.out <= 0) return 0;
+  const outTokens = costUsd * 1_000_000 / (ratio * effIn + p.out);
+  const inTokens = ratio * outTokens;
+  return Math.round(inTokens + outTokens);
+}
+
+const raw = [{"date":"2026-06-01","model":"deepseek-v4-flash","totalCost":30194970},{"date":"2026-06-01","model":"mimo-v2.5","totalCost":1159062},{"date":"2026-06-02","model":"deepseek-v4-flash","totalCost":31596237},{"date":"2026-06-03","model":"deepseek-v4-flash","totalCost":3904624},{"date":"2026-06-03","model":"deepseek-v4-pro","totalCost":64033044},{"date":"2026-06-04","model":"deepseek-v4-pro","totalCost":126214681},{"date":"2026-06-05","model":"deepseek-v4-flash","totalCost":18943192},{"date":"2026-06-05","model":"deepseek-v4-pro","totalCost":285034079},{"date":"2026-06-05","model":"kimi-k2.6","totalCost":747886502},{"date":"2026-06-06","model":"deepseek-v4-flash","totalCost":118334061},{"date":"2026-06-06","model":"deepseek-v4-pro","totalCost":144975617},{"date":"2026-06-07","model":"deepseek-v4-flash","totalCost":403772},{"date":"2026-06-08","model":"deepseek-v4-pro","totalCost":548191597},{"date":"2026-06-08","model":"deepseek-v4-flash","totalCost":35358096},{"date":"2026-06-08","model":"minimax-m3","totalCost":288295854},{"date":"2026-06-08","model":"mimo-v2.5","totalCost":411596},{"date":"2026-06-08","model":"mimo-v2.5-pro","totalCost":6915966},{"date":"2026-06-09","model":"deepseek-v4-flash","totalCost":79508904},{"date":"2026-06-09","model":"minimax-m3","totalCost":14429220},{"date":"2026-06-10","model":"deepseek-v4-flash","totalCost":20122954},{"date":"2026-06-10","model":"deepseek-v4-pro","totalCost":276582166},{"date":"2026-06-11","model":"deepseek-v4-flash","totalCost":113778040},{"date":"2026-06-11","model":"deepseek-v4-flash","totalCost":313656},{"date":"2026-06-11","model":"deepseek-v4-pro","totalCost":135474180},{"date":"2026-06-12","model":"deepseek-v4-flash","totalCost":1140486},{"date":"2026-06-12","model":"deepseek-v4-flash","totalCost":62512932},{"date":"2026-06-13","model":"deepseek-v4-flash","totalCost":35423174},{"date":"2026-06-13","model":"deepseek-v4-pro","totalCost":101577419},{"date":"2026-06-13","model":"deepseek-v4-flash","totalCost":17262182},{"date":"2026-06-13","model":"minimax-m3","totalCost":8925646},{"date":"2026-06-13","model":"deepseek-v4-pro","totalCost":69715362},{"date":"2026-06-13","model":"qwen3.7-plus","totalCost":269328510},{"date":"2026-06-14","model":"deepseek-v4-pro","totalCost":16029495},{"date":"2026-06-14","model":"deepseek-v4-flash","totalCost":3905505},{"date":"2026-06-14","model":"deepseek-v4-flash","totalCost":41175626},{"date":"2026-06-14","model":"kimi-k2.7-code","totalCost":25319051},{"date":"2026-06-14","model":"minimax-m3","totalCost":17897884},{"date":"2026-06-15","model":"deepseek-v4-flash","totalCost":432440},{"date":"2026-06-15","model":"deepseek-v4-flash","totalCost":60990000},{"date":"2026-06-15","model":"deepseek-v4-pro","totalCost":44116909},{"date":"2026-06-16","model":"deepseek-v4-flash","totalCost":90423384},{"date":"2026-06-16","model":"deepseek-v4-pro","totalCost":176020383},{"date":"2026-06-16","model":"mimo-v2.5","totalCost":884033},{"date":"2026-06-17","model":"deepseek-v4-pro","totalCost":364281413},{"date":"2026-06-17","model":"deepseek-v4-flash","totalCost":101890871},{"date":"2026-06-17","model":"mimo-v2.5","totalCost":8121500},{"date":"2026-06-18","model":"deepseek-v4-flash","totalCost":106547636},{"date":"2026-06-18","model":"mimo-v2.5","totalCost":961950},{"date":"2026-06-18","model":"deepseek-v4-pro","totalCost":155904943},{"date":"2026-06-19","model":"deepseek-v4-flash","totalCost":35607594},{"date":"2026-06-20","model":"deepseek-v4-flash","totalCost":86136448},{"date":"2026-06-21","model":"deepseek-v4-flash","totalCost":151926470},{"date":"2026-06-21","model":"deepseek-v4-pro","totalCost":204889517},{"date":"2026-06-22","model":"deepseek-v4-flash","totalCost":54229157},{"date":"2026-06-22","model":"mimo-v2.5","totalCost":66741},{"date":"2026-06-22","model":"minimax-m3","totalCost":78907886},{"date":"2026-06-22","model":"deepseek-v4-pro","totalCost":31982556},{"date":"2026-06-22","model":"glm-5.2","totalCost":133409762}];
+
+// Aggregate same (date, model) and estimate tokens
+const dates = [];
+const map = {};
+for (let d = 1; d <= 22; d++) {
+  const key = "2026-06-" + String(d).padStart(2, "0");
+  dates.push(key);
+  map[key] = {};
+  for (const m of MODELS) map[key][m] = 0;
+}
+for (const r of raw) {
+  if (map[r.date]) map[r.date][r.model] += r.totalCost;
+}
+
+// Convert cost to tokens for each (date, model)
+const datasets = MODELS.map(m => ({
+  label: m,
+  data: dates.map(d => {
+    const costUsd = map[d][m] / 100_000_000;
+    return estimateTokens(costUsd, m);
+  }),
+  backgroundColor: COLORS[m],
+}));
+
+new Chart(document.getElementById("chart"), {
+  type: "bar",
+  data: { labels: dates, datasets },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: {
+        labels: { color: "#ccc", font: { size: 12 }, boxWidth: 14, padding: 16 },
+      },
+      tooltip: {
+        mode: "index",
+        intersect: false,
+        backgroundColor: "#222",
+        titleColor: "#eee",
+        bodyColor: "#ccc",
+        callbacks: {
+          label: ctx => ctx.dataset.label + ": " + ctx.raw.toLocaleString() + " tokens",
+        },
+      },
+    },
+    scales: {
+      x: {
+        stacked: true,
+        ticks: { color: "#999", font: { size: 11 } },
+        grid: { color: "#2a2a3e" },
+      },
+      y: {
+        stacked: true,
+        beginAtZero: true,
+        ticks: {
+          color: "#999",
+          font: { size: 11 },
+          callback: v => (v >= 1_000_000 ? (v/1_000_000).toFixed(1) + "M" : v >= 1_000 ? (v/1_000).toFixed(1) + "K" : v),
+        },
+        grid: { color: "#2a2a3e" },
+      },
+    },
+  },
+});
+</script>
+</body>
+</html>

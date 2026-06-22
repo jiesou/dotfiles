@@ -36,34 +36,7 @@ canvas:
     adjust_step: 2.0
     enable: true
     scale_step: 0.05
-custom_models:
-- agnostic: true
-  classes:
-  - 0
-  conf_threshold: 0.25
-  config_file: /home/chen/Dev/ElectricDriveCVClient/labeling/auto-label-models/electricv31.6-640.yaml
-  display_name: electricv31.6-640
-  filter_classes:
-  - 0
-  iou_threshold: 0.7
-  is_custom_model: true
-  last_used: 1780538166.3154404
-  model_path: electricv31.6-640.onnx
-  name: electricv316
-  provider: Ultralytics
-  tracker:
-    appearance_thresh: 0.25
-    fuse_score: true
-    gmc_method: sparseOptFlow
-    match_thresh: 0.8
-    new_track_thresh: 0.6
-    proximity_thresh: 0.5
-    track_buffer: 30
-    track_high_thresh: 0.5
-    track_low_thresh: 0.1
-    tracker_type: botsort
-    with_reid: false
-  type: yolo11_det_track
+custom_models: []
 default_shape_color:
 - 0
 - 255
