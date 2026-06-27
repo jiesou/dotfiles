@@ -3,25 +3,12 @@ name: network-management
 description: Network topology, SSH access, routing, OpenClash config for all routers and subnets.
 ---
 
-## HytronHK 香港 VPS
-
-| 属性 | 值 |
-|------|-----|
-| 地址 | `hytron-hk.qqo.pp.ua` |
-| 用户 | root |
-| 密码 | Vhqm-axmc-W41w-hJ8t-RqB3 |
-| 系统 | Ubuntu 24.04 |
-| IP | 45.207.152.77 |
-| ASN | AS151407 / AS202662 Hytron Network Services Limited (Akile LTD 下游) |
-| 用途 | Trojan+Shadowsocks 代理落地 (sing-box) |
-| DNS 解锁 | AKDNS 已配置 (`166.0.199.207`)，使用 `akile-network/aktools` 脚本一键安装 |
-
 # 网络管理
 
 ## 操作原则
 
-- **长程 SSH 任务全都用 tmux 执行**（每个 ssh 连接必须独立 `tmux_create_session`）。
-- 不要直接用 bash tool 在宿主机操作。
+- **长程 SSH 任务全都用 tmux 执行**（每个 ssh 连接必须独立长连接）。
+- 不要直接用 shell tool 在宿主机操作。
 
 ## 三条宽带
 
@@ -78,6 +65,8 @@ Internet
 ## 网段细节
 
 ### 192.168.1.0/24 — 学校,实验室,电信50M光猫下游
+
+> 此处描述的 .1 网段仅指 **实验室电信50M光猫下游**，每个光猫下游都有各自 .1 网段，但不同光猫的 **.1 **肯定不通**
 
 | 设备 | IP | 角色 |
 | -------------- | -------- | -------- |
@@ -172,6 +161,29 @@ true 即开启， false 即断电
 | hp-server | 10.55.225.235 | 从 11.x LAN 双网卡接入 |
 | eduGateway | 10.55.2.118 | ImmortalWrt，桥接到 192.168.100.x |
 
+#### hp-server 校园网自动认证
+
+校园网使用 captive portal 认证（`ac_portal/login.php`，RC4 加密）。学校每天在固定时间点登出所有设备，因此需自动重认证。
+eduGatewayImmortalWrt 在WY信息中心机房，配置了服务器免认证。
+hp-server 作为实验室里接入校园网的设备，所以需要认证。
+
+**systemd 服务：**
+```bash
+ssh ubuntu@192.168.11.131 'systemctl status custom-edu-auto-auth.service'
+ssh ubuntu@192.168.11.131 'systemctl status custom-edu-auto-auth.timer'
+ssh ubuntu@192.168.11.131 'sudo systemctl start custom-edu-auto-auth.service'
+```
+
+**认证脚本：** `/home/ubuntu/Dev/EduAutoAuth/edu_auth.py`
+**校园网账号：** 用户名 `fangke`，密码硬编码在脚本中
+portal 地址 `10.55.224.217`，绑定网卡 `enp2s0`
+
+**认证失败排查：**
+1. 检查 ARP：`ip neigh show dev enp2s0` —— `10.55.225.1` 应为 `REACHABLE`
+2. 如为 `INCOMPLETE`，说明校园网认证没过，或交换机端口做了限制（MAC 过滤 / VLAN 变动 / 802.1X）
+3. 尝试 enp2s0 down/up 重连
+4. 手动触发认证：`sudo systemctl start custom-edu-auto-auth.service`
+
 ### 192.168.100.0/24 — 学校,WY信息中心 外部路由器网段
 
 | 设备 | IP | 角色 |
@@ -207,7 +219,7 @@ true 即开启， false 即断电
 chenPC 上有三个有线配置文件，均绑定 enp9s0：
 
 | 配置名 | 方法 | IP | 网关 | DNS | 出口 |
-|--------|------|------|-----|------|-----|------|
+|--------|------|------|-----|------|-----|
 | 有线连接 DHCP | DHCP (auto) | DHCP 分配 | 192.168.11.1 (11.1) | 11.1 分配 | 电信 50M |
 | WY UNICOM GRE 隧道 | Manual | 192.168.11.192/24 | 192.168.11.131 (hp-server) | 192.168.100.1 | 联通 300M |
 | 校园网 DIRECT | Manual | 10.55.225.235/24 | 10.55.225.1 | 223.5.5.5 | 校园内网直连，无物理连接，仅在需要时调试使用 |
@@ -261,12 +273,14 @@ SSH 均可直接通过密钥接入以下设备：
 
 ## OpenClash 配置
 
+**重要：** 绝大多数 (99%) 问题和 openclash/mihomo **无关** ，不要绕弯路去研究 openclash。不要自以为是！
+
 - 所有路由器都运行 OpenClash **fake-IP 模式+nftables TProxy 透明代理**。
 - 通过 clash 内核内的 SRC-IP-CIDR 规则分流，以及 OpenClash 基于 nftables 的“来源流量访问控制”功能，实现部分设备走科学，部分设备不走科学。
 - OpenClash 通常都设置了 **定时重启** ，每天早上 6:00。
 - OpenClash 主要只用一个 .yaml 配置，将各种机场、自建节点混到一个配置文件里使用，也方便设置自己的规则和 DNS。
 
-### 配置文件约定
+### 配置文件操作约定
 
 同步/修改 OpenClash 配置时，始终编辑当前活跃的配置文件：
 
@@ -277,6 +291,26 @@ SSH 均可直接通过密钥接入以下设备：
 | 192.168.100.1 | `/etc/openclash/config/wscmixed.yaml` |
 
 **重要：** 各路由器的 OpenClash 设置独立 — DNS 配置尤其不同。不要盲目复制配置，要先检查差异，只应用 diff。
+
+### 实时操作约定
+
+**更换节点** 、 **切换规则** 等操作，应该通过 Clash API， **而不是 编辑配置文件**
+
+你可以用 curl 操控 Clash API，
+位于：
+- `http://192.168.11.1:9999`
+- `http://192.168.100.1:9999`
+
+#### 实时操作规则
+
+- 操作前，先分析当前 `Default` 出站的流量走向！
+- 分析流量走向需要依据并结合实际 rules，而不是根据语义盲猜
+- 先获取延迟、healthcheck 再考虑换节点
+- `Premium` 和 `PremiumDomesticSites` 出站是实验室内的白名单电脑专用。基于 `premiumip` 规则，进行白名单 IP 筛选。检查方式：
+
+```
+ssh root@192.168.11.1 'cat /etc/openclash/config/wscmixed.yaml' | grep -B 1 -A 10 'premiumip:'
+```
 
 ### 修改配置
 
@@ -300,6 +334,34 @@ ssh root@192.168.13.1 '/etc/init.d/openclash restart'
 3. 如果 R2S 不可恢复，用 `TP-LINK_wy` 和 `TP-LINK-5` WiFi 即可，见 #关于其他线路 章节
 4. 如果 运营商问题 和 R2S故障 叠加，可以将终端设备默认网关指向 192.168.11.131，通过二层网络转发，出口走WY信息中心联通300M网络，见 #关于其他线路 章节
 5. **重要：** 绝大多数问题和 openclash/mihomo **无关** ，不要绕弯路去研究 openclash
+
+## 公网/内网穿透流程
+
+11.x 没有公网 IPv6，走 100.1（联通 `/60` 前缀）→ 100.100（eduGateway）→ hp-server → 11.x 暴露出去。
+
+**100.1 加 3cat 实例（转发监听端口到目标）：**
+
+```bash
+ssh -p 23333 root@192.168.100.1
+uci set 3cat.<名字>=instance
+uci set 3cat.<名字>.enabled='1'
+uci set 3cat.<名字>.listen_addr='::'
+uci set 3cat.<名字>.listen_port='<公网端口>'
+uci set 3cat.<名字>.dest_addr='<目标 IP>'
+uci set 3cat.<名字>.dest_port='<目标端口>'
+uci set 3cat.<名字>.protocol='tcp'
+uci set 3cat.<名字>.firewall='1'
+uci commit 3cat
+service 3cat restart # 已通过 luci-app-3proxy 配置好服务
+```
+
+**100.100 加 GOST 转发：**
+```
+/etc/gost/gost.yaml # 编辑配置
+service gost restart # 已通过 luci-app-gost 配置好服务
+```
+
+100.100 访问 11 网段的设备，理论上是通过 EasyTier 实现的，不需要额外操作。
 
 ## 验证命令
 
@@ -333,6 +395,9 @@ ssh root@192.168.100.100 'ping -c 5 192.168.11.192'
 
 # 查看 100.100 的 EasyTier proxy_network
 ssh root@192.168.100.100 'uci get easytier.@easytier[0].proxy_network'
+
+# 查看 hp-server 的 校园网自动认证 状态
+ssh ubuntu@192.168.11.131 'systemctl status custom-edu-auto-auth.service'
 
 # 查看 hp-server 的 netplan 路由
 ssh ubuntu@192.168.11.131 'ip route show | grep 10.0.0.0'

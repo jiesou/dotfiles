@@ -1,6 +1,6 @@
 ---
 name: openclash-multi-host
-description: "Manage OpenClash configurations across a 3-router homelab (wy11/wy100/wy13). Use when: (1) adding/modifying proxy-providers or proxy-groups on any combination of the 3 routers, (2) syncing subscription URLs, filters, overrides across routers, (3) editing /etc/openclash/config/*.yaml on immortalwrt nodes. The 3 routers have DIFFERENT configs — do NOT blindly apply the same change to all."
+description: "Manage OpenClash persistent configurations across a 3-router homelab (wy11/wy100/wy13). Use when: (1) adding/modifying proxy-providers or proxy-groups on any combination of the 3 routers, (2) syncing subscription URLs, filters, overrides across routers, (3) editing /etc/openclash/config/*.yaml on immortalwrt nodes. Do NOT use when: perform live operations such as changing nodes (you need clash api skill). The 3 routers have DIFFERENT configs — do NOT blindly apply the same change to all."
 ---
 
 # OpenClash Multi-Host
