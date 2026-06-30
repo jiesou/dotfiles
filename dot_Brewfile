@@ -30,6 +30,10 @@ brew "ninja"
 brew "nmap"
 # Open-source, cross-platform JavaScript runtime environment
 brew "node"
+# Simple TTY terminal I/O application
+brew "tio"
+# Command-line unarchiving tools supporting multiple formats
+brew "unar"
 # Extremely fast Python package installer and resolver, written in Rust
 brew "uv"
 # The AI coding agent built for the terminal.
@@ -44,6 +48,8 @@ cask "codex"
 cask "copilot-cli"
 vscode "actboy168.lua-debug"
 vscode "alibaba-cloud.tongyi-lingma"
+vscode "astro-build.astro-vscode"
+vscode "bradlc.vscode-tailwindcss"
 vscode "codezombiech.gitignore"
 vscode "davidanson.vscode-markdownlint"
 vscode "dbaeumer.vscode-eslint"
@@ -131,6 +137,7 @@ flatpak "org.cockpit_project.CockpitClient"
 flatpak "org.fcitx.Fcitx5"
 flatpak "org.freecad.FreeCAD"
 flatpak "org.freedesktop.Piper"
+flatpak "org.gnome.Boxes"
 flatpak "org.gnome.Builder"
 flatpak "org.gnome.Calculator"
 flatpak "org.gnome.Calendar"

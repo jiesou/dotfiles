@@ -1,12 +1,8 @@
 ---
-description: Patterns for invoking the GitHub CLI (gh) from agents. Covers structured output, pagination, repo targeting, search vs list, gh api fallback.
-metadata:
-    github-path: skills/gh
-    github-ref: refs/tags/v2.94.0
-    github-repo: https://github.com/cli/cli
-    github-tree-sha: 08c15bb61582f50ccf76df4cf71de3a68512070f
 name: gh
+description: Patterns for invoking the GitHub CLI (gh) from agents. Covers structured output, pagination, repo targeting, search vs list, gh api fallback.
 ---
+
 # Reference
 
 ## Interactivity policy
@@ -52,12 +48,19 @@ Pass `--repo OWNER/REPO` (`-R`) to override the resolved CWD repo.
 
 - `gh search issues|prs|code|repos|commits|users` uses GitHub's search
   index and accepts the full search syntax (`is:open`, `author:`,
-  `label:`, `repo:owner/name`, `in:title`, ...). Pass the entire query as
-  one quoted string, the same way you would for `--search`:
-  `gh search issues "is:open author:foo repo:cli/cli"`. Prefer it for
+  `label:`, `repo:owner/name`, `in:title`, ...). Pass each qualifier as
+  its own bare token, not as one quoted string:
+  `gh search issues repo:cli/cli is:open author:monalisa` works, but
+  `gh search issues "repo:cli/cli is:open"` is treated as a single keyword (parsed as `repo:"cli/cli is:open"`)
+  and fails with `Invalid search query`. Quote only multi-word free text
+  (`gh search issues "broken feature"`). Most qualifiers also have a
+  dedicated flag (`--repo`, `--author`, `--label`, ...). Prefer search for
   anything cross-repo or filtered by author/label.
-- `gh issue list --search "..."` and `gh pr list --search "..."` accept
-  the same syntax but are scoped to one repo.
+- `gh issue list --search "..."` and `gh pr list --search "..."` take the
+  query as one quoted string (it is a flag value) and are scoped to one repo.
+- Bots author as GitHub Apps, so `--author dependabot` matches nothing. Use
+  `--app dependabot` (on `pr`/`issue list` and `search prs|issues`; expands
+  to `author:app/<slug>`) or `--author "dependabot[bot]"`.
 
 ## Issue types, sub-issues, and relationships
 
@@ -112,6 +115,29 @@ Preview command set, subject to change. Subcommands:
   needs a comment ID or URL. `--yes` skips the `--delete` confirmation.
 - `--json`/`--jq`/`--template` are available on `list` and `view` only;
   `create` and `edit` print the discussion URL. `comment` prints the discussion comment (or reply) URL.
+
+## Reading files and directories (`gh repo read-file` / `read-dir`)
+
+Preview commands, subject to change. They read a repo's contents over the API
+without cloning, and honor `--repo OWNER/REPO` (`-R`) and `--ref <branch|tag|commit>`
+(default branch when omitted).
+
+- `gh repo read-file <path> [--ref <ref>] [--output <path> [--clobber]] [--allow-escape-sequences] [--json <fields>] [--jq <expr>]`
+  prints a file's contents. In non-TTY contexts the raw bytes go straight to
+  stdout (pipe-friendly); binary files are written as-is when piped but are
+  refused on a TTY. By default, a file containing terminal escape sequences is
+  refused; pass `--allow-escape-sequences` to read it anyway. `--output <path>` (`-o`) writes to
+  disk instead of stdout (a trailing slash writes under a directory using the
+  remote file name; `--clobber` allows overwrite); writing to disk always
+  includes the raw bytes regardless of escape sequences. `--output` and `--json` are
+  mutually exclusive. `--json` fields include `name`, `path`, `gitSHA`, `size`,
+  `type`, `encoding`, and `content` (base64 encoded).
+- `gh repo read-dir [<path>] [--ref <ref>] [--json <fields>] [--jq <expr>]`
+  lists a directory; with no path it lists the repo root. Non-TTY output is tab
+  separated as type, name, octal mode, and byte size. `--json` fields include
+  `name`, `path`, `type`, `gitType`, `mode`, `modeOctal`, `gitSHA`, `size`, and
+  `submodule`. A path pointing at a file errors and points you at `read-file`
+  (and vice versa).
 
 ## Fall back to `gh api` for anything `--json` doesn't expose
 

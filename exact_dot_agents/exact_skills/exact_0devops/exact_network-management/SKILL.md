@@ -172,6 +172,7 @@ hp-server 作为实验室里接入校园网的设备，所以需要认证。
 ssh ubuntu@192.168.11.131 'systemctl status custom-edu-auto-auth.service'
 ssh ubuntu@192.168.11.131 'systemctl status custom-edu-auto-auth.timer'
 ssh ubuntu@192.168.11.131 'sudo systemctl start custom-edu-auto-auth.service'
+ssh ubuntu@192.168.11.131 'systemctl status custom-edu-watch.service'  # 断网监控：每30s检测，连续3次断连写journal
 ```
 
 **认证脚本：** `/home/ubuntu/Dev/EduAutoAuth/edu_auth.py`
@@ -398,6 +399,9 @@ ssh root@192.168.100.100 'uci get easytier.@easytier[0].proxy_network'
 
 # 查看 hp-server 的 校园网自动认证 状态
 ssh ubuntu@192.168.11.131 'systemctl status custom-edu-auto-auth.service'
+
+# 查看 hp-server 断网监控日志
+ssh ubuntu@192.168.11.131 'journalctl -u custom-edu-watch.service -f'
 
 # 查看 hp-server 的 netplan 路由
 ssh ubuntu@192.168.11.131 'ip route show | grep 10.0.0.0'

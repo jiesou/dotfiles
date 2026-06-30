@@ -5,7 +5,7 @@ description: Engineering research workflow. Use when any task requiring deep web
 
 # Engineering Research
 
-Pre-process: Ensure I have did some `memory_search` on my local trusted knowledge base.
+Pre-process: Ensure I have did some memory search on my local trusted knowledge base.
 
 ## Process
 
