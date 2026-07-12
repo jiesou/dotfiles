@@ -243,6 +243,15 @@
       "skillFolderHash": "494a05d3f22048951d2a50020d4a87549d1fc651",
       "installedAt": "2026-06-25T01:35:09.144Z",
       "updatedAt": "2026-06-25T01:35:09.144Z"
+    },
+    "create-opencode-plugin": {
+      "source": "igorwarzocha/opencode-workflows",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/igorwarzocha/opencode-workflows.git",
+      "skillPath": "agents/create-opencode-plugin/.opencode/skill/create-opencode-plugin/SKILL.md",
+      "skillFolderHash": "adb02b30cb18c7c7c56253109b6868e39e4f50d0",
+      "installedAt": "2026-07-06T00:05:57.437Z",
+      "updatedAt": "2026-07-06T00:05:57.437Z"
     }
   },
   "lastSelectedAgents": [

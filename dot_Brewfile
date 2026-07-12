@@ -2,12 +2,16 @@ tap "anomalyco/tap"
 tap "espressif/eim"
 # Arduino command-line interface
 brew "arduino-cli"
+# Resource monitor. C++ version and continuation of bashtop and bpytop
+brew "btop"
 # Incredibly fast JavaScript runtime, bundler, test runner, and package manager
 brew "bun"
 # Object-file caching compiler wrapper
 brew "ccache"
 # Manage your dotfiles across multiple diverse machines, securely
 brew "chezmoi"
+# Statistics utility to count lines of code
+brew "cloc"
 # Cross-platform make
 brew "cmake"
 # GNU data recovery tool
@@ -82,6 +86,7 @@ flatpak "com.baidu.NetDisk"
 flatpak "com.bambulab.BambuStudio"
 flatpak "com.belmoussaoui.Authenticator"
 flatpak "com.brave.Browser"
+flatpak "com.ccswitch.desktop", remote: "flatpark", url: "https://dl.flatpark.org/"
 flatpak "com.cyberbotics.webots"
 flatpak "com.freerdp.FreeRDP"
 flatpak "com.github.Matoking.protontricks"

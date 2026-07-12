@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROUTERS=(
-  "wy11    root@192.168.11.1    22    /etc/openclash/config/wscmixed.yaml"
+  "inno11    root@192.168.11.1    22    /etc/openclash/config/wscmixed.yaml"
   "wy100   root@192.168.100.1   23333 /etc/openclash/config/wscmixed.yaml"
-  "wy13    root@192.168.13.1    22    /etc/openclash/config/config.yaml"
+  "wsc13    root@192.168.13.1    22    /etc/openclash/config/config.yaml"
 )
 
 usage() {
@@ -12,10 +12,10 @@ usage() {
 Usage: $(basename "$0") <awk-script> [router...]
        $(basename "$0") -f <awk-file> [router...]
 
-Routers: wy11, wy100, wy13, all (default)
+Routers: inno11, wy100, wsc13, all (default)
 
 Examples:
-  oc-sync.sh '{print; if (/特价机场-1T/) print "  新机场:"}' wy11 wy13
+  oc-sync.sh '{print; if (/特价机场-1T/) print "  新机场:"}' inno11 wsc13
   oc-sync.sh -f transform.awk wy100
   oc-sync.sh -f transform.awk all
 EOF
@@ -45,7 +45,7 @@ resolve_routers() {
     done
     if [[ $found -eq 0 ]]; then
       echo "Unknown router: $r" >&2
-      echo "Valid: wy11 wy100 wy13 all" >&2
+      echo "Valid: inno11 wy100 wsc13 all" >&2
       exit 1
     fi
   done

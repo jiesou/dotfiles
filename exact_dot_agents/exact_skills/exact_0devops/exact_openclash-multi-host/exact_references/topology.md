@@ -34,9 +34,9 @@ eduGateway (immortalwrt)
 
 | 代号 | SSH 地址 | 端口 | 配置文件 | 系统 |
 |------|----------|------|----------|------|
-| wy11 | root@192.168.11.1 | 22 | `/etc/openclash/config/wscmixed.yaml` | immortalwrt |
+| inno11 | root@192.168.11.1 | 22 | `/etc/openclash/config/wscmixed.yaml` | immortalwrt |
 | wy100 | root@192.168.100.1 | 23333 | `/etc/openclash/config/wscmixed.yaml` | immortalwrt |
-| wy13 | root@192.168.13.1 | 22 | `/etc/openclash/config/config.yaml` | immortalwrt |
+| wsc13 | root@192.168.13.1 | 22 | `/etc/openclash/config/config.yaml` | immortalwrt |
 
 三台均无 python，只有 busybox 自带的 awk 和 sed。
 

@@ -1,6 +1,6 @@
 ---
 name: network-management
-description: Network topology, SSH access, routing, OpenClash config for all routers and subnets.
+description: Network topology, SSH access, routing, OpenClash config operations.
 ---
 
 # 网络管理
@@ -10,15 +10,18 @@ description: Network topology, SSH access, routing, OpenClash config for all rou
 - **长程 SSH 任务全都用 tmux 执行**（每个 ssh 连接必须独立长连接）。
 - 不要直接用 shell tool 在宿主机操作。
 
-## 三条宽带
+## 大网段
 
-| 出口路由器 | ISP | 带宽 | 备注 |
-|-----------|-----|------|------|
-| 192.168.100.1 | 联通 | 300M | 学校,WY信息中心  ImmortalWrt，直连 PPPoE |
-| 192.168.11.1 | 电信 | 50M, 上行 10M | 学校,实验室独立 ImmortalWrt，没改桥接，光猫拨号 |
-| 192.168.13.1 | 移动 | 1000M | WSC家 pveImmortalWrt，直连 PPPoE |
+| 代号 | 出口路由器 | ISP | 带宽 | 备注 |
+|------|-----------|-----|------|------|
+| wy100 | 192.168.100.1 | 联通 | 300M | 学校,WY信息中心私拉 ImmortalWrt，直连 PPPoE |
+| inno11 | 192.168.11.1 | 电信 | 50M, 上行 10M | 学校,创新实验室私拉 ImmortalWrt，没改桥接，光猫拨号 |
+| wsc13 | 192.168.13.1 | 移动 | 1000M | WSC家 pveImmortalWrt，直连 PPPoE |
+| edu1055 | 10.55.x.x | 校园网（电信） | 外网垃圾内网千兆 | 终端接入均需认证 |
 
-## 拓扑总览
+_以上网段，各自分布在独立的物理地域点，不直接互通_
+
+## 完整拓扑总览
 
 ```
 Internet
@@ -27,14 +30,14 @@ Internet
     │   └── SSH 端口 23333
     │        │
     │        └── 192.168.100.100 — J1900 (eduGatewayImmortalWrt)
-    |            EasyTier: 10.144.100.100/24
+    │            EasyTier: 10.144.100.100/24
     │            10.55.2.118 ←→ 校园大内网 10.55.2.1 (不可控)
     │                    │
     │            10.55.225.235 — hp-server (Ubuntu Server)
     │            192.168.11.131
     │                    │
     │                    │
-    │                    ▼
+    │                    │
     ├── 电信 50M(学校,实验室) — [没改桥接] 192.168.11.1 — NanoPi R2S 路由器 (ImmortalWrt)
     │                    │
     │                    ├── 192.168.11.192 — chenPC (Fedora Bluefin)
@@ -103,7 +106,7 @@ Internet
     - WiFi SSID 叫作“TP-LINK”是 **历史遗留** ，设备实际上就是 360 硬路由
   - 两路 LAN
     - 一路给 网件R7000 提供给学生用
-    - 一路走到楼上再走下来，给瑞捷 YS110G 交换机 提供给老师用
+    - 一路走到楼上再走下来，给锐捷 YS110G 交换机 提供给老师用
 - R7000-E772.lan 仅作为交换机使用：设置为 AP 模式，不额外带 NAT，同时还把 WiFi 无线 功能关掉了
   - 没有多的千兆交换机了，“AC1900”级别的路由器却有很多，于是将路由器关掉无线，当作纯交换机了，还附带 Merlin 丰富的网管功能
   - R7000-E772.lan 下游主线分两路
@@ -142,9 +145,11 @@ true 即开启， false 即断电
 - NanoPi R2S 上通过 cron 实现了排风扇的定时开关，详阅 http://192.168.11.1/cgi-bin/luci/admin/system/crontab
 - 也提供一个网页面板，直接访问 http://192.168.11.120 即可
   - 贴片机厂房内 WiFi 信号很差，网页很慢，可能需要耐心等待一分钟以上！晚上不行就早上试！
-  - 直接使用 http 接口更轻更快
-- 会提供一个 mDNS，可以 ArduinoOTA（小心不要 OTA 坏了）
+  - 直接使用 curl 调用 http 接口更轻更快
+- 它会提供一个 mDNS，可以 ArduinoOTA（小心不要 OTA 坏了）
 - 硬件是修改了 https://oshwhub.com/oldfox126/xin-guo-biao-wu-kong-ji-liang-cha-zuo-10a
+
+---
 
 ### 192.168.13.0/24 — WSC家
 
@@ -153,6 +158,8 @@ true 即开启， false 即断电
 | pveImmortalWrt | 192.168.13.1 | ImmortalWrt, PPPoE 出口, DHCP 服务器, OpenClash fake-IP, EasyTier 10.144.13.1/24 |
 | PVE LXC 容器 | 192.168.13.101 | CasaOS + Docker |
 
+---
+
 ### 10.55.0.0/16 — 校园大内网
 
 | 设备 | IP | 角色 |
@@ -160,14 +167,17 @@ true 即开启， false 即断电
 | 校园大内网路由 | 10.55.2.1 | 不可控的上游路由器 |
 | hp-server | 10.55.225.235 | 从 11.x LAN 双网卡接入 |
 | eduGateway | 10.55.2.118 | ImmortalWrt，桥接到 192.168.100.x |
+| 信息中心应用服务器 | 10.55.2.95 | Ubuntu，80,61,71 等端口可直接访问 |
+
+- 校园网内很少使用 DHCP（出于安全管理原因），直连 10.55 的设备都需要静态 IP 配置
 
 #### hp-server 校园网自动认证
 
-校园网使用 captive portal 认证（`ac_portal/login.php`，RC4 加密）。学校每天在固定时间点登出所有设备，因此需自动重认证。
-eduGatewayImmortalWrt 在WY信息中心机房，配置了服务器免认证。
-hp-server 作为实验室里接入校园网的设备，所以需要认证。
+校园网使用 captive portal 认证（`ac_portal/login.php`，RC4 加密）。学校每天在固定时间点登出所有设备，因此需自动重认证
+eduGatewayImmortalWrt 在WY信息中心机房，配置了服务器免认证
+hp-server 作为实验室里接入校园网的设备，所以需要认证
 
-**systemd 服务：**
+systemd 服务：
 ```bash
 ssh ubuntu@192.168.11.131 'systemctl status custom-edu-auto-auth.service'
 ssh ubuntu@192.168.11.131 'systemctl status custom-edu-auto-auth.timer'
@@ -175,8 +185,8 @@ ssh ubuntu@192.168.11.131 'sudo systemctl start custom-edu-auto-auth.service'
 ssh ubuntu@192.168.11.131 'systemctl status custom-edu-watch.service'  # 断网监控：每30s检测，连续3次断连写journal
 ```
 
-**认证脚本：** `/home/ubuntu/Dev/EduAutoAuth/edu_auth.py`
-**校园网账号：** 用户名 `fangke`，密码硬编码在脚本中
+认证脚本： `/home/ubuntu/Dev/EduAutoAuth/edu_auth.py`
+校园网账号： 用户名 `fangke`，密码硬编码在脚本中
 portal 地址 `10.55.224.217`，绑定网卡 `enp2s0`
 
 **认证失败排查：**
@@ -185,12 +195,44 @@ portal 地址 `10.55.224.217`，绑定网卡 `enp2s0`
 3. 尝试 enp2s0 down/up 重连
 4. 手动触发认证：`sudo systemctl start custom-edu-auto-auth.service`
 
+#### 10.55.2.95 — 信息中心应用服务器
+
+一台 Ubuntu 服务器承载了学校很多数字化服务
+
+| 端口 | 服务名称 | 框架 | 说明 |
+|------|---------|------|---------|------|
+| 22 | SSH | OpenSSH 8.9p1 | Ubuntu 系统管理 |
+| 51 | 软件下载中心 | gunicorn/Flask | 校内软件分发（钉钉/微信/WPS） |
+| 61 | 通勤管理系统前端 | nginx → Vite SPA | 学生通勤/门禁管理 |
+| 71 | 深信服 AC 面板 | gunicorn/Flask | 在线用户查看 + 定时批量注销 |
+| 80 | 应用导航门户 | nginx | 汇总页，加载 config.json 列全部内网应用 |
+| 82 | 双余额消费查询 | gunicorn/Flask | 输学号查食堂消费记录 |
+| 86 | 学生请假查询 | gunicorn/Flask | 返回 500（可能数据库断连） |
+| 100 | 成绩查询前端 | nginx → React SPA | Ant Design，全校成绩查询 |
+| 888 | nginx 默认页 | nginx | 空站点配置 |
+| 1000 | 成绩查询 API | gunicorn/Flask | 自明/鹏达成绩系统后端，SQL Server via ODBC 17 |
+| 3000 | 标签管理前端 | nginx → React 19 | Vite import maps (esm.sh) |
+| 3010 | 青瓷教学平台前端 | nginx → Vue 3 SPA | 千峰翠色·青瓷资源展示 |
+| 3306 | MySQL 8.0.35 | — | 端口暴露，但密码非弱口令 |
+| 5000 | exam-system | gunicorn/Flask + JWT | 在线考试系统，独立数据库 |
+| 5001 | 标签系统 API | Express/Node.js + SQLite | 学生行为记录标签系统 |
+| 5050 | 通勤系统 API | Werkzeug/Python + JWT | 通勤管理后端 |
+| 8000 | 晚自习统计 | FastAPI/uvicorn | 晚自习考勤、批次、排班 |
+| 8086 | 在线练习平台前端 | nginx → React SPA | 网络技术基础题库（Ant Design） |
+| 8989 | Edge TTS | Python HTTP | 文字转语音（不可用） |
+
+_以上信息截止 2026.06.06_
+
+---
+
 ### 192.168.100.0/24 — 学校,WY信息中心 外部路由器网段
 
 | 设备 | IP | 角色 |
 | ---------- | --------------- | ------------------------------------------------------- |
 | 外部公网拨号路由器 | 192.168.100.1 | ImmortalWrt, PPPoE 出口, DHCP 服务器, OpenClash fake-IP |
 | eduGateway | 192.168.100.100 | ImmortalWrt，外部路由器前的终端节点，EasyTier 10.144.100.100/24 |
+
+---
 
 ## 关键路径
 
@@ -236,7 +278,7 @@ chenPC 上有三个有线配置文件，均绑定 enp9s0：
 
 **设计意图：**
 - `172.16.69.0/30` 和 `10.144.0.0/16 via 11.131` 放在 DHCP 配置而非 "WY UNICOM GRE 隧道" 里，因为 GRE 隧道是双向基础设施——13.x 回程无论 chenPC 用哪个出口都走这条路径。放在 GRE 配置里的话，切回 DHCP 模式时这些路由会被撤销，回程就断了。
-- **核心目的**：DHCP 模式下 EasyTier 仍可用，使 `10.144.100.100`（eduGateway）能通过回程路径 P2P 直通 `192.168.11.192`。
+- 核心目的：DHCP 模式下 EasyTier 仍可用，使 `10.144.100.100`（eduGateway）能通过回程路径 P2P 直通 `192.168.11.192`。
 - `10.144.0.0/16` 精确覆盖 EasyTier 虚拟网段 `10.144.0.0/16`，且不干扰 `10.55.0.0/16` 校园网路由。
 
 ## 管理密码/密钥
@@ -276,12 +318,10 @@ SSH 均可直接通过密钥接入以下设备：
 
 **重要：** 绝大多数 (99%) 问题和 openclash/mihomo **无关** ，不要绕弯路去研究 openclash。不要自以为是！
 
-- 所有路由器都运行 OpenClash **fake-IP 模式+nftables TProxy 透明代理**。
-- 通过 clash 内核内的 SRC-IP-CIDR 规则分流，以及 OpenClash 基于 nftables 的“来源流量访问控制”功能，实现部分设备走科学，部分设备不走科学。
-- OpenClash 通常都设置了 **定时重启** ，每天早上 6:00。
-- OpenClash 主要只用一个 .yaml 配置，将各种机场、自建节点混到一个配置文件里使用，也方便设置自己的规则和 DNS。
+> 如果真的涉及 OpenClash 问题，务必先调用 openclash-troubleshoot SKILL
 
 ### 配置文件操作约定
+
 
 同步/修改 OpenClash 配置时，始终编辑当前活跃的配置文件：
 
@@ -293,9 +333,18 @@ SSH 均可直接通过密钥接入以下设备：
 
 **重要：** 各路由器的 OpenClash 设置独立 — DNS 配置尤其不同。不要盲目复制配置，要先检查差异，只应用 diff。
 
+> 涉及配置文件操作，务必先调用 openclash-multi-host SKILL
+
+#### 详细配置注意事项
+
+- 所有路由器都运行 OpenClash fake-IP 模式+nftables TProxy 透明代理。
+- 通过 clash 内核内的 SRC-IP-CIDR 规则分流，以及 OpenClash 基于 nftables 的“来源流量访问控制”功能，实现部分设备走科学，部分设备不走科学。
+- OpenClash 通常都设置了 定时重启，每天早上 6:00。
+- OpenClash 主要只用一个 .yaml 配置，将各种机场、自建节点混到一个配置文件里使用，也方便设置自己的规则和 DNS。
+
 ### 实时操作约定
 
-**更换节点** 、 **切换规则** 等操作，应该通过 Clash API， **而不是 编辑配置文件**
+**更换节点** 、 **切换规则** 等操作，应该通过 Clash API， 而不是 编辑配置文件
 
 你可以用 curl 操控 Clash API，
 位于：
@@ -313,20 +362,6 @@ SSH 均可直接通过密钥接入以下设备：
 ssh root@192.168.11.1 'cat /etc/openclash/config/wscmixed.yaml' | grep -B 1 -A 10 'premiumip:'
 ```
 
-### 修改配置
-
-```bash
-# 11.1 (本地 ARM 路由器)
-ssh root@192.168.11.1 'vim /etc/openclash/config/wscmixed.yaml'
-# 然后重启
-ssh root@192.168.11.1 '/etc/init.d/openclash restart'
-
-# 13.1 (pveImmortalWrt)
-ssh root@192.168.13.1 'vim /etc/openclash/config/config.yaml'
-# 然后重启
-ssh root@192.168.13.1 '/etc/init.d/openclash restart'
-```
-
 ## 故障排除直接流程
 
 1. 实验室内完全连不上网，检查电信光猫是否“光信号闪红灯”，如果是，则是运营商的问题，打师傅电话修光纤了
@@ -338,7 +373,9 @@ ssh root@192.168.13.1 '/etc/init.d/openclash restart'
 
 ## 公网/内网穿透流程
 
-11.x 没有公网 IPv6，走 100.1（联通 `/60` 前缀）→ 100.100（eduGateway）→ hp-server → 11.x 暴露出去。
+11.x 已有基本的 IPv6，可访问 IPv6 的网站，但没有公网 IPv6，涉及改桥接等。
+
+因此在 11.x 没有公网 IPv6 的情况下，目前最优路径是走 100.1（有公网 IPv6 且带 DDNS 的 wy100 路由）→ 100.100（eduGateway）→ hp-server → 11.x 暴露出去。
 
 **100.1 加 3cat 实例（转发监听端口到目标）：**
 
