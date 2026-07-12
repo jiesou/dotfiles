@@ -7,3 +7,5 @@ install.sh
 **/package-lock.json
 **/crash.log
 **/backups/**
+.agents/workspace/*.info.json
+.agents/workspace/.opencode/**
