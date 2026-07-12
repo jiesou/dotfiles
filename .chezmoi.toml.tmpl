@@ -15,7 +15,6 @@
 {{- end -}}
 
 sourceDir = {{ .chezmoi.sourceDir | quote }}
-refreshExternals = "auto"
 encryption = "gpg"
 [data]
     passphrase = {{ $passphrase | quote }}
