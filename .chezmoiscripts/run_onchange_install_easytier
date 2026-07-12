@@ -1,0 +1,34 @@
+#!/bin/sh
+set -eu
+
+[ -z "${REMOTE_CONTAINERS:-}" ] || { echo "run_onchange_install_easytier: running in container, skipping" >&2; exit 0; }
+
+printf "run_onchange_install_easytier: ? [y/N]: "
+read -r confirm || :
+case "$confirm" in
+    [yY]*) ;;
+    *) exit 0 ;;
+esac
+
+if ! command -v easytier-core; then
+    echo "run_onchange_install_easytier: Installing..."
+    curl -fsSL "https://github.com/EasyTier/EasyTier/blob/main/script/install.sh?raw=true" | sudo bash -s install --gh-proxy https://ghfast.top/
+fi
+
+ET_CLI=/opt/easytier/easytier-cli
+
+echo "run_onchange_install_easytier: Stopping conflicting services..."
+sudo systemctl disable --now easytier@default 2>/dev/null || true
+sudo "$ET_CLI" service uninstall 2>/dev/null || true
+
+echo "run_onchange_install_easytier: Registering system service..."
+sudo "$ET_CLI" service install -d --network-name jiesou_easytier \
+  -p udp://110.42.103.37:11010 \
+  -p ws://i-et.jiecs.top \
+  -p tcp://i.loliis.top:11010
+sudo "$ET_CLI" service start || true
+
+echo "run_onchange_install_easytier: Linking to ~/.local/bin..."
+ln -s /opt/easytier/easytier-cli "$HOME/.local/bin/easytier-cli" || true
+
+echo "run_onchange_install_easytier: Done"
