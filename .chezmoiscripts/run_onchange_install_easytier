@@ -27,6 +27,7 @@ sudo "$ET_CLI" service install -d --network-name jiesou_easytier \
   -p ws://i-et.jiecs.top \
   -p tcp://i.loliis.top:11010
 sudo "$ET_CLI" service start || true
+sudo systemctl disable easytier.service 2>/dev/null || true
 
 echo "run_onchange_install_easytier: Linking to ~/.local/bin..."
 ln -s /opt/easytier/easytier-cli "$HOME/.local/bin/easytier-cli" || true

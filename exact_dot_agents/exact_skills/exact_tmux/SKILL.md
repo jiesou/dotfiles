@@ -13,9 +13,10 @@ Use tmux as a programmable terminal multiplexer for interactive work. Works on L
 ```bash
 SOCKET="${TMPDIR:-/tmp}/agent.sock"            # keep agent sessions separate from your personal tmux
 SESSION=agent-python                           # slug-like names; avoid spaces
-tmux -S "$SOCKET" new -d -s "$SESSION" -n shell
-tmux -S "$SOCKET" send-keys -t "$SESSION":0.0 -- 'python3 -q' Enter
-tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION":0.0 -S -200  # watch output
+tmux -f /dev/null -S "$SOCKET" new -d -s "$SESSION" -n shell
+TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')"
+tmux -S "$SOCKET" send-keys -t "$SESSION":"$TARGET" -- 'python3 -q' Enter
+tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION":"$TARGET" -S -200  # watch output
 tmux -S "$SOCKET" kill-session -t "$SESSION"                   # clean up
 ```
 
@@ -26,7 +27,7 @@ To monitor this session yourself:
   tmux -S "$SOCKET" attach -t agent-lldb
 
 Or to capture the output once:
-  tmux -S "$SOCKET" capture-pane -p -J -t agent-lldb:0.0 -S -200
+  tmux -S "$SOCKET" capture-pane -p -J -t agent-lldb:"$TARGET" -S -200
 ```
 
 This must ALWAYS be printed right after a session was started and once again at the end of the tool loop.  But the earlier you send it, the happier the user will be.
@@ -37,7 +38,7 @@ This must ALWAYS be printed right after a session was started and once again at 
 
 ## Targeting panes and naming
 
-- Target format: `{session}:{window}.{pane}`, defaults to `:0.0` if omitted. Keep names short (e.g., `agent-py`, `agent-gdb`).
+- Target format: `{session}:{window}.{pane}`. After creating a session, resolve the target: `TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')"`. Then use `"$SESSION:$TARGET"` for all subsequent commands. Never hardcode `:0.0` — base-index varies across systems.
 - Use `-S "$SOCKET"` consistently to stay on the private socket path. If you need user config, drop `-f /dev/null`; otherwise `-f /dev/null` gives a clean config.
 - Inspect: `tmux -S "$SOCKET" list-sessions`, `tmux -S "$SOCKET" list-panes -a`.
 - A session holds multiple windows; `new -s` creates a session while `new-window` adds a window to an existing one. Always `list-sessions`/`list-windows` first so you don't mistake a window for a session (e.g. re-running `new -s` on an existing name → `duplicate session`, then `can't find window` on later `send-keys`).
@@ -71,7 +72,7 @@ Some special rules for processes:
 
 - Use timed polling to avoid races with interactive tools. Example: wait for a Python prompt before sending code:
   ```bash
-  ./scripts/wait-for-text.sh -t "$SESSION":0.0 -p '^>>>' -T 15 -l 4000
+  ./scripts/wait-for-text.sh -t "$SESSION:$TARGET" -p '^>>>' -T 15 -l 4000
   ```
 - For long-running commands, poll for completion text (`"Type quit to exit"`, `"Program exited"`, etc.) before proceeding.
 
@@ -92,7 +93,7 @@ Some special rules for processes:
 `./scripts/wait-for-text.sh` polls a pane for a regex (or fixed string) with a timeout. Works on Linux/macOS with bash + tmux + grep.
 
 ```bash
-./scripts/wait-for-text.sh -t session:0.0 -p 'pattern' [-F] [-T 20] [-i 0.5] [-l 2000]
+./scripts/wait-for-text.sh -t session:<target> -p 'pattern' [-F] [-T 20] [-i 0.5] [-l 2000]
 ```
 
 - `-t`/`--target` pane target (required)
