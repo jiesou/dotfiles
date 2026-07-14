@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@code-yeongyu/comment-checker": "^0.7.0",
+    "@opencode-ai/plugin": "1.2.27",
+    "oh-my-opencode": "^3.17.5"
+  }
+}

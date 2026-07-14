@@ -9,3 +9,8 @@ install.sh
 **/backups/**
 .agents/workspace/*.info.json
 .agents/workspace/.opencode/**
+**/node_modules/**
+**/bun.lock
+**/opencode.json.bak
+**/.env
+**/agent/**

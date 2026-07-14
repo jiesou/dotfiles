@@ -1,0 +1,35 @@
+#!/bin/bash
+set -eu
+
+DIRS=(
+  "$HOME/.config/nvim"
+  "$HOME/.config/opencode"
+  "$HOME/.ssh"
+)
+
+VALID_DIRS=()
+for d in "${DIRS[@]}"; do
+  [ -d "$d" ] && VALID_DIRS+=("$d")
+done
+
+echo "→ re-add (modifications + deletions)"
+chezmoi re-add --recursive "${VALID_DIRS[@]}" 2>/dev/null || true
+
+echo "→ add (new files)"
+NEW_FILES=()
+for d in "${VALID_DIRS[@]}"; do
+  while IFS= read -r f; do
+    [ -n "$f" ] && NEW_FILES+=("$HOME/$f")
+  done < <(chezmoi unmanaged "$d" 2>/dev/null)
+done
+if [ ${#NEW_FILES[@]} -gt 0 ]; then
+  chezmoi add "${NEW_FILES[@]}" 2>/dev/null || true
+fi
+
+for d in "${VALID_DIRS[@]}"; do
+  chezmoi chattr +exact "$d" 2>/dev/null || true
+done
+
+echo ""
+echo "Done. Review:"
+echo "  git -C $(chezmoi source-path) diff --stat"
