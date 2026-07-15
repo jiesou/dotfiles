@@ -13,21 +13,21 @@ for d in "${DIRS[@]}"; do
 done
 
 echo "→ re-add (modifications + deletions)"
-chezmoi re-add --recursive "${VALID_DIRS[@]}" 2>/dev/null || true
+chezmoi re-add --recursive "${VALID_DIRS[@]}" || true
 
 echo "→ add (new files)"
 NEW_FILES=()
 for d in "${VALID_DIRS[@]}"; do
   while IFS= read -r f; do
     [ -n "$f" ] && NEW_FILES+=("$HOME/$f")
-  done < <(chezmoi unmanaged "$d" 2>/dev/null)
+    done < <(chezmoi unmanaged "$d")
 done
 if [ ${#NEW_FILES[@]} -gt 0 ]; then
-  chezmoi add "${NEW_FILES[@]}" 2>/dev/null || true
+  chezmoi add "${NEW_FILES[@]}" || true
 fi
 
 for d in "${VALID_DIRS[@]}"; do
-  chezmoi chattr +exact "$d" 2>/dev/null || true
+  chezmoi chattr +exact "$d" || true
 done
 
 echo ""
