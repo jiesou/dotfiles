@@ -10,12 +10,10 @@ function isBlockedTmpWrite(filePath: string): boolean {
 }
 
 const BLOCKED_MSG =
-  `"${ALLOWED_PREFIX}/..." must be used. `
+  `Not allowed to access /tmp, use "${ALLOWED_PREFIX}/..." instead.`
 
 function isBlockedTmpBash(command: string): boolean {
-  if (!command.includes("/tmp")) return false
-  if (command.includes(ALLOWED_PREFIX)) return false
-  return />\s*\/tmp\/|tee\s+\/tmp\/|cp\s+.*\s+\/tmp\/|mv\s+.*\s+\/tmp\/|mkdir\s+\/tmp\/|touch\s+\/tmp\//.test(command)
+  return command.includes("/tmp") && !command.includes("/tmp/agent.socket") && !command.includes(ALLOWED_PREFIX)
 }
 
 export const TmpRedirect: Plugin = async () => {
