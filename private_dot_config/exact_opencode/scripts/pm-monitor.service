@@ -1,0 +1,14 @@
+[Unit]
+Description=Polymarket DeepSeek V4 monitor (Telegram push)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.config/opencode/scripts
+ExecStart=/usr/bin/python3 %h/.config/opencode/scripts/pm-monitor.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
