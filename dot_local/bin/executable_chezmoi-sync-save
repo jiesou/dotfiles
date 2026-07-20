@@ -1,26 +1,22 @@
 #!/bin/bash
 set -eu
 
-# Bidirectional mirror with metadata preservation via source-state as source of truth.
+# Bidirectional mirror with metadata preserved by source-state as source of truth.
 # Per dir: re-add (modifications, preserves encrypted_/exact_ source attrs)
-#          + forget-orphan (deletions, renames)
-#          + add-new (new files)
-#          + chattr +exact --recursive (propagate exact_ prefix to subdirs)
-# Encrypted files stay encrypted (re-add doesn't rewrite unchanged .asc).
-# Script disables autoCommit/autoPush during run; one commit + push at end.
+#        + forget-orphan (deletions, renames)
+#        + add-new (new files; plain add, subdirs lack exact_ prefix)
+#        + chattr +exact --recursive (propagate exact_ prefix to new subdirs)
+# Encrypted files stay encrypted: re-add doesn't rewrite unchanged .asc.
+# Script disables autoCommit/autoPush during run; one commit + FF push at end.
 
 DIRS=(
-  "$HOME/.agents/skills"
+  "$HOME/.agents"
   "$HOME/.config/nvim"
   "$HOME/.config/opencode"
   "$HOME/.ssh"
 )
-FILES=(
-  "$HOME/.agents/.skill-lock.json"
-)
 
 D=(); for x in "${DIRS[@]}"; do [ -d "$x" ] && D+=("$x"); done
-F=(); for x in "${FILES[@]}"; do [ -f "$x" ] && F+=("$x"); done
 
 SRC=$(chezmoi source-path)
 CFG="$HOME/.config/chezmoi/chezmoi.toml"
@@ -34,9 +30,9 @@ for d in "${D[@]}"; do
   chezmoi re-add --recursive "$d" 2>/dev/null || true
 
   ORPHANS=() NEWS=()
-  while IFS= read -r m; do
+  while IFS= read -r -d '' m; do
     [ -n "$m" ] && { [ -e "$HOME/$m" ] || ORPHANS+=("$HOME/$m"); }
-  done < <(chezmoi managed -0 "$d" 2>/dev/null | tr '\0' '\n')
+  done < <(chezmoi managed -0 "$d" 2>/dev/null)
   while IFS= read -r f; do
     [ -n "$f" ] && NEWS+=("$HOME/$f")
   done < <(chezmoi unmanaged "$d" 2>/dev/null)
@@ -46,15 +42,12 @@ for d in "${D[@]}"; do
   chezmoi chattr +exact --recursive "$d" 2>/dev/null || true
 done
 
-echo "→ re-add FILES"
-[ ${#F[@]} -gt 0 ] && chezmoi re-add "${F[@]}" 2>/dev/null || true
-
 echo "→ single commit + push"
 git -C "$SRC" add -A
 if [ -n "$(git -C "$SRC" status --porcelain)" ]; then
   [ -n "$BASE" ] && git -C "$SRC" reset --soft "$BASE"
   git -C "$SRC" commit -m "sync: $(date +%Y-%m-%dT%H:%M:%S)" >/dev/null
-  git -C "$SRC" push --force-with-lease >/dev/null
+  git -C "$SRC" push >/dev/null
   echo "  $(git -C "$SRC" log --oneline -1)"
 else
   echo "  nothing to sync"
