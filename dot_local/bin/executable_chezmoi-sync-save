@@ -1,27 +1,26 @@
 #!/bin/bash
 set -eu
 
-# override-remote semantics with metadata preservation:
-#   For plain DIRS: snapshot encrypted_ metadata -> forget all -> add --recursive
-#   -> replay chattr +encrypted per file -> chattr +exact --recursive
-#   For encrypted DIRS: smart-diff (re-add + forget-orphan + add-new) to avoid GPG churn.
-# Script disables autoCommit/autoPush during run; one commit + force-with-lease push at end.
+# Bidirectional mirror with metadata preservation via source-state as source of truth.
+# Per dir: re-add (modifications, preserves encrypted_/exact_ source attrs)
+#          + forget-orphan (deletions, renames)
+#          + add-new (new files)
+#          + chattr +exact --recursive (propagate exact_ prefix to subdirs)
+# Encrypted files stay encrypted (re-add doesn't rewrite unchanged .asc).
+# Script disables autoCommit/autoPush during run; one commit + push at end.
 
-DIRS_PLAIN=(
+DIRS=(
   "$HOME/.agents/skills"
   "$HOME/.config/nvim"
   "$HOME/.config/opencode"
-)
-DIRS_ENC=(
   "$HOME/.ssh"
 )
 FILES=(
   "$HOME/.agents/.skill-lock.json"
 )
 
-DP=(); for x in "${DIRS_PLAIN[@]}"; do [ -d "$x" ] && DP+=("$x"); done
-DE=(); for x in "${DIRS_ENC[@]}";   do [ -d "$x" ] && DE+=("$x"); done
-F=();  for x in "${FILES[@]}";      do [ -f "$x" ] && F+=("$x"); done
+D=(); for x in "${DIRS[@]}"; do [ -d "$x" ] && D+=("$x"); done
+F=(); for x in "${FILES[@]}"; do [ -f "$x" ] && F+=("$x"); done
 
 SRC=$(chezmoi source-path)
 CFG="$HOME/.config/chezmoi/chezmoi.toml"
@@ -30,27 +29,10 @@ trap 'mv "$CFG.bak.sync.$$" "$CFG"' EXIT
 sed -i 's/autoCommit = true/autoCommit = false/; s/autoPush = true/autoPush = false/' "$CFG"
 BASE=$(git -C "$SRC" rev-parse HEAD 2>/dev/null || echo "")
 
-echo "→ override-remote (plain DIRS) with metadata snapshot/replay"
-for d in "${DP[@]}"; do
-  ALL=(); ENC=()
-  while IFS= read -r m; do
-    [ -z "$m" ] && continue
-    t="$HOME/$m"; ALL+=("$t")
-    sp=$(chezmoi source-path "$t" 2>/dev/null || true)
-    case "$(basename "$sp")" in encrypted_*) ENC+=("$t") ;; esac
-  done < <(chezmoi managed -0 "$d" 2>/dev/null | tr '\0' '\n')
-
-  [ ${#ALL[@]} -gt 0 ] && chezmoi forget --force "${ALL[@]}" 2>/dev/null || true
-  chezmoi add --recursive "$d" 2>/dev/null || true
-  for t in "${ENC[@]}"; do
-    [ -e "$t" ] && chezmoi chattr +encrypted "$t" 2>/dev/null || true
-  done
-  chezmoi chattr +exact --recursive "$d" 2>/dev/null || true
-done
-
-echo "→ smart-diff (encrypted DIRS)"
-for d in "${DE[@]}"; do
+echo "→ mirror each DIR via re-add + forget-orphan + add-new"
+for d in "${D[@]}"; do
   chezmoi re-add --recursive "$d" 2>/dev/null || true
+
   ORPHANS=() NEWS=()
   while IFS= read -r m; do
     [ -n "$m" ] && { [ -e "$HOME/$m" ] || ORPHANS+=("$HOME/$m"); }
@@ -58,14 +40,16 @@ for d in "${DE[@]}"; do
   while IFS= read -r f; do
     [ -n "$f" ] && NEWS+=("$HOME/$f")
   done < <(chezmoi unmanaged "$d" 2>/dev/null)
+
   [ ${#ORPHANS[@]} -gt 0 ] && chezmoi forget --force "${ORPHANS[@]}" 2>/dev/null || true
   [ ${#NEWS[@]}    -gt 0 ] && chezmoi add          "${NEWS[@]}"    2>/dev/null || true
+  chezmoi chattr +exact --recursive "$d" 2>/dev/null || true
 done
 
 echo "→ re-add FILES"
 [ ${#F[@]} -gt 0 ] && chezmoi re-add "${F[@]}" 2>/dev/null || true
 
-echo "→ single commit + push --force-with-lease"
+echo "→ single commit + push"
 git -C "$SRC" add -A
 if [ -n "$(git -C "$SRC" status --porcelain)" ]; then
   [ -n "$BASE" ] && git -C "$SRC" reset --soft "$BASE"
