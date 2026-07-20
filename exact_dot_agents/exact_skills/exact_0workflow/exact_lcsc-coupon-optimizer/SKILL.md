@@ -1,7 +1,6 @@
 ---
 name: lcsc-coupon-optimizer
-description: >
-  szlcsc.com electronic components purchase. Use when the user provides the electronic BOM about szlcsc
+description: szlcsc.com electronic components purchase. 
 ---
 
 # LCSC 满减凑单优化

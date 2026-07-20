@@ -252,6 +252,15 @@
       "skillFolderHash": "adb02b30cb18c7c7c56253109b6868e39e4f50d0",
       "installedAt": "2026-07-06T00:05:57.437Z",
       "updatedAt": "2026-07-06T00:05:57.437Z"
+    },
+    "agentkey": {
+      "source": "chainbase-labs/agentkey",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/chainbase-labs/agentkey.git",
+      "skillPath": "skills/agentkey/SKILL.md",
+      "skillFolderHash": "76510097498267fca7505e3a56b1298790083475",
+      "installedAt": "2026-07-18T19:13:39.104Z",
+      "updatedAt": "2026-07-18T19:13:39.104Z"
     }
   },
   "lastSelectedAgents": [

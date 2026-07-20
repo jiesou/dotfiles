@@ -1,11 +1,11 @@
 ---
 name: yt-dlp
-description: "Get video transcripts for youtube/bilibili. Use when search for information like U卡/虚拟卡、科学上网、银行信用卡开户、币圈行情等"
+description: "Get any video transcripts, such as youtube, bilibili. Use when search for information like U卡/虚拟卡、科学上网、银行信用卡开户、币圈行情等"
 ---
 
 # yt-dlp 视频字幕文稿提取
 
-通过 `python3 "scripts/get-transcript.py`（基于 yt-dlp）下载视频字幕文稿，缓存到本地 tmp 路径，并对每个视频并发生成结构化摘要。
+通过 `python3 "scripts/get-transcript.py`（基于 `uvx yt-dlp`）下载视频字幕文稿，缓存到本地 tmp 路径，并对每个视频并发生成结构化摘要。
 
 get-transcript.py 支持平台：
 - **YouTube** — CC 自动字幕 / SenseVoice fallback

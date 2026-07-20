@@ -69,10 +69,11 @@ def _download_audio(yt: list[str], url: str, tmp: Path) -> Optional[Path]:
     r = subprocess.run(
         [*yt, *COOKIES,
          "--no-progress",
+         "--socket-timeout", "10",
          "-f", "bestaudio/best",
          "-o", str(tmp / "audio.%(ext)s"),
          url],
-        check=False)
+        check=False, timeout=120)
     if r.returncode != 0:
         sys.stderr.write("audio download failed\n")
         return None
@@ -107,7 +108,10 @@ def _platform(url: str) -> str:
         return "youtube"
     if re.search(r"bilibili\.com", url):
         return "bilibili"
-    return "unknown"
+    m = re.search(r"(?:twitter\.com|x\.com)", url)
+    if m:
+        return "x"
+    return "other"
 
 
 def _vid(url: str) -> Optional[str]:
@@ -120,6 +124,9 @@ def _vid(url: str) -> Optional[str]:
     m = re.search(r"av(\d+)", url, re.I)
     if m:
         return f"av{m.group(1)}"
+    m = re.search(r"(?:twitter\.com|x\.com)/(?:\w+/status/|i/status/)(\d+)", url)
+    if m:
+        return f"x{m.group(1)}"
     return None
 
 
@@ -285,7 +292,7 @@ def _fetch_bili_comments(tmp: Path, vid: str, order: str, out: str) -> bool:
     )
     r = subprocess.run(
         [*_bili_python_cmd(), "-c", code, vid, str(mode)],
-        capture_output=True, text=True, check=False)
+        capture_output=True, text=True, check=False, timeout=120)
     if r.returncode != 0 or not r.stdout.strip():
         sys.stderr.write(f"bilibili-api-python {order} comments failed (exit {r.returncode}):\n")
         for ln in (r.stderr or "").splitlines()[-10:]:
@@ -305,10 +312,11 @@ def _fetch_yt_comments(yt: list[str], url: str, tmp: Path, sort: str, out: str) 
          "--no-progress", "--skip-download",
          "--no-write-auto-sub", "--no-write-sub",
          "--write-comments",
+         "--socket-timeout", "10",
          "--extractor-args", f"youtube:comment-sort={sort};max_comments=200,20,20",
          "--print-to-file", "%(comments)j", str(tmp / out),
          url],
-        capture_output=True, text=True, check=False)
+        capture_output=True, text=True, check=False, timeout=120)
     for ln in (r.stderr or "").splitlines():
         if not ln.startswith("[download]"):
             sys.stderr.write(f"{ln}\n")
@@ -318,22 +326,26 @@ def _fetch_yt_comments(yt: list[str], url: str, tmp: Path, sort: str, out: str) 
     return (tmp / out).exists() and (tmp / out).stat().st_size > 0
 
 
-def _fetch(yt: list[str], url: str, tmp: Path) -> Tuple[Optional[Path], list[str], str, bool]:
+def _fetch(yt: list[str], url: str, tmp: Path) -> Tuple[Optional[Path], list[str], str, bool, str]:
     plat = _platform(url)
     sub_langs = {
         "youtube": "en,es,en-US,es-419,zh-Hans,zh,zh-CN,ja",
         "bilibili": "ai-zh,zh-Hans,zh,zh-CN,en,ja",
+        "x": "en",
     }.get(plat, "en,zh")
 
     sub_fmt = "json/vtt/srt"
 
+    sys.stderr.write(f"[fetch] getting {url} subtitles...\n")
     proc = subprocess.Popen(
         [*yt, *COOKIES, *EJS,
          "--no-progress",
+         "--socket-timeout", "10",
          "--skip-download",
          "--write-auto-sub", "--write-sub",
          "--sub-lang", sub_langs,
          "--sub-format", sub_fmt,
+         "--print-to-file", "%(id)s", str(tmp / "id.txt"),
          "--print-to-file",
          "%(title)s\t%(uploader)s\t%(duration_string)s\t%(upload_date)s\t%(view_count)s",
          str(tmp / "meta.txt"),
@@ -347,15 +359,16 @@ def _fetch(yt: list[str], url: str, tmp: Path) -> Tuple[Optional[Path], list[str
         sys.stderr.flush()
     proc.wait()
 
+    vid = (tmp / "id.txt").read_text("utf-8", errors="replace").strip() or _vid(url) or ""
+
     if plat == "youtube":
         _fetch_yt_comments(yt, url, tmp, "top", "comments-hot.json")
         _fetch_yt_comments(yt, url, tmp, "new", "comments-recent.json")
     elif plat == "bilibili":
-        vid = _vid(url) or ""
         _fetch_bili_comments(tmp, vid, "hot", "comments-hot.json")
         _fetch_bili_comments(tmp, vid, "recent", "comments-recent.json")
 
-    skip = {"comments-hot.json", "comments-recent.json", "meta.txt"}
+    skip = {"comments-hot.json", "comments-recent.json", "meta.txt", "id.txt"}
     subs = sorted(tmp.glob("*.vtt")) or sorted(
         f for f in tmp.glob("*.json") if f.name not in skip and not f.name.endswith(".info.json")
     ) or sorted(
@@ -364,25 +377,25 @@ def _fetch(yt: list[str], url: str, tmp: Path) -> Tuple[Optional[Path], list[str
     if subs and _clean_subtitle(subs[0]).strip():
         meta = _read_meta(tmp)
         comments = _read_comments(tmp)
-        return subs[0], meta, comments, False
+        return subs[0], meta, comments, False, vid
 
     sys.stderr.write("no usable subtitles, falling back to sense-voice transcription\n")
     wav = _download_audio(yt, url, tmp)
     if not wav:
         sys.stderr.write("audio download failed, no fallback possible\n")
-        return None, [], "", False
+        return None, [], "", False, vid
     meta = _read_meta(tmp)
     dur = meta[2] if len(meta) > 2 else "?"
     sys.stderr.write(f"transcribing audio ({dur}), this may take a while, please wait longer...\n")
     text = _transcribe(wav)
     if not text:
         sys.stderr.write("transcription failed\n")
-        return None, [], "", False
+        return None, [], "", False, vid
     txt = tmp / "transcript.txt"
     txt.write_text(text, "utf-8")
     meta = _read_meta(tmp)
     comments = _read_comments(tmp)
-    return txt, meta, comments, True
+    return txt, meta, comments, True, vid
 
 
 def _read_meta(tmp: Path) -> list[str]:
@@ -427,10 +440,7 @@ def main(argv: list[str]) -> int:
 
     url = argv[1]
     vid = _vid(url)
-    if not vid:
-        sys.stderr.write(f"bad url: {url}\n")
-        return 1
-    cached = _cached(vid)
+    cached = _cached(vid) if vid else None
     if cached:
         text = cached.read_text("utf-8", errors="replace")
         m = re.search(r"^title: (.+)\n(?:uploader|channel): (.+)\nduration: (.+)", text, re.M)
@@ -446,7 +456,7 @@ def main(argv: list[str]) -> int:
     yt = _yt_dlp_cmd()
     with tempfile.TemporaryDirectory(prefix="work-", dir=str(CACHE)) as td:
         tmp = Path(td)
-        sub_file, meta, comments, transcribed = _fetch(yt, url, tmp)
+        sub_file, meta, comments, transcribed, vid = _fetch(yt, url, tmp)
         if not sub_file:
             return 3
         text = sub_file.read_text("utf-8", errors="replace") if transcribed else _clean_subtitle(sub_file)

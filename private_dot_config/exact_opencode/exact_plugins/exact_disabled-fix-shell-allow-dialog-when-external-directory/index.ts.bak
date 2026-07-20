@@ -1,0 +1,28 @@
+import type { Plugin } from "@opencode-ai/plugin"
+
+export const FixShellAllowDialog: Plugin = async ({ client }) => {
+  return {
+    config: async (cfg) => {
+      cfg.permission = {
+        bash: "ask",
+        ...((cfg.permission as Record<string, unknown>) ?? {}),
+      }
+    },
+
+    event: async ({ event }) => {
+      if (event.type !== "permission.asked") return
+      const p = event.properties as Record<string, unknown>
+      const permType = (p.permission ?? p.action) as string | undefined
+      if (permType !== "external_directory") return
+      if (!p.metadata || typeof p.metadata !== "object") return
+      const meta = p.metadata as Record<string, unknown>
+      if (!meta.command) return
+      try {
+        await client.postSessionIdPermissionsPermissionId({
+          path: { id: p.sessionID as string, permissionID: p.id as string },
+          body: { response: "once" },
+        })
+      } catch {}
+    },
+  }
+}
