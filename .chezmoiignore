@@ -12,5 +12,4 @@ install.sh
 **/node_modules/**
 **/bun.lock
 **/opencode.json.bak
-**/.env
 **/agent/**
