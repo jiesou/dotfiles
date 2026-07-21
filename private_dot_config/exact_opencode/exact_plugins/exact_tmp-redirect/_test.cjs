@@ -1,0 +1,8 @@
+function isBlockedTmpWrite(filePath){const path=require("path");const resolved=path.resolve(filePath);if(!resolved.startsWith("/tmp/"))return false;if(resolved==="/tmp/opencode")return false;if(resolved.startsWith("/tmp/opencode/"))return false;if(resolved==="/tmp/agent.sock")return false;const rest=resolved.slice("/tmp/".length);return !rest.includes("/");}
+function isBlockedTmpBash(command){const i=command.indexOf("/tmp");if(i===-1)return false;if(command.includes("/tmp/"))return false;if(i>0&&/[a-zA-Z0-9]/.test(command[i-1]))return false;return true}
+const w=[["/tmp/file.txt",true],["/tmp/agent.sock",false],["/tmp/opencode",false],["/tmp/opencode/x",false],["/var/home/chen/a/b/c",false],["/tmp/a",true],["/home/foo",false]];
+let ok=true;
+for(const[p,exp]of w){const r=isBlockedTmpWrite(p);if(r!==exp){ok=false;console.log("FAIL w",p,"=>",r,"exp",exp);}else console.log("OK w",p,"=>",r);}
+const b=[["cd /tmp",true],["ls /tmp",true],["rm -rf /tmp",true],["cd /tmp && git clone x",true],["echo '/tmp'",true],["cat /tmp/foo",false],["ls /tmp/foo",false],["cat /tmp/agent.socket",false],["echo /tmp/opencode/x",false],["cat /tmp/a/b/c",false],["ls /var/home/tmp-redirect",false],["ls /tmp/",false],["ls /tmpdir",true]];
+for(const[c,exp]of b){const r=isBlockedTmpBash(c);if(r!==exp){ok=false;console.log("FAIL b",c,"=>",r,"exp",exp);}else console.log("OK b",c,"=>",r);}
+console.log(ok?"ALL PASS":"HAS FAIL");

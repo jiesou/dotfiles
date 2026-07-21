@@ -33,13 +33,15 @@ ARENA_OVERALL = "https://arena.ai/leaderboard/text/overall-no-style-control"
 GAMMA = "https://gamma-api.polymarket.com"
 CLOB = "https://clob.polymarket.com"
 
-# 用户持仓的 DeepSeek Yes 挂单 (BestChinese 4.8c 已于 2026-07-19 成交, 移除)
+# 用户持仓的 DeepSeek Yes 卖单 (多档, 订单簿实测值 2026-07-20)
 MARKETS = [
     {
         "name": "WebDev DeepSeek Yes",
         "token": "35786039164902290189098053073795588144691119451221068233889512574343754239597",
-        "my_ask_price": 0.005,   # 0.5c
-        "my_ask_size": 202.27,
+        "my_asks": [
+            {"price": 0.003, "size": 101.14},   # 0.30c
+            {"price": 0.004, "size": 180.00},   # 0.40c
+        ],
         "url": "https://polymarket.com/event/which-company-has-the-best-code-arena-webdev-ai-model-end-of-july-20260715140712903/will-deepseek-have-the-best-code-arena-webdev-ai-at-the-end-of-july-2026-20260715140712915",
     },
 ]
@@ -252,32 +254,42 @@ def run_once():
         asks = b.get("asks", [])
         last_raw = pct(b.get("last_trade_price", 0))
         bid_total = sum(float(x.get("size", 0)) for x in bids)
-        # 我的挂单价位在盘上吗? 是第几档最低 ask? (整档 size 含别人单, 不区分)
-        my_price = round(mk["my_ask_price"] * 100, 3)  # cents
+        # 我的多档挂单: 逐档判断在盘 / 第几档最低 ask (整档 size 含别人单, 不区分)
         ask_prices = sorted(set(round(pct(x["price"]), 3) for x in asks), reverse=False)
-        my_level_present = my_price in ask_prices
-        my_rank = ask_prices.index(my_price) + 1 if my_level_present else None  # 1 = 最低ask
         lowest_ask = min(ask_prices) if ask_prices else 0.0
         # 清洗脏 last_trade_price: 真实成交价不可能远高于最低 ask
         last = last_raw if (last_raw <= lowest_ask * 3 + 5) else lowest_ask
 
+        my_asks = mk.get("my_asks", [])
+        orders = {}          # price_str -> {present, rank}
+        for a in my_asks:
+            my_price = round(a["price"] * 100, 3)   # cents
+            my_level_present = my_price in ask_prices
+            my_rank = ask_prices.index(my_price) + 1 if my_level_present else None  # 1 = 最低ask
+            orders[f"{my_price:.3f}"] = {"present": my_level_present, "rank": my_rank}
+
         prev = prev_books.get(mk["name"])
         if prev:
-            # 我的档位从在盘 -> 消失: 被吃或撤单
-            if prev.get("my_level_present") and not my_level_present:
-                msgs.append(
-                    f"💰 <b>{mk['name']}</b> 挂单被吃/撤销!\n"
-                    f"{my_price:.1f}c 档位已从盘上消失\n"
-                    f"{mk['url']}"
-                )
-            # 我的价位升级为最低 ask (前面低价档被扫空) -> 轮到成交位
-            if my_level_present and prev.get("my_rank") is not None:
-                if my_rank == 1 and prev["my_rank"] > 1:
+            prev_orders = prev.get("orders", {})
+            for price_str, o in orders.items():
+                po = prev_orders.get(price_str)
+                if po is None:
+                    continue
+                # 该档从在盘 -> 消失: 被吃或撤单
+                if po.get("present") and not o["present"]:
                     msgs.append(
-                        f"🎯 <b>{mk['name']}</b> 轮到你成交位!\n"
-                        f"{my_price:.1f}c 已成为最低 ask (之前第 {prev['my_rank']} 档)\n"
+                        f"💰 <b>{mk['name']}</b> 挂单被吃/撤销!\n"
+                        f"{float(price_str)*100:.1f}c 档位已从盘上消失\n"
                         f"{mk['url']}"
                     )
+                # 该档升级为最低 ask (前面低价档被扫空) -> 轮到成交位
+                if o["present"] and po.get("rank") is not None and o["rank"] is not None:
+                    if o["rank"] == 1 and po["rank"] > 1:
+                        msgs.append(
+                            f"🎯 <b>{mk['name']}</b> 轮到你成交位!\n"
+                            f"{float(price_str)*100:.1f}c 已成为最低 ask (之前第 {po['rank']} 档)\n"
+                            f"{mk['url']}"
+                        )
             # 买盘变厚
             if bid_total > prev.get("bid_total", 0) * 1.5 + 1:
                 msgs.append(
@@ -290,14 +302,17 @@ def run_once():
                     msgs.append(f"🔥 <b>{mk['name']}</b> 成交价跳涨: {prev['last']:.2f}% → {last:.2f}%")
 
         new_books[mk["name"]] = {
-            "my_level_present": my_level_present,
-            "my_rank": my_rank,
+            "orders": orders,
             "bid_total": bid_total,
             "last": last,
             "lowest_ask": lowest_ask,
         }
+        order_str = " ".join(
+            f"{float(p)*100:.1f}c{'Y' if o['present'] else 'N'}#{o['rank'] or '-'}"
+            for p, o in orders.items()
+        )
         print(f"  {mk['name']}: last={last:.2f}% bidTotal=${bid_total:.2f} "
-              f"myLevel={'Y' if my_level_present else 'N'} myRank={my_rank} lowestAsk={lowest_ask:.2f}%")
+              f"asks[{order_str}] lowestAsk={lowest_ask:.2f}%")
 
     st["books"] = new_books
 

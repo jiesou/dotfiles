@@ -54,6 +54,91 @@ This must ALWAYS be printed right after a session was started and once again at 
 - When composing inline commands, use single quotes or ANSI C quoting to avoid expansion: `tmux ... send-keys -t target -- $'python3 -m http.server 8000'`.
 - To send control keys: `tmux ... send-keys -t target C-c`, `C-d`, `C-z`, `Escape`, etc.
 
+## Standard Operating Procedure
+
+Every step below is **mandatory**. Deviations cause silent failures that destroy user sessions.
+
+### 1. Every operation starts by checking state
+
+Before any tmux action, check what exists:
+
+```bash
+tmux -S "$SOCKET" list-sessions
+tmux -S "$SOCKET" list-panes -a
+```
+
+Or use `./scripts/find-sessions.sh -S "$SOCKET"` for detailed output. Reuse existing sessions — never create a new session when one already exists.
+
+**Never** `kill-session` or `kill-server` without listing sessions first and getting explicit user confirmation. `kill-server` destroys ALL sessions on the socket.
+
+### 2. Connecting to a remote host via SSH
+
+Step-by-step, do not skip or combine steps:
+
+1. Check for existing sessions (step 1 above).
+2. If no session exists: `tmux -f /dev/null -S "$SOCKET" new -d -s "$SESSION" -n shell`
+3. Resolve target: `TARGET=$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')`
+4. Send SSH: `tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" -- 'ssh hostname' Enter`
+5. **MANDATORY: wait for prompt**: `./scripts/wait-for-text.sh -t "$SESSION:$TARGET" -p '[$#] ' -T 30`
+6. Now send follow-up command: `tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" -- 'actual-command' Enter`
+7. **MANDATORY: wait for prompt again** before next command.
+
+read `~/.ssh/config` IS NOT NEEDED, trust user's hostname!
+For SSH compound (single-shot): `send-keys -- 'ssh user@host "cmd1 && cmd2"' Enter`. Never send `ssh`, then `password`, then `cmd` as separate steps without waiting between each.
+
+### 3. When you need a second terminal
+
+Split panes on demand — only when a sub-task requires a separate interactive process (e.g., run a server AND interact with it):
+
+1. Split: `tmux -S "$SOCKET" split-window -t "$SESSION"`
+2. Resolve new target: `NEW_TARGET=$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')`
+3. Store in distinct variables (`$MAIN`, `$SERVER`) — never reuse one `$TARGET` for two panes.
+4. **Complete the current step on the current pane before switching.** Never interleave commands across panes.
+
+### 4. Choosing the right send-keys mode
+
+| Mode | Syntax | Shell chars work? | Use when |
+|------|--------|:---:|------|
+| Literal | `send-keys -l 'text'` then `Enter` | No | Pure text, no `\|`, `>`, `$`, `;`, `&` |
+| Direct | `send-keys -- 'text'` then `Enter` | Yes | Commands with pipes, redirects, vars |
+| C-literal | `send-keys -- $'text'` then `Enter` | Yes | Need `\n` `\t` escapes |
+
+**CRITICAL**: Always send `Enter` as a separate key — never embed it inside the text string. `send-keys -l 'ls\n'` is wrong; `send-keys -l 'ls'` then `send-keys Enter` is correct. Same for all three modes.
+
+Control keys (`C-c`, `C-d`, `Escape`) are always sent as separate invocations.
+
+### 5. Wait after every command — no exceptions
+
+After **every** `send-keys ... Enter` (and after every `send-keys C-c`):
+
+```bash
+./scripts/wait-for-text.sh -t "$SESSION:$TARGET" -p '<prompt-pattern>' -T <timeout>
+```
+
+Only proceed when this returns 0. Never use `sleep N` — it does not guarantee the command finished and wastes time.
+
+Common patterns:
+- Shell prompt: `'[$#] '` or `'[$#]\s'`
+- Python REPL: `'^>>> '`
+- GDB: `'^(gdb) '`
+- SSH password: `'password:'`
+
+### 6. Reading output
+
+Only capture after `wait-for-text.sh` confirmed the prompt returned:
+
+```bash
+tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION:$TARGET" -S -200
+```
+
+Capturing immediately after `send-keys Enter` returns stale pre-execution output.
+
+### 7. Cleanup
+
+- Kill only sessions you created for the current task.
+- Before killing: list sessions, then ask user to confirm.
+- Never `kill-server` — it destroys every session across all tasks on that socket.
+
 ## Watching output
 
 - Capture recent history (joined lines to avoid wrapping artifacts): `tmux -L "$SOCKET" capture-pane -p -J -t target -S -200`.

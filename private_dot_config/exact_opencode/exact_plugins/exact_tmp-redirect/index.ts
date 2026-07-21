@@ -6,7 +6,7 @@ function isBlockedTmpWrite(filePath: string): boolean {
   if (!resolved.startsWith("/tmp/")) return false
   if (resolved === "/tmp/opencode") return false
   if (resolved.startsWith("/tmp/opencode/")) return false
-  if (resolved === "/tmp/agent.socket") return false
+  if (resolved === "/tmp/agent.sock") return false
   const rest = resolved.slice("/tmp/".length)
   return !rest.includes("/")
 }
@@ -15,16 +15,11 @@ const BLOCKED_MSG =
   `Not allowed to access /tmp, use /tmp/opencode/..." instead.`
 
 function isBlockedTmpBash(command: string): boolean {
-  if (!command.includes("/tmp")) return false
-  for (const m of command.matchAll(/\/tmp\/[^\s"'`()]+/g)) {
-    let p = m[0].replace(/[;&|<>*%]+$/, "")
-    const rest = p.slice("/tmp/".length)
-    if (rest.includes("/")) continue
-    if (rest === "agent.socket") continue
-    if (rest === "opencode" || rest.startsWith("opencode/")) continue
-    return true
-  }
-  return false
+  const i = command.indexOf("/tmp")
+  if (i === -1) return false
+  if (command.includes("/tmp/")) return false
+  if (i > 0 && /[a-zA-Z0-9]/.test(command[i - 1])) return false
+  return true
 }
 
 export const TmpRedirect: Plugin = async () => {
