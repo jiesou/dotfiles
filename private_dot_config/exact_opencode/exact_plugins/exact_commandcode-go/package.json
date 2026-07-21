@@ -1,0 +1,61 @@
+{
+  "name": "commandcode-go-opencode-provider",
+  "version": "0.4.0",
+  "author": "Brent Weatherall",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brent-weatherall/opencode-commandcode-provider.git"
+  },
+  "main": "index.ts",
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "ai": "6.0.191",
+    "typescript": "^6.0.3"
+  },
+  "exports": {
+    ".": {
+      "import": "./index.ts"
+    },
+    "./server": {
+      "import": "./plugin.ts"
+    }
+  },
+  "bugs": {
+    "url": "https://github.com/brent-weatherall/opencode-commandcode-provider/issues"
+  },
+  "description": "Command Code API provider for opencode — use Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax, and Step models via Command Code",
+  "engines": { "bun": ">=1.0.0" },
+  "files": ["index.ts", "plugin.ts", "models.json", "src/"],
+  "homepage": "https://github.com/brent-weatherall/opencode-commandcode-provider#readme",
+  "keywords": [
+    "opencode",
+    "opencode-provider",
+    "opencode-plugin",
+    "commandcode",
+    "ai",
+    "llm",
+    "claude",
+    "gpt",
+    "gemini",
+    "deepseek",
+    "qwen",
+    "kimi",
+    "glm",
+    "minimax"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "test": "bun test tests/unit/",
+    "test:integration": "bun test tests/integration/",
+    "test:all": "bun test",
+    "typecheck": "tsc --noEmit",
+    "generate-readme": "bun run scripts/generate-readme.ts",
+    "sync": "bun run scripts/sync-models.ts",
+    "sync:global": "bun run scripts/sync-models.ts --update-global"
+  },
+  "type": "module",
+  "types": "index.ts",
+  "peerDependencies": {
+    "ai": ">=6.0.0"
+  }
+}
