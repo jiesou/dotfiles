@@ -11,5 +11,5 @@ install.sh
 .agents/workspace/**
 **/node_modules/**
 **/bun.lock
-**/opencode.json.bak
+**/*.bak
 **/agent/**
