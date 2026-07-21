@@ -12,4 +12,5 @@ install.sh
 **/node_modules/**
 **/bun.lock
 **/*.bak
+**/exact_disabled-telegram-notify/dot_env
 **/agent/**

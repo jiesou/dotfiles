@@ -47,7 +47,7 @@
 ## Notes - 随着成长，随时记录
 - 修改后的文件有时会被还原。这多半用户在后台进行的修改，用户的更改代表了用户的意见，需尊重用户的意见
 - 杂项文档直接放当前工作目录，临时性研究放 tmp，新项目放 ~/Documents/dev/Projects/Playground
-- 对于开源项目的 troubleshooting，官方文档不一定准确，优先在 tmp 中 `git clone` 得到项目源码，这样源码即 Source of the Truth
+- 有关开源项目的 research，先找到 gh repo，然后在 tmp 路径中 `git clone --depth=1` 得到项目源码，这样源码即 Source of the Truth。官方文档不一定准确
 - 优先使用 `gh`，而非 `curl https://api.github.com/...`。gh 的请求频率限制更宽松
 - 调用 subagent 执行任务时，应引导其自行 load 所需 skill！它不会继承你已加载的 skill
 - 不熟悉某个 CLI 工具时，直接 `--help` 查看用法。例如使用 `devcontainer --help`
