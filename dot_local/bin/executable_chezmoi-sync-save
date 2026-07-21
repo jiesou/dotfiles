@@ -6,8 +6,8 @@ set -eu
 #        + forget-orphan (deletions, renames)
 #        + add-new (new files; plain add, subdirs lack exact_ prefix)
 #        + chattr +exact --recursive (propagate exact_ prefix to new subdirs)
-# Encrypted files stay encrypted: re-add doesn't rewrite unchanged .asc.
-# Script disables autoCommit/autoPush during run; one commit + FF push at end.
+# Encrypted (.asc) files are compared by decrypted content before commit;
+# re-encryption noise (random GPG salt/IV) does NOT produce a commit.
 
 DIRS=(
   "$HOME/.agents"
@@ -19,11 +19,28 @@ DIRS=(
 D=(); for x in "${DIRS[@]}"; do [ -d "$x" ] && D+=("$x"); done
 
 SRC=$(chezmoi source-path)
+
+# Sync with remote first — handles force-push
+git -C "$SRC" fetch origin
+git -C "$SRC" reset --hard origin/main
+
 CFG="$HOME/.config/chezmoi/chezmoi.toml"
 cp "$CFG" "$CFG.bak.sync.$$"
 trap 'mv "$CFG.bak.sync.$$" "$CFG"' EXIT
 sed -i 's/autoCommit = true/autoCommit = false/; s/autoPush = true/autoPush = false/' "$CFG"
-BASE=$(git -C "$SRC" rev-parse HEAD 2>/dev/null || echo "")
+BASE=$(git -C "$SRC" rev-parse HEAD)
+
+# Read GPG passphrase from chezmoi config for decryption
+GPG_PASS=$(grep -oP '(?<=passphrase = ").*(?=")' "$CFG.bak.sync.$$")
+GPG_ARGS=(--batch --passphrase "$GPG_PASS" --no-symkey-cache --quiet)
+
+# Pre-compute decrypted SHA256 for all tracked .asc files
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"; mv "$CFG.bak.sync.$$" "$CFG"' EXIT
+while IFS= read -r -d '' f; do
+  rel="${f#$SRC/}"
+  gpg "${GPG_ARGS[@]}" --decrypt "$f" 2>/dev/null | sha256sum | cut -d' ' -f1 > "$TMPDIR/${rel//\//_}.sha256" 2>/dev/null || true
+done < <(find "$SRC" -name '*.asc' -type f -print0)
 
 echo "→ mirror each DIR via re-add + forget-orphan + add-new"
 for d in "${D[@]}"; do
@@ -45,10 +62,28 @@ done
 echo "→ single commit + push"
 git -C "$SRC" add -A
 if [ -n "$(git -C "$SRC" status --porcelain)" ]; then
-  [ -n "$BASE" ] && git -C "$SRC" reset --soft "$BASE"
-  git -C "$SRC" commit -m "sync: $(date +%Y-%m-%dT%H:%M:%S)" >/dev/null
-  git -C "$SRC" push >/dev/null
-  echo "  $(git -C "$SRC" log --oneline -1)"
+  # Check whether changes are real or just asc re-encryption noise
+  real_change=false
+  while IFS= read -r file; do
+    if [[ "$file" != *.asc ]]; then
+      real_change=true; break
+    fi
+    new_hash=$(gpg "${GPG_ARGS[@]}" --decrypt "$SRC/$file" 2>/dev/null | sha256sum | cut -d' ' -f1 2>/dev/null || echo "ERR")
+    old_hash=$(cat "$TMPDIR/${file//\//_}.sha256" 2>/dev/null || echo "MISSING")
+    if [ "$new_hash" != "$old_hash" ]; then
+      real_change=true; break
+    fi
+  done < <(git -C "$SRC" diff --cached --name-only)
+
+  if $real_change; then
+    [ -n "$BASE" ] && git -C "$SRC" reset --soft "$BASE"
+    git -C "$SRC" commit -m "sync: $(date +%Y-%m-%dT%H:%M:%S)" >/dev/null
+    git -C "$SRC" push >/dev/null
+    echo "  $(git -C "$SRC" log --oneline -1)"
+  else
+    git -C "$SRC" reset --quiet HEAD
+    echo "  nothing to sync (asc re-encryption only)"
+  fi
 else
   echo "  nothing to sync"
 fi
