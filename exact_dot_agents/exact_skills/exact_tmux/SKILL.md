@@ -28,15 +28,13 @@ tmux -S "$SOCKET" new -d -s "$SESSION"
 TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')"
     
 tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" "ssh $HOST" Enter
-./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#❯ ]'
+./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#\E2\9D\AF ]'
 
-# 5. Send command — wait-for-text returns output on match, no separate capture needed
+# 5. Send command \E2\80\94 wait-for-text returns output on match, no separate capture needed
 #    For long-running commands (e.g. dnf update), increase -T accordingly
 tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" 'some-command' Enter
 ./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
 
-# 6. Cleanup — kill only what you created; never kill-server
-tmux -S "$SOCKET" kill-session -t "$SESSION"
 ```
 
 ### Send command after a long research
@@ -44,20 +42,19 @@ tmux -S "$SOCKET" kill-session -t "$SESSION"
 ```bash
 tmux -S "$SOCKET" capture-pane -p -t "openpnp-research:check" -S -8
 
-# 5. Send command — wait-for-text returns output on match, no separate capture needed
+# 5. Send command \E2\80\94 wait-for-text returns output on match, no separate capture needed
 #    For long-running commands (e.g. dnf update), increase -T accordingly
 tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" 'some-command' Enter
 ./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
 
-# 6. Cleanup — kill only what you created; never kill-server
+# 6. Cleanup \E2\80\94 kill only what you created; never kill-server
 tmux -S "$SOCKET" kill-session -t "$SESSION"
 ```
-
 
 ### Snaplook (for any short-term command in SSH)
 
 ```bash
-# Bundle commands — wait-for-text returns output on prompt match
+# Bundle commands \E2\80\94 wait-for-text returns output on prompt match
 tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" "ssh $HOST \"cmd1 && cmd2\"" Enter
 ./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
 ```
@@ -80,15 +77,25 @@ To monitor: tmux -S "$SOCKET" attach -t "$SESSION"
 To capture: tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION:$TARGET" -S -200
 ```
 
+
+### Cleanup
+
+- kill only what you created
+- never kill-server
+ 
+```
+tmux -S "$SOCKET" kill-session -t "$SESSION"
+```
+
 ## send-keys reference
 
 | Mode | Syntax | C-escapes processed? | Use when |
 |------|--------|:---:|----------|
-| Literal | `send-keys -l 'text'` then `Enter` | No | Plain text — `\|` `>` `$` `;` `&` all sent literally |
+| Literal | `send-keys -l 'text'` then `Enter` | No | Plain text \E2\80\94 `\|` `>` `$` `;` `&` all sent literally |
 | Direct | `send-keys 'text'` then `Enter` | No | Commands with pipes, redirects, vars |
 | C-literal | `send-keys $'text'` then `Enter` | Yes | Need `\n` `\t` escapes |
 
-**Always send `Enter` as a separate invocation.** Control keys (`C-c`, `C-d`, etc.) are also sent separately. Never `sleep N` — use `wait-for-text.sh` instead.
+**Always send `Enter` as a separate invocation.** Control keys (`C-c`, `C-d`, etc.) are also sent separately. Never `sleep N` \E2\80\94 use `wait-for-text.sh` instead.
 
 ## Helper: wait-for-text.sh
 
@@ -119,6 +126,6 @@ Polls a pane for a regex pattern in the last line with timeout. On match, prints
 
 ## Interactive tool recipes
 
-- **Python REPL**: start with `PYTHON_BASIC_REPL=1 python3 -q`, wait for `^>>>`, send code with `-l`, interrupt with `C-c`. Always use `PYTHON_BASIC_REPL=1` — non-basic REPL breaks send-keys.
+- **Python REPL**: start with `PYTHON_BASIC_REPL=1 python3 -q`, wait for `^>>>`, send code with `-l`, interrupt with `C-c`. Always use `PYTHON_BASIC_REPL=1` \E2\80\94 non-basic REPL breaks send-keys.
 - **gdb**: `gdb --quiet ./a.out`, disable paging (`set pagination off`), break with `C-c`, inspect (`bt`, `info locals`), exit (`quit` then `y`).
-- **Other TTY apps** (ipdb, psql, mysql, node, bash): same pattern — start, wait for prompt, send text and Enter.
+- **Other TTY apps** (ipdb, psql, mysql, node, bash): same pattern \E2\80\94 start, wait for prompt, send text and Enter.
