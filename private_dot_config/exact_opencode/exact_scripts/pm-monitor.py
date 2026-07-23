@@ -2,7 +2,7 @@
 """Polymarket DeepSeek V4 监控器。
 
 监控目标：
-  A. Arena WebDev 榜出现 DeepSeek V4 正式版(GA)信号
+  A. Arena WebDev 榜出现新 DeepSeek 非预览模型 = 正式版信号
   B. 两个 DeepSeek Yes 市场的流动性 / 用户挂单成交
   C. DeepSeek 各 slug 在 WebDev 榜的 rank/rating 异动
 
@@ -22,6 +22,7 @@ import urllib.error
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENV_PATHS = [
+    os.path.expanduser("~/.config/opencode-telegram-bot/.env"),
     os.path.join(os.path.dirname(HERE), ".env"),
     os.path.join(os.path.dirname(HERE), "plugins", "disabled-telegram-notify", ".env"),
 ]
@@ -39,10 +40,21 @@ MARKETS = [
         "name": "WebDev DeepSeek Yes",
         "token": "35786039164902290189098053073795588144691119451221068233889512574343754239597",
         "my_asks": [
-            {"price": 0.003, "size": 101.14},   # 0.30c
-            {"price": 0.004, "size": 180.00},   # 0.40c
+            {"price": 0.059, "size": 62},   # 5.9c (was 6.1c)
+            {"price": 0.276, "size": 62},   # 27.6c
         ],
+        "config_version": 2,  # increment when changing my_asks
         "url": "https://polymarket.com/event/which-company-has-the-best-code-arena-webdev-ai-model-end-of-july-20260715140712903/will-deepseek-have-the-best-code-arena-webdev-ai-at-the-end-of-july-2026-20260715140712915",
+    },
+    {
+        "name": "Chinese DeepSeek Yes",
+        "token": "9246701848285256723933904984795908460825500934603183549732051697008698253130",
+        "my_asks": [
+            {"price": 0.027, "size": 10},   # 2.7c
+            {"price": 0.299, "size": 10},   # 29.9c
+        ],
+        "config_version": 1,
+        "url": "https://polymarket.com/event/best-chinese-ai-company-end-of-july/will-deepseek-have-the-best-chinese-ai-model-at-the-end-of-july-2026",
     },
 ]
 
@@ -60,7 +72,6 @@ COMPETITORS = [
     },
 ]
 
-GA_RE = re.compile(r"^deepseek-v4(-pro|-flash)?$")
 GRAY_RE = re.compile(r"-ch\d+|-public|-test|-dlp|-exp\b")
 
 
@@ -160,14 +171,7 @@ def parse_arena_models(html):
     return out
 
 
-def detect_v4_ga(models):
-    """Return list of GA deepseek-v4 models (formal, non-preview)."""
-    hits = []
-    for m in models:
-        k = m["key"]
-        if GA_RE.match(k) and m["releaseType"] is None:
-            hits.append(m)
-    return hits
+
 
 
 def book(token):
@@ -190,7 +194,7 @@ def pct(x):
 
 def main():
     print(f"[start] pm-monitor pid={os.getpid()} interval={POLL_INTERVAL}s")
-    send_tg("🤖 <b>[PM-Monitor]</b> 监控已启动\n监控 DeepSeek V4 正式版 + 双市场流动性")
+    send_tg("🤖 <b>[PM-Monitor]</b> 监控已启动\n追踪新 DeepSeek 模型 (非预览) + 双市场流动性")
     cycle = 0
     while True:
         cycle += 1
@@ -207,22 +211,26 @@ def run_once():
     st = load_state()
     msgs = []
 
-    # ---- A. Arena WebDev V4 GA detection ----
+    # ---- A. Arena WebDev — 跟踪所有 deepseek 模型, 新非预览模型 = 正式版 ----
     html = _get(ARENA_WEBDEV, headers={"RSC": "1"})
     models = parse_arena_models(html)
-    ga = detect_v4_ga(models)
-    seen_ga = set(st.get("v4_ga_seen", []))
-    new_ga = [m for m in ga if m["key"] not in seen_ga]
-    if new_ga:
-        for m in new_ga:
+    first_run = "seen_deepseek_models" not in st
+    seen_ds = set(st.get("seen_deepseek_models", []))
+    current_ds = {m["key"]: m for m in models if m["key"].startswith("deepseek")}
+    new_ds = []
+    for key, m in current_ds.items():
+        if key not in seen_ds:
+            if not first_run and not GRAY_RE.search(key):
+                new_ds.append(m)
+            seen_ds.add(key)
+    if new_ds:
+        for m in new_ds:
             msgs.append(
-                f"🚨 <b>V4 正式版上线 WebDev 榜!</b>\n"
+                f"🚨 <b>新 DeepSeek 模型上线 WebDev 榜!</b>\n"
                 f"model: <code>{m['key']}</code>\n"
-                f"rank: {m['rank']}  rating: {m['rating']}\n"
-                f"releaseType: GA"
+                f"rank: {m['rank']}  rating: {m['rating']}"
             )
-            seen_ga.add(m["key"])
-    st["v4_ga_seen"] = sorted(seen_ga)
+    st["seen_deepseek_models"] = sorted(seen_ds)
 
     # ---- C. DeepSeek rank/rating tracking ----
     ds = {m["key"]: m for m in models if m["key"].startswith("deepseek")}
@@ -269,27 +277,36 @@ def run_once():
             orders[f"{my_price:.3f}"] = {"present": my_level_present, "rank": my_rank}
 
         prev = prev_books.get(mk["name"])
+        prev_version = prev.get("config_version", 0) if prev else 0
+        curr_version = mk.get("config_version", 0)
+        config_changed = (prev is not None) and (prev_version != curr_version)
+
         if prev:
             prev_orders = prev.get("orders", {})
-            for price_str, o in orders.items():
-                po = prev_orders.get(price_str)
-                if po is None:
-                    continue
-                # 该档从在盘 -> 消失: 被吃或撤单
-                if po.get("present") and not o["present"]:
-                    msgs.append(
-                        f"💰 <b>{mk['name']}</b> 挂单被吃/撤销!\n"
-                        f"{float(price_str)*100:.1f}c 档位已从盘上消失\n"
-                        f"{mk['url']}"
-                    )
-                # 该档升级为最低 ask (前面低价档被扫空) -> 轮到成交位
-                if o["present"] and po.get("rank") is not None and o["rank"] is not None:
-                    if o["rank"] == 1 and po["rank"] > 1:
+            # config_version 变化 → 用户刚改过 my_asks, 非市场成交 → 跳过假报警
+            if config_changed:
+                print(f"  [skip] {mk['name']} config v{prev_version}→v{curr_version}, "
+                      f"跳过当次挂单检测")
+            else:
+                for price_str, o in orders.items():
+                    po = prev_orders.get(price_str)
+                    if po is None:
+                        continue
+                    # 该档从在盘 -> 消失: 被吃或撤单
+                    if po.get("present") and not o["present"]:
                         msgs.append(
-                            f"🎯 <b>{mk['name']}</b> 轮到你成交位!\n"
-                            f"{float(price_str)*100:.1f}c 已成为最低 ask (之前第 {po['rank']} 档)\n"
+                            f"💰 <b>{mk['name']}</b> 挂单被吃/撤销!\n"
+                            f"{float(price_str):.1f}c 档位已从盘上消失\n"
                             f"{mk['url']}"
                         )
+                    # 该档升级为最低 ask (前面低价档被扫空) -> 轮到成交位
+                    if o["present"] and po.get("rank") is not None and o["rank"] is not None:
+                        if o["rank"] == 1 and po["rank"] > 1:
+                            msgs.append(
+                                f"🎯 <b>{mk['name']}</b> 轮到你成交位!\n"
+                                f"{float(price_str):.1f}c 已成为最低 ask (之前第 {po['rank']} 档)\n"
+                                f"{mk['url']}"
+                            )
             # 买盘变厚
             if bid_total > prev.get("bid_total", 0) * 1.5 + 1:
                 msgs.append(
@@ -303,12 +320,13 @@ def run_once():
 
         new_books[mk["name"]] = {
             "orders": orders,
+            "config_version": curr_version,
             "bid_total": bid_total,
             "last": last,
             "lowest_ask": lowest_ask,
         }
         order_str = " ".join(
-            f"{float(p)*100:.1f}c{'Y' if o['present'] else 'N'}#{o['rank'] or '-'}"
+            f"{float(p):.1f}c{'Y' if o['present'] else 'N'}#{o['rank'] or '-'}"
             for p, o in orders.items()
         )
         print(f"  {mk['name']}: last={last:.2f}% bidTotal=${bid_total:.2f} "

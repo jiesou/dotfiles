@@ -1,189 +1,117 @@
 ---
 name: tmux
 description: "Tmux sessions for interactive CLIs (ssh, gdb, etc.) by sending keystrokes and scraping pane output."
-license: Vibecoded
 ---
 
 # tmux Skill
 
-Use tmux as a programmable terminal multiplexer for interactive work. Works on Linux and macOS with stock tmux; avoid custom config by using a private socket.
+Use tmux for any long-term, interactive work.
 
-## Quickstart (isolated socket)
+## Quick Start
 
-```bash
-SOCKET="${TMPDIR:-/tmp}/agent.sock"            # keep agent sessions separate from your personal tmux
-SESSION=agent-python                           # slug-like names; avoid spaces
-tmux -f /dev/null -S "$SOCKET" new -d -s "$SESSION" -n shell
-TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')"
-tmux -S "$SOCKET" send-keys -t "$SESSION":"$TARGET" -- 'python3 -q' Enter
-tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION":"$TARGET" -S -200  # watch output
-tmux -S "$SOCKET" kill-session -t "$SESSION"                   # clean up
-```
+Strictly follow this flow. `wait-for-text.sh` skips matching on the very first frame to let send-keys take effect — no `sleep` needed.
 
-After starting a session ALWAYS tell the user how to monitor the session by giving them a command to copy paste:
-
-```
-To monitor this session yourself:
-  tmux -S "$SOCKET" attach -t agent-lldb
-
-Or to capture the output once:
-  tmux -S "$SOCKET" capture-pane -p -J -t agent-lldb:"$TARGET" -S -200
-```
-
-This must ALWAYS be printed right after a session was started and once again at the end of the tool loop.  But the earlier you send it, the happier the user will be.
-
-## Socket convention
-
-- Agents MUST place tmux sockets under `SOCKET` (defaults to `${TMPDIR:-/tmp}/agent.sock`) and use `tmux -S "$SOCKET"` so we can enumerate/clean them.
-
-## Targeting panes and naming
-
-- Target format: `{session}:{window}.{pane}`. After creating a session, resolve the target: `TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')"`. Then use `"$SESSION:$TARGET"` for all subsequent commands. Never hardcode `:0.0` — base-index varies across systems.
-- Use `-S "$SOCKET"` consistently to stay on the private socket path. If you need user config, drop `-f /dev/null`; otherwise `-f /dev/null` gives a clean config.
-- Inspect: `tmux -S "$SOCKET" list-sessions`, `tmux -S "$SOCKET" list-panes -a`.
-- A session holds multiple windows; `new -s` creates a session while `new-window` adds a window to an existing one. Always `list-sessions`/`list-windows` first so you don't mistake a window for a session (e.g. re-running `new -s` on an existing name → `duplicate session`, then `can't find window` on later `send-keys`).
-
-## Finding sessions
-
-- List sessions on your active socket with metadata: `./scripts/find-sessions.sh -S "$SOCKET"`; add `-q partial-name` to filter.
-- Scan all sockets under the shared directory: `./scripts/find-sessions.sh --all` (uses `AGENT_TMUX_SOCKET_DIR` or `${TMPDIR:-/tmp}/agent-tmux-sockets`).
-
-## Sending input safely
-
-- Prefer literal sends to avoid shell splitting: `tmux -L "$SOCKET" send-keys -t target -l -- "$cmd"`
-- When composing inline commands, use single quotes or ANSI C quoting to avoid expansion: `tmux ... send-keys -t target -- $'python3 -m http.server 8000'`.
-- To send control keys: `tmux ... send-keys -t target C-c`, `C-d`, `C-z`, `Escape`, etc.
-
-## Standard Operating Procedure
-
-Every step below is **mandatory**. Deviations cause silent failures that destroy user sessions.
-
-### 1. Every operation starts by checking state
-
-Before any tmux action, check what exists:
+### A. Interactive SSH session
 
 ```bash
+SOCKET="/tmp/agent.sock" # 独立 socket，避免与个人 tmux 冲突
+
+# 1. 检查状态 — 如果已有同名 session 则复用（避免重复创建）
+#    如果 list-sessions 返回空，说明 socket 可用，继续下一步
+#    如果已有 session，评估是否可复用：同名 session 可直接用，否则建议新建
 tmux -S "$SOCKET" list-sessions
-tmux -S "$SOCKET" list-panes -a
+
+# 2. 获取主机上下文（SSH 前先了解目标主机配置）
+#    从 ~/.ssh/config 中 grep 目标 Host 块，获取 User、Port、密码等
+HOST=hp-book
+grep -A 10 "^Host $HOST\b" ~/.ssh/config
+
+# 3. 创建 session 并解析 target（永远不要硬编码 :0.0）
+SESSION=$HOST-check # 用目标主机名命名，便于识别
+tmux -S "$SOCKET" new -d -s "$SESSION"
+TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')"
+
+# 4. SSH 到远程主机
+tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" "ssh $HOST" Enter
+./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
+
+# 5. 发送命令 — wait-for-text 返回输出，无需单独 capture
+#    注意：对于长时间运行的命令（如 dnf update），请增大 -T 值
+tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" 'some-command' Enter
+./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
+
+# 6. Cleanup — kill only what you created; never kill-server
+tmux -S "$SOCKET" kill-session -t "$SESSION"
 ```
 
-Or use `./scripts/find-sessions.sh -S "$SOCKET"` for detailed output. Reuse existing sessions — never create a new session when one already exists.
-
-**Never** `kill-session` or `kill-server` without listing sessions first and getting explicit user confirmation. `kill-server` destroys ALL sessions on the socket.
-
-### 2. Connecting to a remote host via SSH
-
-Step-by-step, do not skip or combine steps:
-
-1. Check for existing sessions (step 1 above).
-2. If no session exists: `tmux -f /dev/null -S "$SOCKET" new -d -s "$SESSION" -n shell`
-3. Resolve target: `TARGET=$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')`
-4. Send SSH: `tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" -- 'ssh hostname' Enter`
-5. **MANDATORY: wait for prompt**: `./scripts/wait-for-text.sh -t "$SESSION:$TARGET" -p '[$#] ' -T 30`
-6. Now send follow-up command: `tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" -- 'actual-command' Enter`
-7. **MANDATORY: wait for prompt again** before next command.
-
-read `~/.ssh/config` IS NOT NEEDED, trust user's hostname!
-For SSH compound (single-shot): `send-keys -- 'ssh user@host "cmd1 && cmd2"' Enter`. Never send `ssh`, then `password`, then `cmd` as separate steps without waiting between each.
-
-### 3. When you need a second terminal
-
-Split panes on demand — only when a sub-task requires a separate interactive process (e.g., run a server AND interact with it):
-
-1. Split: `tmux -S "$SOCKET" split-window -t "$SESSION"`
-2. Resolve new target: `NEW_TARGET=$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')`
-3. Store in distinct variables (`$MAIN`, `$SERVER`) — never reuse one `$TARGET` for two panes.
-4. **Complete the current step on the current pane before switching.** Never interleave commands across panes.
-
-### 4. Choosing the right send-keys mode
-
-| Mode | Syntax | Shell chars work? | Use when |
-|------|--------|:---:|------|
-| Literal | `send-keys -l 'text'` then `Enter` | No | Pure text, no `\|`, `>`, `$`, `;`, `&` |
-| Direct | `send-keys -- 'text'` then `Enter` | Yes | Commands with pipes, redirects, vars |
-| C-literal | `send-keys -- $'text'` then `Enter` | Yes | Need `\n` `\t` escapes |
-
-**CRITICAL**: Always send `Enter` as a separate key — never embed it inside the text string. `send-keys -l 'ls\n'` is wrong; `send-keys -l 'ls'` then `send-keys Enter` is correct. Same for all three modes.
-
-Control keys (`C-c`, `C-d`, `Escape`) are always sent as separate invocations.
-
-### 5. Wait after every command — no exceptions
-
-After **every** `send-keys ... Enter` (and after every `send-keys C-c`):
+### B. Compound SSH (faster for read-only checks)
 
 ```bash
-./scripts/wait-for-text.sh -t "$SESSION:$TARGET" -p '<prompt-pattern>' -T <timeout>
+# Bundle commands — wait-for-text returns output on prompt match
+tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" "ssh $HOST \"cmd1 && cmd2\"" Enter
+./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
 ```
 
-Only proceed when this returns 0. Never use `sleep N` — it does not guarantee the command finished and wastes time.
-
-Common patterns:
-- Shell prompt: `'[$#] '` or `'[$#]\s'`
-- Python REPL: `'^>>> '`
-- GDB: `'^(gdb) '`
-- SSH password: `'password:'`
-
-### 6. Reading output
-
-Only capture after `wait-for-text.sh` confirmed the prompt returned:
+### C. Create another pane (second terminal)
 
 ```bash
-tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION:$TARGET" -S -200
+# When a sub-task needs a separate process (e.g. server + interaction)
+tmux -S "$SOCKET" split-window -t "$SESSION"
+PANE2="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')"
+# Use distinct variables (TARGET / PANE2). Finish current step before switching.
 ```
 
-Capturing immediately after `send-keys Enter` returns stale pre-execution output.
+### Monitor hint for the user
 
-### 7. Cleanup
+Always print this right after starting a session (沿用 Quick Start 中的 `SOCKET`、`SESSION`、`TARGET` 变量):
 
-- Kill only sessions you created for the current task.
-- Before killing: list sessions, then ask user to confirm.
-- Never `kill-server` — it destroys every session across all tasks on that socket.
+```
+To monitor: tmux -S "$SOCKET" attach -t "$SESSION"
+To capture: tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION:$TARGET" -S -200
+```
 
-## Watching output
+## send-keys reference
 
-- Capture recent history (joined lines to avoid wrapping artifacts): `tmux -L "$SOCKET" capture-pane -p -J -t target -S -200`.
-- For continuous monitoring, poll with the helper script (below) instead of `tmux wait-for` (which does not watch pane output).
-- You can also temporarily attach to observe: `tmux -L "$SOCKET" attach -t "$SESSION"`; detach with `Ctrl+b d`.
-- When giving instructions to a user, **explicitly print a copy/paste monitor command** alongside the action don't assume they remembered the command.
+| Mode | Syntax | C-escapes processed? | Use when |
+|------|--------|:---:|----------|
+| Literal | `send-keys -l 'text'` then `Enter` | No | Plain text — `\|` `>` `$` `;` `&` all sent literally |
+| Direct | `send-keys 'text'` then `Enter` | No | Commands with pipes, redirects, vars |
+| C-literal | `send-keys $'text'` then `Enter` | Yes | Need `\n` `\t` escapes |
 
-## Spawning Processes
-
-Some special rules for processes:
-
-- when asked to debug, use lldb by default
-- when starting a python interactive shell, always set the `PYTHON_BASIC_REPL=1` environment variable. This is very important as the non-basic console interferes with your send-keys.
-
-## Synchronizing / waiting for prompts
-
-- Use timed polling to avoid races with interactive tools. Example: wait for a Python prompt before sending code:
-  ```bash
-  ./scripts/wait-for-text.sh -t "$SESSION:$TARGET" -p '^>>>' -T 15 -l 4000
-  ```
-- For long-running commands, poll for completion text (`"Type quit to exit"`, `"Program exited"`, etc.) before proceeding.
-
-## Interactive tool recipes
-
-- **Python REPL**: `tmux ... send-keys -- 'python3 -q' Enter`; wait for `^>>>`; send code with `-l`; interrupt with `C-c`. Always with `PYTHON_BASIC_REPL`.
-- **gdb**: `tmux ... send-keys -- 'gdb --quiet ./a.out' Enter`; disable paging `tmux ... send-keys -- 'set pagination off' Enter`; break with `C-c`; issue `bt`, `info locals`, etc.; exit via `quit` then confirm `y`.
-- **Other TTY apps** (ipdb, psql, mysql, node, bash): same pattern—start the program, poll for its prompt, then send literal text and Enter.
-
-## Cleanup
-
-- Kill a session when done: `tmux -S "$SOCKET" kill-session -t "$SESSION"`.
-- Kill all sessions on a socket: `tmux -S "$SOCKET" list-sessions -F '#{session_name}' | xargs -r -n1 tmux -S "$SOCKET" kill-session -t`.
-- Remove everything on the private socket: `tmux -S "$SOCKET" kill-server`.
+**Always send `Enter` as a separate invocation.** Control keys (`C-c`, `C-d`, etc.) are also sent separately. Never `sleep N` — use `wait-for-text.sh` instead.
 
 ## Helper: wait-for-text.sh
 
-`./scripts/wait-for-text.sh` polls a pane for a regex (or fixed string) with a timeout. Works on Linux/macOS with bash + tmux + grep.
+Polls a pane for a regex (or fixed string) with timeout. Only checks the last line. Skips matching on the very first frame to let send-keys take effect (replaces an explicit `sleep 0.1` in the caller). On success, prints the matched pane output to stdout.
 
 ```bash
-./scripts/wait-for-text.sh -t session:<target> -p 'pattern' [-F] [-T 20] [-i 0.5] [-l 2000]
+./scripts/wait-for-text.sh -t "SESSION:WINDOW.PANE" -p 'pattern' [-S socket] [-F] [-T 15] [-i 0.5] [-l 1000]
 ```
 
-- `-t`/`--target` pane target (required)
-- `-p`/`--pattern` regex to match (required); add `-F` for fixed string
-- `-T` timeout seconds (integer, default 15)
+- `-t` pane target in tmux `session:window.pane` format (required)
+- `-p` regex pattern (required); `-F` for fixed string
+- `-S` tmux socket path (optional)
+- `-T` timeout seconds (default 15)
 - `-i` poll interval seconds (default 0.5)
-- `-l` history lines to search from the pane (integer, default 1000)
-- Exits 0 on first match, 1 on timeout. On failure prints the last captured text to stderr to aid debugging.
+- `-l` history lines to search (default 1000)
+- exits 0 on match (prints output to stdout) or 1 on timeout.
+
+> **注意**：`wait-for-text.sh` 只检查 pane 的最后一行。如果命令输出很长（如 `dnf update`），请等待命令完成、shell prompt 重新出现后再匹配。对于长时间运行的命令，适当增大 `-T` 值。
+
+## Common prompt patterns
+
+| Context | Pattern | Notes |
+|---------|---------|-------|
+| Shell prompt (bash/sh) | `'[$#][[:space:]]*$'` | Standard `$` or `#` prompt, end-anchored |
+| SSH password | `'password:'` | 英文 locale |
+| Python REPL | `'^>>>'` | |
+| GDB | `'^\(gdb\) '` | |
+
+> **可移植性**：使用 POSIX 兼容的 `[[:space:]]` 而非 `\s`，确保在 GNU grep 和 BSD/macOS grep 下均能工作。
+
+## Interactive tool recipes
+
+- **Python REPL**: start with `PYTHON_BASIC_REPL=1 python3 -q`, wait for `^>>>`, send code with `-l`, interrupt with `C-c`. Always use `PYTHON_BASIC_REPL=1` — non-basic REPL breaks send-keys.
+- **gdb**: `gdb --quiet ./a.out`, disable paging (`set pagination off`), break with `C-c`, inspect (`bt`, `info locals`), exit (`quit` then `y`).
+- **Other TTY apps** (ipdb, psql, mysql, node, bash): same pattern — start, wait for prompt, send text and Enter.
+

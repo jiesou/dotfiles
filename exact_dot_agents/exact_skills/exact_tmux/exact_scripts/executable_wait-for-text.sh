@@ -10,6 +10,7 @@ Poll a tmux pane for text and exit when found.
 Options:
   -t, --target    tmux target (session:window.pane), required
   -p, --pattern   regex pattern to look for, required
+  -S, --socket    tmux socket path (optional, default: tmux default)
   -F, --fixed     treat pattern as a fixed string (grep -F)
   -T, --timeout   seconds to wait (integer, default: 15)
   -i, --interval  poll interval in seconds (default: 0.5)
@@ -20,6 +21,7 @@ USAGE
 
 target=""
 pattern=""
+socket=""
 grep_flag="-E"
 timeout=15
 interval=0.5
@@ -29,6 +31,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -t|--target)   target="${2-}"; shift 2 ;;
     -p|--pattern)  pattern="${2-}"; shift 2 ;;
+    -S|--socket)   socket="${2-}"; shift 2 ;;
     -F|--fixed)    grep_flag="-F"; shift ;;
     -T|--timeout)  timeout="${2-}"; shift 2 ;;
     -i|--interval) interval="${2-}"; shift 2 ;;
@@ -59,17 +62,27 @@ if ! command -v tmux >/dev/null 2>&1; then
   exit 1
 fi
 
-# End time in epoch seconds (integer, good enough for polling)
 start_epoch=$(date +%s)
 deadline=$((start_epoch + timeout))
 
-while true; do
-  # -J joins wrapped lines, -S uses negative index to read last N lines
-  pane_text="$(tmux capture-pane -p -J -t "$target" -S "-${lines}" 2>/dev/null || true)"
+tmux_cmd=("tmux")
+[[ -n "$socket" ]] && tmux_cmd+=(-S "$socket")
 
-  if printf '%s\n' "$pane_text" | grep $grep_flag -- "$pattern" >/dev/null 2>&1; then
-    exit 0
+# Skip matching on the very first frame to let send-keys take effect
+# (replaces an explicit `sleep 0.1` in the caller)
+first_frame=true
+
+while true; do
+  pane_text="$("${tmux_cmd[@]}" capture-pane -p -J -t "$target" -S "-${lines}" 2>/dev/null || true)"
+
+  if ! $first_frame; then
+    last_line="$(printf '%s' "$pane_text" | tail -1)"
+    if printf '%s\n' "$last_line" | grep $grep_flag -- "$pattern" >/dev/null 2>&1; then
+      printf '%s\n' "$pane_text"
+      exit 0
+    fi
   fi
+  first_frame=false
 
   now=$(date +%s)
   if (( now >= deadline )); then

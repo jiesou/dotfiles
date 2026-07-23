@@ -18,8 +18,15 @@ function isBlockedTmpBash(command: string): boolean {
   const i = command.indexOf("/tmp")
   if (i === -1) return false
   if (command.includes("/tmp/")) return false
-  if (i > 0 && /[a-zA-Z0-9]/.test(command[i - 1])) return false
-  return true
+
+  if (i > 0) {
+    const p = command[i - 1]
+    if (p >= "a" && p <= "z" || p >= "A" && p <= "Z" || p >= "0" && p <= "9") return false
+  }
+
+  if (i + 4 >= command.length) return true
+  const n = command[i + 4]
+  return n === " " || n === "|" || n === ";" || n === "&"
 }
 
 export const TmpRedirect: Plugin = async () => {
