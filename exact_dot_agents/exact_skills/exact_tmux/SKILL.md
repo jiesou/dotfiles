@@ -7,33 +7,28 @@ description: "Tmux sessions for interactive CLIs (ssh, gdb, etc.) by sending key
 
 Use tmux for any long-term, interactive work.
 
-## Quick Start
+Grep `man tmux` to confirm anything you need.
 
-Strictly follow this flow.
+## Quickstart
 
-### A. Interactive SSH session
+Firstly, strictly follow the flow below:
 
 ```bash
 SOCKET="/tmp/agent.sock"
+tmux -S "$SOCKET" list-sessions                # reuse existing session if found anything related
+```
 
-# 1. Check state — reuse existing session with the same name if found
-#    If list-sessions returns empty, the socket is ready for a new session
-#    If a session exists, evaluate reusability: same-named sessions can be reused
-tmux -S "$SOCKET" list-sessions
+### SSH
 
-# 2. Fetch host context before SSH
-#    Grep the target Host block from ~/.ssh/config for User, Port, password hints
-HOST=hp-book
-grep -A 10 "^Host $HOST\b" ~/.ssh/config
+```bash
+grep -A 5 "^Host .*hostname.*" ~/.ssh/config   # check config & password & context
 
-# 3. Create session and resolve target (never hardcode :0.0)
-SESSION=$HOST-check
+SESSION=whatever-work
 tmux -S "$SOCKET" new -d -s "$SESSION"
 TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')"
 
-# 4. SSH to remote host
 tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" "ssh $HOST" Enter
-./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
+./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#❯ ]'
 
 # 5. Send command — wait-for-text returns output on match, no separate capture needed
 #    For long-running commands (e.g. dnf update), increase -T accordingly
