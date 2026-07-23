@@ -15,18 +15,18 @@ Firstly, strictly follow the flow below:
 
 ```bash
 SOCKET="/tmp/agent.sock"
-tmux -S "$SOCKET" list-sessions                # reuse existing session if found anything related
+tmux -S "$SOCKET" list-sessions                  # reuse existing session if found anything related
 ```
 
-### SSH
+### Create Session and open SSH
 
 ```bash
-grep -A 5 "^Host .*hostname.*" ~/.ssh/config   # check config & password & context
+grep -A 5 "^Host .*hostname.*" ~/.ssh/config     # check config & password & context
 
 SESSION=whatever-work
 tmux -S "$SOCKET" new -d -s "$SESSION"
 TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{pane_index}')"
-
+    
 tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" "ssh $HOST" Enter
 ./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#❯ ]'
 
@@ -39,7 +39,22 @@ tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" 'some-command' Enter
 tmux -S "$SOCKET" kill-session -t "$SESSION"
 ```
 
-### B. Compound SSH (faster for read-only checks)
+### Send command after a long research
+
+```bash
+tmux -S "$SOCKET" capture-pane -p -t "openpnp-research:check" -S -8
+
+# 5. Send command — wait-for-text returns output on match, no separate capture needed
+#    For long-running commands (e.g. dnf update), increase -T accordingly
+tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" 'some-command' Enter
+./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
+
+# 6. Cleanup — kill only what you created; never kill-server
+tmux -S "$SOCKET" kill-session -t "$SESSION"
+```
+
+
+### Snaplook (for any short-term command in SSH)
 
 ```bash
 # Bundle commands — wait-for-text returns output on prompt match
