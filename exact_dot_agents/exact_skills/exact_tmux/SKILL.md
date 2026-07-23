@@ -18,7 +18,7 @@ SOCKET="/tmp/agent.sock"
 tmux -S "$SOCKET" list-sessions                  # reuse existing session if found anything related
 ```
 
-### Create Session and open SSH
+### Create Session and Connect SSH
 
 ```bash
 grep -A 5 "^Host .*hostname.*" ~/.ssh/config     # check config & password & context
@@ -37,15 +37,14 @@ tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" 'some-command' Enter
 
 ```
 
-### Send command after a long research
 
-```bash
-tmux -S "$SOCKET" capture-pane -p -t "openpnp-research:check" -S -8
+# 5. Send command
 
-# 5. Send command \E2\80\94 wait-for-text returns output on match, no separate capture needed
-#    For long-running commands (e.g. dnf update), increase -T accordingly
+```
 tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" 'some-command' Enter
 ./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
+
+> For really long-running commands (e.g. dnf update), increase -T (timeout)
 
 # 6. Cleanup \E2\80\94 kill only what you created; never kill-server
 tmux -S "$SOCKET" kill-session -t "$SESSION"
@@ -53,10 +52,15 @@ tmux -S "$SOCKET" kill-session -t "$SESSION"
 
 ### Snaplook (for any short-term command in SSH)
 
+
 ```bash
-# Bundle commands \E2\80\94 wait-for-text returns output on prompt match
-tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" "ssh $HOST \"cmd1 && cmd2\"" Enter
+tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" "whoami" Enter
+sleep 0.1
+tmux -S "$SOCKET" capture-pane -p -t "openpnp-research:check" -S -8
 ./scripts/wait-for-text.sh -S "$SOCKET" -t "$SESSION:$TARGET" -p '[$#][[:space:]]*$' -T 30
+
+
+tmux -S /tmp/agent.sock send-keys -t k60-re:0.0 -- 'cd ~/.local/share/chezmoi && git push --force origin main 2>&1; echo "EXIT=$?"' Enter && sleep 15 && tmux -S /tmp/agent.sock capture-pane -p -J -t k60-re:0.0 -S -8
 ```
 
 ### C. Create another pane (second terminal)
@@ -68,15 +72,21 @@ PANE2="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{window_index}.#{p
 # Use distinct variables (TARGET / PANE2). Finish current step before switching.
 ```
 
+### Send command after a long research
+
+# DO IT FIRST: check if SSH still connected
+```bash
+tmux -S "$SOCKET" capture-pane -p -t "openpnp-research:check" -S -8
+```
+`write/edit` writes to the local path, while tmux SSH are for remote paths. Do not confuse.
+
 ### Monitor hint for the user
 
-Always print this right after starting a session (using `SOCKET`, `SESSION`, `TARGET` from the Quick Start):
+Print this right after starting a session (using `SOCKET`, `SESSION`, `TARGET` from the Quick Start):
 
 ```
 To monitor: tmux -S "$SOCKET" attach -t "$SESSION"
-To capture: tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION:$TARGET" -S -200
 ```
-
 
 ### Cleanup
 
