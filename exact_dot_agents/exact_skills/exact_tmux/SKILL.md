@@ -50,7 +50,7 @@ tmux -S "$SOCKET" send-keys -t "$SESSION:$TARGET" 'some-command' Enter
 tmux -S "$SOCKET" kill-session -t "$SESSION"
 ```
 
-### Snaplook (for any short-term command in SSH)
+### Snaplook (only for short-term command (less than 1 seconds) in SSH)
 
 
 ```bash
