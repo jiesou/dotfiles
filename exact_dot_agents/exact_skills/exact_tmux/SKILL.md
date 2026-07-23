@@ -21,7 +21,7 @@ tmux -S "$SOCKET" list-sessions                  # reuse existing session if fou
 ### Create Session and Connect SSH
 
 ```
-grep -A 8 "^Host hostname" ~/.ssh/config         # get host password & context in ~/.ssh/config
+grep -A 8 "^Host hostname" ~/.ssh/config         # check config, password (in comments), etc.
 
 SESSION=whatever-work
 tmux -S "$SOCKET" new -d -s "$SESSION"
@@ -32,11 +32,11 @@ echo "$TARGET"
 
 tmux -S "$SOCKET" send-keys \
   -t "$TARGET" \
-  "ssh hostname" Enter                           # if defined in `config`, than use plain `hostname`, no user or ports needed
+  "ssh hostname" Enter                           # Use plain `hostname`, no user or ports needed
 ./scripts/wait-for-text.sh -S "$SOCKET" \
   -t "$TARGET" \
-  -p '[$#❯ ]|password|密码' \
-  -T 5                                           # post-step: verify SSH connected
+  -p '[$#❯ ]|password|密码|yes/no' \
+  -T 5                                           # verify SSH connected
 ```
 
 ### Send command (Quick-shots)
@@ -54,24 +54,19 @@ tmux -S "$SOCKET" capture-pane -p -t "$TARGET" | grep . | tail -4  # strip blank
 | Direct | `send-keys 'text'` then `Enter` | |
 | Literal | `send-keys -l 'text'` then `Enter`| Plain text `\|` `>` `$` `;` `&` all sent literally |
 | C-literal | `send-keys $'text'` then `Enter` | Need `\n` `\t` escapes |
-
-For multi-line command:
+ 
+For multi-line commands:
 
 ```
 tmux -S "$SOCKET" load-buffer -b cmd - <<'CMD'
-cat <<'EOF' > /tmp/script.sh
-#!/bin/bash
-for i in $(seq 1 10); do
-  echo "hello $i"
-done
-EOF
-chmod +x /tmp/script.sh
-/tmp/script.sh
+echo "hello from $(whoami)"
+echo "hostname: $(hostname)"
+uptime
 CMD
-tmux -S "$SOCKET" paste-buffer -t "$TARGET" -b cmd -d
+tmux -S "$SOCKET" paste-buffer -t "$TARGET" -b cmd
 ```
 
-**Always send `Enter`, Control keys (`C-c`, `C-d`, etc.) as a separate invocation.**
+The heredoc content is pasted into the pane as if typed.
 
 ### Send command (Long-running)
 
@@ -109,15 +104,16 @@ When you need a second terminal, such as:
 You will need a second "window"
 
 ```
-tmux -S "$SOCKET" new-window -t "$SESSION" -n "side"            # pin it to a meaningful name
+tmux -S "$SOCKET" new-window -t "$SESSION" -n "side"            # give it a meaningful name
 TARGET_SIDE="$(tmux -S "$SOCKET" display-message -p -t "$SESSION:side" '#S:#W.#P')"
-# Use distinct variables (like TARGET_FOO / TARGET_BAR).
 
-# Finish current step before switching
+# Use distinct variables (like TARGET_FOO / TARGET_BAR).
+# Finish current step before switching.
 TARGET_MAIN=$TARGET
 echo $TARGET_SIDE
 echo $TARGET_MAIN
-tmux -S "$SOCKET" rename-window -t "$SESSION:main" "main"       # rename the first window
+
+tmux -S "$SOCKET" rename-window -t "$TARGET_MAIN" "main"       # rename the first window
 ```
 
 _You don't need multiple panes, just windows._
@@ -158,9 +154,9 @@ Use `wait-for-text.sh -h` for help!
 
 | Context | Pattern |
 |---------|---------|
-| General | `'error|[$#❯ ]|password|密码` |
-| Python REPL | `'^>>>'` |
-| GDB | `'^\(gdb\) '` |
+| General | `error|[$#❯ ]|password|密码|yes/no` |
+| Python REPL | `^>>>` |
+| GDB | `^\(gdb\) ` |
 
 ### Interactive tool recipes
 
