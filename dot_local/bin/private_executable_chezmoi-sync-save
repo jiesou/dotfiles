@@ -20,6 +20,10 @@ D=(); for x in "${DIRS[@]}"; do [ -d "$x" ] && D+=("$x"); done
 
 SRC=$(chezmoi source-path)
 
+# Sync with remote first — handles force-push
+git -C "$SRC" fetch origin
+git -C "$SRC" reset --hard origin/main
+
 CFG="$HOME/.config/chezmoi/chezmoi.toml"
 cp "$CFG" "$CFG.bak.sync.$$"
 trap 'mv "$CFG.bak.sync.$$" "$CFG"' EXIT
@@ -44,12 +48,7 @@ for d in "${D[@]}"; do
 
   ORPHANS=() NEWS=()
   while IFS= read -r -d '' m; do
-    [ -z "$m" ] && continue
-    if [ ! -e "$HOME/$m" ]; then
-      src=$(chezmoi source-path "$HOME/$m" 2>/dev/null || true)
-      [ -n "$src" ] && [ -f "$src" ] && continue
-      ORPHANS+=("$HOME/$m")
-    fi
+    [ -n "$m" ] && { [ -e "$HOME/$m" ] || ORPHANS+=("$HOME/$m"); }
   done < <(chezmoi managed -0 "$d" 2>/dev/null)
   while IFS= read -r f; do
     [ -n "$f" ] && NEWS+=("$HOME/$f")
