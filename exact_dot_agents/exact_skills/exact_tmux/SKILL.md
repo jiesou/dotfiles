@@ -1,12 +1,11 @@
 ---
 name: tmux
-description: "Tmux sessions for interactive CLIs (ssh, gdb, etc.) by sending keystrokes and scraping TARGET output."
+description: "Tmux for interactive CLIs (ssh, gdb, etc.) by sending keystrokes and scraping pane output."
 ---
 
-# tmux Skill
+# tmux
 
 Use tmux for any long-term, interactive work.
-
 Firstly, strictly follow the Quickstart flow.
 
 Also grep `man tmux` to find anything you need!
@@ -21,7 +20,7 @@ tmux -S "$SOCKET" list-sessions                  # reuse existing session if fou
 ### Create Session and Connect SSH
 
 ```
-grep -A 8 "^Host hostname" ~/.ssh/config         # check config, password (in comments), etc.
+grep -A 8 "^Host hostname" ~/.ssh/config         # get host password & context in `~/.ssh/config`
 
 SESSION=whatever-work
 tmux -S "$SOCKET" new -d -s "$SESSION"
@@ -47,6 +46,21 @@ sleep 0.1
 tmux -S "$SOCKET" capture-pane -p -t "$TARGET" | grep . | tail -4  # strip blank lines
 ```
 
+### Send command (Long-running)
+
+For any operation that requires more than `sleep 3`, use wait-for-text.sh.
+
+```
+tmux -S "$SOCKET" send-keys -t "$TARGET" 'sudo apt update' Enter
+./scripts/wait-for-text.sh -S "$SOCKET" -t "$TARGET" -p '[$#❯ ]|password|密码'
+# no separate capture needed
+```
+OR
+```
+tmux -S "$SOCKET" send-keys -t "$TARGET" 'sudo apt update && echo DONE' Enter
+./scripts/wait-for-text.sh -S "$SOCKET" -t "$TARGET" -p 'DONE|Already|password|密码'
+```
+
 ##### send-keys reference
 
 | Mode | Syntax | Use when |
@@ -68,27 +82,12 @@ tmux -S "$SOCKET" paste-buffer -t "$TARGET" -b cmd
 
 The heredoc content is pasted into the pane as if typed.
 
-### Send command (Long-running)
-
-For any operation that requires more than `sleep 3`, use wait-for-text.sh.
-
-```
-tmux -S "$SOCKET" send-keys -t "$TARGET" 'some-command' Enter
-./scripts/wait-for-text.sh -S "$SOCKET" -t "$TARGET" -p '[$#❯ ]|password|密码'
-# no separate capture needed
-```
-OR
-```
-tmux -S "$SOCKET" send-keys -t "$TARGET" 'sudo apt update && echo DONE' Enter
-./scripts/wait-for-text.sh -S "$SOCKET" -t "$TARGET" -p 'DONE|Already|password|密码'
-```
-
 ### Monitor hint for the user
 
-Print this right after starting a session (using `SOCKET`, `SESSION`, `TARGET` from the previous steps):
+Print this right after starting a session (fill args from the previous steps):
 
 ```md
-To monitor: tmux -S "[SOCKET]" attach -t "[SESSION]:[TARGET]"
+To monitor: tmux -S "[SOCKET]" attach -t "[TARGET]"
 ```
 
 ## Helpful informations
@@ -101,14 +100,12 @@ When you need a second terminal, such as:
 - a side-task
 - server + interaction
 
-You will need a second "window"
-
 ```
 tmux -S "$SOCKET" new-window -t "$SESSION" -n "side"            # give it a meaningful name
 TARGET_SIDE="$(tmux -S "$SOCKET" display-message -p -t "$SESSION:side" '#S:#W.#P')"
 
 # Use distinct variables (like TARGET_FOO / TARGET_BAR).
-# Finish current step before switching.
+# Finish current step before switching
 TARGET_MAIN=$TARGET
 echo $TARGET_SIDE
 echo $TARGET_MAIN
@@ -125,13 +122,15 @@ _You don't need multiple panes, just windows._
 ```
 tmux -S "$SOCKET" capture-pane -p -t "$TARGET" -S -8
 ```
-`write/edit` writes to the local path, while tmux SSH are for remote paths.
+`write/edit` writes to the localhost, while tmux SSH are for remote.
 
-_Do not confuse_
+_Do not confuse localhost & remote_
 
 ### Cleanup
 
-- kill only what you created
+- NEVER KILL W/O ALLOW: clean only after user confirms ALL PASS
+- only kill what you created
+- if there is someone else's session —— try reuse instead of kill
 - never kill-server
  
 ```
@@ -160,7 +159,6 @@ Use `wait-for-text.sh -h` for help!
 
 ### Interactive tool recipes
 
-- **Python REPL**: start with `PYTHON_BASIC_REPL=1 python3 -q`, wait for `^>>>`, send code with `-l`, interrupt with `C-c`. Always use `PYTHON_BASIC_REPL=1` because non-basic REPL breaks send-keys.
-- **gdb**: `gdb --quiet ./a.out`, disable paging (`set pagination off`), break with `C-c`, inspect (`bt`, `info locals`), exit (`quit` then `y`).
-- **Other TTY apps** (ipdb, psql, mysql, node, bash): same pattern —— start, wait for prompt, send text and Enter.
-
+- Python REPL: start with `PYTHON_BASIC_REPL=1 python3 -q`, wait for `^>>>`, send code with `-l`, interrupt with `C-c`. Always use `PYTHON_BASIC_REPL=1` because non-basic REPL breaks send-keys.
+- gdb: `gdb --quiet ./a.out`, disable paging (`set pagination off`), break with `C-c`, inspect (`bt`, `info locals`), exit (`quit` then `y`).
+- Other TTY apps (ipdb, psql, mysql, node, bash): same pattern —— start, wait for prompt, send text and Enter.

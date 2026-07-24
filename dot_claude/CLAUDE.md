@@ -17,7 +17,8 @@ define goal → [ act → verify → not work → act → verify with same metho
   - 根因解释 + 相关 Source 链接 + 证据链 + 验证结果 + 成效副作用
 - 委派前，自省：
   - 我的 subagent 提示词是否严格遵循 skill 的 template？
-  - subagent 主导还是我主导？定下来不变
+  - 我的 subagent 提示词能放任它主导、自行选择方法路径吗？
+  - 我的 subagent 提示词应该很简单很短，我是否提示词太细致把框架路径限死了？
 
 > 吾日三省吾身
 
@@ -26,7 +27,7 @@ define goal → [ act → verify → not work → act → verify with same metho
 - "solution" "方案！" "WHW" → 触发 `solution-research`
 - "reflect" "审计！" "verify" → 触发 `self-reflection`
 并且，在这种用户明确要求的情况下 **无论如何都严格遵循 skill 要求**
-2. 应 **引导** subagent 自行 load 所需 skill，不要 main agent 自己 load。依据：
+2. 应 **要求** subagent 自行 load 所需 skill，并严格遵循 skill 流程，不要 main agent 自己 load。依据：
 - subagent 需要执行 skill，不代表 main agent 需要执行 skill
 - main agent 不能代替 subagent 执行 skill 流程
 - subagent 不会继承 main agent 已加载的 skill

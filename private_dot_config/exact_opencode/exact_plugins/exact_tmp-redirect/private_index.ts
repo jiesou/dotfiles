@@ -2,23 +2,29 @@ import path from "path"
 import type { Plugin } from "@opencode-ai/plugin"
 
 function isBlockedTmpWrite(filePath: string): boolean {
-  const resolved = path.resolve(filePath)
-  if (!resolved.startsWith("/tmp/")) return false
-  if (resolved === "/tmp/opencode") return false
-  if (resolved.startsWith("/tmp/opencode/")) return false
-  if (resolved === "/tmp/agent.sock") return false
-  const rest = resolved.slice("/tmp/".length)
-  return !rest.includes("/")
+  return path.resolve(filePath) === "/tmp"
 }
 
 const BLOCKED_MSG =
   `Not allowed to access /tmp, use /tmp/opencode/..." instead.`
 
 function isBlockedTmpBash(command: string): boolean {
-  const i = command.indexOf("/tmp")
-  if (i === -1) return false
-  if (command.includes("/tmp/")) return false
-  if (i > 0 && /[a-zA-Z0-9]/.test(command[i - 1])) return false
+  const idx = command.indexOf("/tmp")
+  if (idx === -1) return false
+
+  if (idx > 0 && /[a-zA-Z0-9]/.test(command[idx - 1])) return false
+
+  const after = command.slice(idx + 4)
+
+  if (after === "" || after === "/") return true
+
+  if (after.startsWith("/")) {
+    if (command.includes("git clone")) {
+      return !after.startsWith("/opencode")
+    }
+    return false
+  }
+
   return true
 }
 

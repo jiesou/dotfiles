@@ -1,6 +1,6 @@
 ---
 name: ssh-chenpc
-description: Connect to user's PC via SSH — WoL wake if asleep, unlock if locked.
+description: Remote connect to user's PC WorkStation via SSH — WoL wake if asleep, unlock if locked.
 ---
 
 # SSH to chenpc.lan
