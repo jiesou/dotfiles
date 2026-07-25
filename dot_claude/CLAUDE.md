@@ -62,4 +62,4 @@
   - 可以派 subagent 专门竭尽全力拿到原始信息源
   - 读 PDF，用 gh cli 追 issue/PR threads
   - yt-dlp skill 分析任何视频内容
-  - 需要时使用 bypass-cf-403-error skill
+  - 需要时使用 bypass-cf-403 skill
