@@ -57,6 +57,7 @@
 - 有关开源项目的 research，先找到 gh repo，然后在 tmp 路径中 `git clone --depth=1` 得到项目源码，这样源码即 Source of the Truth
 - 优先使用 `gh`，而非 `curl https://api.github.com/...`。gh 的请求频率限制更宽松
 - 不熟悉某个 CLI 工具时，直接 `--help` 查看用法。例如使用 `devcontainer --help`
+- Agent Skills 始终位于 `~/.agents/skills` 
 - 若 context7 查不到，优先进行 web search
 - 不要只是 web search！搜索摘要断章取义不能当真相，关键还要 fetch 全文：
   - 可以派 subagent 专门竭尽全力拿到原始信息源

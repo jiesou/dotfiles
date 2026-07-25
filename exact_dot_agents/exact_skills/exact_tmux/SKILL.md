@@ -5,8 +5,8 @@ description: "Tmux for interactive CLIs (ssh, gdb, etc.) by sending keystrokes a
 
 # tmux
 
-Use tmux for any long-term, interactive work.
-Firstly, strictly follow the Quickstart flow.
+Use tmux for any long-running, interactive work.
+Firstly, strictly follow the instructions below.
 
 Also grep `man tmux` to find anything you need!
 
@@ -20,18 +20,18 @@ tmux -S "$SOCKET" list-sessions                  # reuse existing session if fou
 ### Create Session and Connect SSH
 
 ```
-grep -A 8 "^Host hostname" ~/.ssh/config         # get host password & context in `~/.ssh/config`
+grep -A 8 "^Host hostname" ~/.ssh/config         # get host password & context in `~/.ssh/config` quickly
 
 SESSION=whatever-work
 tmux -S "$SOCKET" new -d -s "$SESSION"
 TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#S:#W.#P')"
 echo "$TARGET"
-
-./scripts/wait-for-text.sh -h                    # get help
+# NEVER assume that target is `session:0.0`; instead, display-message and save
+# Once `TARGET` is set, it can be used permanently.
 
 tmux -S "$SOCKET" send-keys \
   -t "$TARGET" \
-  "ssh hostname" Enter                           # Use plain `hostname`, no user or ports needed
+  "ssh hostname" Enter                           # use plain `hostname`, no user or ports needed
 ./scripts/wait-for-text.sh -S "$SOCKET" \
   -t "$TARGET" \
   -p '[$#❯ ]|password|密码|yes/no' \
@@ -80,11 +80,9 @@ CMD
 tmux -S "$SOCKET" paste-buffer -t "$TARGET" -b cmd
 ```
 
-The heredoc content is pasted into the pane as if typed.
-
 ### Monitor hint for the user
 
-Print this right after starting a session (fill args from the previous steps):
+Print this right after starting a session:
 
 ```md
 To monitor: tmux -S "[SOCKET]" attach -t "[TARGET]"
@@ -99,13 +97,13 @@ When you need a second terminal, such as:
 - sync something
 - a side-task
 - server + interaction
+Finish current step before switching.
 
 ```
 tmux -S "$SOCKET" new-window -t "$SESSION" -n "side"            # give it a meaningful name
 TARGET_SIDE="$(tmux -S "$SOCKET" display-message -p -t "$SESSION:side" '#S:#W.#P')"
-
-# Use distinct variables (like TARGET_FOO / TARGET_BAR).
-# Finish current step before switching
+# Once a variable is set, it can be used permanently
+# Use distinct variables
 TARGET_MAIN=$TARGET
 echo $TARGET_SIDE
 echo $TARGET_MAIN
@@ -113,7 +111,7 @@ echo $TARGET_MAIN
 tmux -S "$SOCKET" rename-window -t "$TARGET_MAIN" "main"       # rename the first window
 ```
 
-_You don't need multiple panes, just windows._
+_You don't need multiple panes, just windows_
 
 ### Send command after a long research
 
@@ -128,7 +126,7 @@ _Do not confuse localhost & remote_
 
 ### Cleanup
 
-- NEVER KILL W/O ALLOW: clean only after user confirms ALL PASS
+- NEVER KILL W/O USER'S ALLOW
 - only kill what you created
 - if there is someone else's session —— try reuse instead of kill
 - never kill-server
