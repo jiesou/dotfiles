@@ -5,9 +5,21 @@ description: Use when you have a written implementation plan to execute task-by-
 
 # Executing Plans
 
-## Overview
+## Overview Workflow
 
-Load plan, review critically, execute all tasks with verification, report complete.
+```
+define goal → [ act → verify → not work → act → verify with same method → not work→ act → verify with same method → worked] → final
+```
+
+## Before beginning and end, conduct **rigorous self-questioning** 
+
+Before beginning:
+- Is the plan clear?
+- Is the goal clear?
+Before end:
+- How many rounds of verification did I perform? 
+- how many rounds of fixing did I make? was it finally verified? 
+- were the verifications consistent with same method each time? did verifier biased?
 
 ## Step 1: Load and Review Plan
 
