@@ -1,9 +1,9 @@
 ---
-name: ssh-chenpc
+name: remote-chenpc
 description: Remote connect to user's PC WorkStation via SSH — WoL wake if asleep, unlock if locked.
 ---
 
-# SSH to chenpc.lan
+# Remote connect chenpc.lan
 
 ## Step 1 — Wake via WoL
 
