@@ -40,7 +40,7 @@ trap 'kill -TERM $$ 2>/dev/null' EXIT
 
 state_remote_hash=$(read_file "$STATE_REMOTE_FILE")
 state_device_hash=$(read_file "$STATE_DEVICE_FILE")
-installation_id=$({{ $termux.cmd_prefix }}awk -F'"' '/installation_id/{print $2; exit}' "$TARGET_INSTALL_YAML_PATH")
+installation_id=$({{ $termux.cmd_prefix }}awk '/installation_id/{gsub(/"/,""); print $2; exit}' "$TARGET_INSTALL_YAML_PATH")
 
 echo "fcitx5-rime-sync: $installation_id fetching... (press Enter to skip)" >&2
 
