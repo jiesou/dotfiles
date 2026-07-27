@@ -432,7 +432,7 @@ def _read_comments(tmp: Path) -> str:
 def main(argv: list[str]) -> int:
     if len(argv) < 2 or not argv[1]:
         sys.stderr.write("Usage: get-transcript.py <video-url>\n")
-        sys.stderr.write("       Supports YouTube and Bilibili\n")
+        sys.stderr.write("       Supports YouTube, Bilibili and more\n")
         return 1
 
     if len(argv) >= 3 and argv[1] == "--transcribe-wav":

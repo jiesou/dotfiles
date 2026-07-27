@@ -39,7 +39,7 @@ Claim: [exact claim]
 Context: [relevant context]
 
 - Answer ONLY from your own tool calls. Do NOT rely on prior knowledge.
-**Don't just web search — fetch full sources.** Snippets are cherry-picked and incomplete.
+**Don't just web search — fetch full sources.** Search's preview are cherry-picked and incomplete.
 - Match tool to source: read PDFs, use gh CLI for full issue/PR threads, use yt-dlp Skill for every video content
 
 Output a brief audit result:

@@ -8,7 +8,12 @@ description: Use when you have a written implementation plan to execute task-by-
 ## Overview Workflow
 
 ```
-define goal → [ act → verify → not work → act → verify with same method → not work→ act → verify with same method → worked] → final
+review plan → define goal →
+  [ act → verify → not work →
+    act → verify with same method → not work →
+    act → verify with same method → worked
+  ] (loop)
+→ final
 ```
 
 ## Before beginning and end, conduct **rigorous self-questioning** 
@@ -26,7 +31,7 @@ Before end:
 1. Read the plan file
 2. Review critically — identify questions, gaps, or concerns
 3. If concerns: raise them before starting
-4. If no concerns: create todos for each task and proceed
+4. If no concerns: create todos for each task, define final goal and proceed
 
 ## Step 2: Execute Tasks
 
@@ -61,11 +66,3 @@ After all tasks are verified and completed:
 - Fundamental approach needs rethinking
 
 **Don't force through blockers** — stop and ask.
-
-## Remember
-
-- Review the plan critically first
-- Follow plan steps exactly
-- Don't skip verifications
-- Stop when blocked, don't guess
-- Never start implementation on main/master branch without explicit user consent

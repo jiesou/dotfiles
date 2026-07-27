@@ -1,6 +1,6 @@
 ---
 name: embedded-debug
-description: "Serial access. Use when: (1) monitoring serial output from ESP32/STM32/Arduino, (2) flashing firmware and reading boot output, (3) killing processes holding serial ports."
+description: "Serial and openocd access."
 ---
 
 # Embedded Debug

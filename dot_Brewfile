@@ -1,4 +1,4 @@
-tap "anomalyco/tap"
+tap "anomalyco/tap", trusted: true
 tap "espressif/eim"
 # Arduino command-line interface
 brew "arduino-cli"
@@ -34,14 +34,14 @@ brew "ninja"
 brew "nmap"
 # Open-source, cross-platform JavaScript runtime environment
 brew "node"
+# AI coding agent, built for the terminal
+brew "opencode"
 # Simple TTY terminal I/O application
 brew "tio"
 # Command-line unarchiving tools supporting multiple formats
 brew "unar"
 # Extremely fast Python package installer and resolver, written in Rust
 brew "uv"
-# The AI coding agent built for the terminal.
-brew "anomalyco/tap/opencode", trusted: true
 # ESP-IDF Installation Manager - CLI tool for setting up ESP-IDF development environment
 brew "espressif/eim/eim", trusted: true
 # Terminal-based AI coding assistant
