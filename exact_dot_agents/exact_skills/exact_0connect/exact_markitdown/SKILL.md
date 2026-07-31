@@ -81,15 +81,8 @@ For detailed guidance on creating schematics, refer to the scientific-schematics
 
 ### Installation
 
-```bash
-# Install with all features
-pip install 'markitdown[all]'
-
-# Or from source
-git clone https://github.com/microsoft/markitdown.git
-cd markitdown
-pip install -e 'packages/markitdown[all]'
-```
+DONT INSTALL AT ALL
+JUST USE `uvx markitdown[all]`
 
 ### Command-Line Usage
 

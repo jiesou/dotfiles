@@ -195,6 +195,18 @@ portal 地址 `10.55.224.217`，绑定网卡 `enp2s0`
 3. 尝试 enp2s0 down/up 重连
 4. 手动触发认证：`sudo systemctl start custom-edu-auto-auth.service`
 
+#### hp-server nft/gost 端口转发
+
+hp-server 上有 nftables 规则持久化：
+- 规则文件：`/home/ubuntu/Dev/gost-inout-proxy/wyunicom-edu-gateway-forward.nft`
+- systemd 服务：`nftables-rdp-forward.service`
+  - 启动/重载会自动 flush 旧规则并从 `.nft` 文件重新加载
+  - 同时维护 Docker DOCKER-USER chain 的对应 ACCEPT 规则
+
+```bash
+ssh ubuntu@192.168.11.131 'sudo systemctl restart nftables-rdp-forward.service'
+```
+
 #### 10.55.2.95 — 信息中心应用服务器
 
 一台 Ubuntu 服务器承载了学校很多数字化服务

@@ -6,7 +6,7 @@ description: "Tmux for interactive CLIs (ssh, gdb, etc.) by sending keystrokes a
 # tmux
 
 Use tmux for any long-running, interactive work.
-Firstly, strictly follow the instructions below.
+Firstly, **strictly** follow the instructions below.
 
 Also grep `man tmux` to find anything you need!
 
@@ -17,26 +17,41 @@ SOCKET="/tmp/agent.sock"
 tmux -S "$SOCKET" list-sessions                  # reuse existing session if found anything related
 ```
 
-### Create Session and Connect SSH
+### Create Session
 
 ```
-grep -A 8 "^Host hostname" ~/.ssh/config         # get host password & context in `~/.ssh/config` quickly
-
 SESSION=whatever-work
 tmux -S "$SOCKET" new -d -s "$SESSION"
-TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#S:#W.#P')"
+TARGET="$(tmux -S "$SOCKET" display-message -p -t "$SESSION" '#{session_name}:#{window_id}.#{pane_id}')"
 echo "$TARGET"
-# NEVER assume that target is `session:0.0`; instead, display-message and save
-# Once `TARGET` is set, it can be used permanently.
+# Don't assume that target is `session:0.0`; instead, display-message and save
+# Once `TARGET` got, it can be always reused
+```
 
+### Enter Shell Env
+
+```
+# SSH
+grep -A 8 "^Host hostname" ~/.ssh/config         # get host password & context in `~/.ssh/config` quickly
 tmux -S "$SOCKET" send-keys \
   -t "$TARGET" \
   "ssh hostname" Enter                           # use plain `hostname`, no user or ports needed
+
+# devcontainer
+devcontainer --help                              # get help
+tmux -S "$SOCKET" send-keys \
+  -t "$TARGET" \
+  "devcontainer exec --config path/to/project/.devcontainer/devcontainer.json bash" Enter
+
+
+# verify SSH connected/devcontainer entered
 ./scripts/wait-for-text.sh -S "$SOCKET" \
   -t "$TARGET" \
   -p '[$#❯ ]|password|密码|yes/no' \
-  -T 5                                           # verify SSH connected
+  -T 5
 ```
+
+Shell Envs such as python venv, gdb ... all be enter in this way.
 
 ### Send command (Quick-shots)
 
@@ -48,12 +63,16 @@ tmux -S "$SOCKET" capture-pane -p -t "$TARGET" | grep . | tail -4  # strip blank
 
 ### Send command (Long-running)
 
-For any operation that requires more than `sleep 3`, use wait-for-text.sh.
+For any operation that require waiting longer than 5 seconds, do not use `sleep [large number]`; instead, use wait-for-text.sh.
 
 ```
 tmux -S "$SOCKET" send-keys -t "$TARGET" 'sudo apt update' Enter
+sleep 5
+tmux -S "$SOCKET" capture-pane -p -t "$TARGET"
+# confirmed if it IS proceeding instead of failing in seconds (important)
+
 ./scripts/wait-for-text.sh -S "$SOCKET" -t "$TARGET" -p '[$#❯ ]|password|密码'
-# no separate capture needed
+# and start a long wait
 ```
 OR
 ```
@@ -101,9 +120,7 @@ Finish current step before switching.
 
 ```
 tmux -S "$SOCKET" new-window -t "$SESSION" -n "side"            # give it a meaningful name
-TARGET_SIDE="$(tmux -S "$SOCKET" display-message -p -t "$SESSION:side" '#S:#W.#P')"
-# Once a variable is set, it can be used permanently
-# Use distinct variables
+TARGET_SIDE="$(tmux -S "$SOCKET" display-message -p -t "$SESSION:side" '#{session_name}:#{window_id}.#{pane_id}')"
 TARGET_MAIN=$TARGET
 echo $TARGET_SIDE
 echo $TARGET_MAIN
@@ -111,7 +128,7 @@ echo $TARGET_MAIN
 tmux -S "$SOCKET" rename-window -t "$TARGET_MAIN" "main"       # rename the first window
 ```
 
-_You don't need multiple panes, just windows_
+_You don't need multiple panes/sessions, just windows!_
 
 ### Send command after a long research
 
@@ -126,7 +143,8 @@ _Do not confuse localhost & remote_
 
 ### Cleanup
 
-- NEVER KILL W/O USER'S ALLOW
+- DONT CLEANUP AUTOMATICALLY
+- NEVER KILL ANYTHING WITHOUT USER'S ALLOW
 - only kill what you created
 - if there is someone else's session —— try reuse instead of kill
 - never kill-server

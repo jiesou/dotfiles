@@ -34,7 +34,7 @@ CACHE = Path(tempfile.gettempdir()) / "get-transcript"
 COOKIES = ("--cookies-from-browser", "brave:~/.var/app/com.brave.Browser/config/BraveSoftware/Brave-Browser")
 EJS = ("--remote-components", "ejs:github")
 
-SENSE_VOICE_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/sense-voice-funasr-nano-int8")
+X_ASR_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/x-asr-960ms-streaming-zipformer-transducer-zh-en-punct-int8")
 SILERO_VAD_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/silero-vad/silero_vad.onnx")
 
 
@@ -379,7 +379,7 @@ def _fetch(yt: list[str], url: str, tmp: Path) -> Tuple[Optional[Path], list[str
         comments = _read_comments(tmp)
         return subs[0], meta, comments, False, vid
 
-    sys.stderr.write("no usable subtitles, falling back to sense-voice transcription\n")
+    sys.stderr.write("no usable subtitles, falling back to x-asr transcription\n")
     wav = _download_audio(yt, url, tmp)
     if not wav:
         sys.stderr.write("audio download failed, no fallback possible\n")
@@ -478,12 +478,12 @@ def main(argv: list[str]) -> int:
             f"cached_at: {today}",
         ]
         if transcribed:
-            lines.append("transcribed_by: sense-voice")
+            lines.append("transcribed_by: x-asr")
         lines.extend(["---", "", "## Transcript", "", text])
         if comments:
             lines.append(comments)
         path.write_text("\n".join(lines), "utf-8")
-        source = "sense-voice" if transcribed else plat
+        source = "x-asr" if transcribed else plat
         print(f"NEW:{path}")
         print(f"  title:    {title}")
         print(f"  uploader: {channel}")
@@ -512,11 +512,11 @@ def _run_transcribe_wav(wav_path: str) -> int:
     vad = sherpa_onnx.VoiceActivityDetector(vad_config, buffer_size_in_seconds=100)
     window_size = vad_config.silero_vad.window_size
 
-    recognizer = sherpa_onnx.OfflineRecognizer.from_sense_voice(
-        model=str(SENSE_VOICE_MODEL / "model.int8.onnx"),
-        tokens=str(SENSE_VOICE_MODEL / "tokens.txt"),
-        use_itn=True,
-        language="auto",
+    recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
+        encoder=str(X_ASR_MODEL / "encoder.int8.onnx"),
+        decoder=str(X_ASR_MODEL / "decoder.onnx"),
+        joiner=str(X_ASR_MODEL / "joiner.int8.onnx"),
+        tokens=str(X_ASR_MODEL / "tokens.txt"),
         num_threads=max(1, multiprocessing.cpu_count() // 2),
     )
 

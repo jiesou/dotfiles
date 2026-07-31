@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "modelsDevSync": {
+    "autoSyncEnabled": false,
+    "includeCommonModels": true,
+    "selectedModelKeys": [],
+    "excludedCommonModelKeys": [],
+    "lastSyncAt": null,
+    "lastSyncError": null
+  },
+  "models": [],
+  "deletedModelIds": []
+}

@@ -58,12 +58,13 @@ deadline=$((start_epoch + timeout))
 
 start_history_size=$("${tmux_cmd[@]}" display-message -p -t "$target" "#{history_size}")
 start_cursor=$("${tmux_cmd[@]}" display-message -p -t "$target" '#{cursor_y}')
-start_line=$((start_history_size + start_cursor))
-
 while true; do
+  current_history_size=$("${tmux_cmd[@]}" display-message -p -t "$target" "#{history_size}")
+  start_line=$((start_history_size + start_cursor - current_history_size))
   pane_new_content="$("${tmux_cmd[@]}" capture-pane -p -t "$target" -S "$start_line" 2>/dev/null | tail -50)"
-  pane_last_30line_content="$("${tmux_cmd[@]}" capture-pane -p -t "$target" 2>/dev/null | tail -30)"
-  pane_lines=$(echo "$pane_last_30line_content" | wc -l)
+  pane_content="$("${tmux_cmd[@]}" capture-pane -p -t "$target" -S - 2>/dev/null)"
+  pane_last_30line_content=$(printf '%s\n' "$pane_content" | tail -30)
+  pane_lines=$(printf '%s\n' "$pane_content" | wc -l)
 
   if printf '%s\n' "$pane_new_content" | grep -iE -- "$pattern" >/dev/null 2>&1; then
     if (( pane_lines > 30 )); then
