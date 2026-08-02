@@ -261,6 +261,15 @@
       "skillFolderHash": "76510097498267fca7505e3a56b1298790083475",
       "installedAt": "2026-07-18T19:13:39.104Z",
       "updatedAt": "2026-07-18T19:13:39.104Z"
+    },
+    "kdocs": {
+      "source": "kdocs-app/kdocs-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/kdocs-app/kdocs-skill.git",
+      "skillPath": "SKILL.md",
+      "skillFolderHash": "1b5d266ec0aa6b02e676fd3ea94f7078c0ca3217336111c8da584ebfc0dd8f56",
+      "installedAt": "2026-08-01T16:46:40.588Z",
+      "updatedAt": "2026-08-01T16:46:40.588Z"
     }
   },
   "lastSelectedAgents": [
