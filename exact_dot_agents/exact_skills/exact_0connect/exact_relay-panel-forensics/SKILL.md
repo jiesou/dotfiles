@@ -1,6 +1,6 @@
 ---
 name: relay-panel-forensics
-description: "判断 AI API 中转站（relay/proxy station）底层使用的面板/源头：Sub2API vs New API vs One API vs CPA vs Codex2API vs 自研。用无 key 的公开 API 探测即可判定号商直营还是聚合倒卖。Use when auditing or vetting an AI API relay station (ChatGPT/Claude/Gemini API proxy), verifying whether a 中转站 is subscription-based (Sub2API 号商直营) or aggregated reseller (New API 套娃), or researching relay panel fingerprints."
+description: "判断 AI API 中转站使用的面板/源头质量"
 ---
 
 # Relay Panel Forensics — 中转站面板/源头审计

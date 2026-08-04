@@ -1,6 +1,6 @@
 ---
 name: notepad
-description: User's blog notepad/journal management. Use when: user says "写下来" or managing blog posts in `~/Documents/dev/.blog/source/_posts/`.
+description: "User's blog notepad/journal management. Use when: user says 写下来 or managing blog posts in `~/Documents/dev/.blog/source/_posts/`."
 ---
 
 # Blog Notepad

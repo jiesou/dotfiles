@@ -47,8 +47,7 @@ tmux -S "$SOCKET" send-keys \
 # verify SSH connected/devcontainer entered
 ./scripts/wait-for-text.sh -S "$SOCKET" \
   -t "$TARGET" \
-  -p '[$#❯ ]|password|密码|yes/no' \
-  -T 5
+  -p '[$#❯ ]|password|密码|yes/no'
 ```
 
 Shell Envs such as python venv, gdb ... all be enter in this way.
@@ -68,8 +67,8 @@ For any operation that require waiting longer than 5 seconds, do not use `sleep 
 ```
 tmux -S "$SOCKET" send-keys -t "$TARGET" 'sudo apt update' Enter
 sleep 5
+# important: before waiting, confirm if it IS proceeding instead of failing in seconds
 tmux -S "$SOCKET" capture-pane -p -t "$TARGET"
-# confirmed if it IS proceeding instead of failing in seconds (important)
 
 ./scripts/wait-for-text.sh -S "$SOCKET" -t "$TARGET" -p '[$#❯ ]|password|密码'
 # and start a long wait
@@ -158,11 +157,12 @@ tmux -S "$SOCKET" kill-session -t "$SESSION"    # final
 ### Helper: wait-for-text.sh
 
 Polls a TARGET for a regex pattern and exit when found.
+On match, prints `matched: <the exact word that hit>`, then the last 30 lines of the pane, then exits 0.
 
 Use `wait-for-text.sh -h` for help!
 
 ```
-./scripts/wait-for-text.sh -S "$SOCKET" -t "$TARGET" -p 'pattern' [-T 10]
+./scripts/wait-for-text.sh -S "$SOCKET" -t "$TARGET" -p 'pattern'
 ```
 
 ### Common prompt patterns
