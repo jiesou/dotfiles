@@ -21,8 +21,17 @@ echo "run_onchange_install_easytier: Stopping conflicting services..."
 sudo systemctl disable --now easytier@default 2>/dev/null || true
 sudo "$ET_CLI" service uninstall 2>/dev/null || true
 
-echo "run_onchange_install_easytier: Registering system service..."
-sudo "$ET_CLI" service install -d --network-name jiesou_easytier \
+while :; do
+    printf "run_onchange_install_easytier: Enter virtual IP suffix (10.144.x.Y, e.g. 69.1): "
+    read -r suffix || exit 1
+    case "$suffix" in
+        [0-9]*\.[0-9]*) ;;
+        *) echo "run_onchange_install_easytier: Invalid, use format like 69.1" >&2; continue ;;
+    esac
+    break
+done
+echo "run_onchange_install_easytier: Registering system service with 10.144.${suffix}/16..."
+sudo "$ET_CLI" service install --ipv4 "10.144.${suffix}/16" --network-name jiesou_easytier \
   -p udp://110.42.103.37:11010 \
   -p ws://i-et.jiecs.top \
   -p tcp://i.loliis.top:11010
