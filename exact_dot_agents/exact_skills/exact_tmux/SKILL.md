@@ -64,6 +64,8 @@ tmux -S "$SOCKET" capture-pane -p -t "$TARGET" | grep . | tail -4  # strip blank
 
 For any operation that require waiting longer than 5 seconds, do not use `sleep [large number]`; instead, use wait-for-text.sh.
 
+Always set the shell tool caller's timeout to a reasonable value (such as 20 seconds) instead of the default 120 seconds. Time is money!
+
 ```
 tmux -S "$SOCKET" send-keys -t "$TARGET" 'sudo apt update' Enter
 sleep 5
@@ -71,7 +73,7 @@ sleep 5
 tmux -S "$SOCKET" capture-pane -p -t "$TARGET"
 
 ./scripts/wait-for-text.sh -S "$SOCKET" -t "$TARGET" -p '[$#❯ ]|password|密码'
-# and start a long wait
+# set caller timeout to 20s (not 120s), and start a wait  
 ```
 OR
 ```
