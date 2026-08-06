@@ -225,3 +225,16 @@ test("envelope has correct top-level shape", () => {
   expect(req).toHaveProperty("permissionMode", "standard")
   expect(req).toHaveProperty("params")
 })
+
+test("forwards reasoningEffort from commandcode providerOptions", () => {
+  const req = buildRequest("m", makeOpts({
+    prompt: [{ role: "user", content: "hi" }],
+    providerOptions: { commandcode: { reasoningEffort: "high" } },
+  }))
+  expect(req.params.reasoning_effort).toBe("high")
+})
+
+test("omits reasoning_effort when providerOptions has none", () => {
+  const req = buildRequest("m", makeOpts({ prompt: [{ role: "user", content: "hi" }] }))
+  expect(req.params.reasoning_effort).toBeUndefined()
+})

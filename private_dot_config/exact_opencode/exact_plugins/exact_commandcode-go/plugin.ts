@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from "fs"
 import { join, dirname } from "path"
 import { fileURLToPath } from "url"
 import { homedir } from "os"
+import { reasoningVariants } from "./src/variants.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -27,8 +28,11 @@ function loadModelsJson(): ModelEntry[] {
 }
 
 function isGoModel(id: string): boolean {
+  // Premium Claude/GPT models (no vendor prefix) are excluded from Go, with
+  // a few exceptions that Go also covers (e.g. GPT-5.6 Luna).
+  const GO_PREMIUM_EXCEPTIONS = ["gpt-5.6-luna"]
   const i = id.indexOf("/")
-  if (i === -1) return false
+  if (i === -1) return GO_PREMIUM_EXCEPTIONS.includes(id)
   const prefix = id.slice(0, i + 1)
   if (["google/", "sakana/", "meta/"].includes(prefix)) return false
   return true
@@ -126,7 +130,7 @@ export default async function commandcodePlugin() {
           const costObj: Record<string, number> = { input: entry.cost.input, output: entry.cost.output }
           if (entry.cost.cache_read !== undefined) costObj.cache_read = entry.cost.cache_read
           if (entry.cost.cache_write !== undefined) costObj.cache_write = entry.cost.cache_write
-          modelsObj[key] = {
+          const modelConfig: Record<string, unknown> = {
             id: entry.id,
             name: entry.name,
             reasoning: entry.reasoning,
@@ -134,6 +138,11 @@ export default async function commandcodePlugin() {
             cost: costObj,
             limit: entry.limit,
           }
+          if (entry.reasoning) {
+            const variants = reasoningVariants(entry.id)
+            if (variants) modelConfig.variants = variants
+          }
+          modelsObj[key] = modelConfig
         }
         cc.models = modelsObj
       }

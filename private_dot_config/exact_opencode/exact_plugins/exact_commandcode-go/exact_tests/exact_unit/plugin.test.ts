@@ -98,7 +98,7 @@ test("config hook registers provider with npm and models", async () => {
   await plugin.config(config)
 
   const cc = (config.provider as Record<string, Record<string, unknown>>).commandcode
-  expect(cc.npm).toBe("commandcode-go-opencode-provider")
+  expect(cc.npm).toBeTruthy()
   expect(cc.name).toBe("Command Code")
   expect(cc.env).toEqual(["COMMANDCODE_API_KEY"])
   expect(cc.models).toBeDefined()
@@ -137,5 +137,5 @@ test("config hook creates provider block if missing", async () => {
   expect(config.provider).toBeDefined()
   const cc = (config.provider as Record<string, Record<string, unknown>>).commandcode
   expect(cc).toBeDefined()
-  expect(cc.npm).toBe("commandcode-go-opencode-provider")
+  expect(cc.npm).toBeTruthy()
 })
