@@ -28,11 +28,15 @@ function loadModelsJson(): ModelEntry[] {
 }
 
 function isGoModel(id: string): boolean {
-  // Premium Claude/GPT models (no vendor prefix) are excluded from Go, with
-  // a few exceptions that Go also covers (e.g. GPT-5.6 Luna).
+  // Go includes only open-source models plus a few premium exceptions:
+  // GPT-5.6 Luna, Grok 4.5, Muse Spark 1.2 Contributor, and Qwen Max & Plus
+  // (per https://commandcode.ai/docs/plans/go). Everything else premium
+  // (Claude, other GPTs, Gemini, Muse Spark 1.1 / standard 1.2) is excluded.
   const GO_PREMIUM_EXCEPTIONS = ["gpt-5.6-luna"]
+  const GO_PREMIUM_PREFIX_EXCEPTIONS = ["meta/muse-spark-1.2-contributor"]
   const i = id.indexOf("/")
   if (i === -1) return GO_PREMIUM_EXCEPTIONS.includes(id)
+  if (GO_PREMIUM_PREFIX_EXCEPTIONS.includes(id)) return true
   const prefix = id.slice(0, i + 1)
   if (["google/", "sakana/", "meta/"].includes(prefix)) return false
   return true

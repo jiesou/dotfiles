@@ -84,11 +84,11 @@ tmux -S "$SOCKET" send-keys -t "$TARGET" 'sudo apt update && echo DONE' Enter
 ##### send-keys reference
 
 | Mode | Syntax | Use when |
-|------|--------|:---:|----------|
+|------|--------|----------|
 | Direct | `send-keys 'text'` then `Enter` | |
 | Literal | `send-keys -l 'text'` then `Enter`| Plain text `\|` `>` `$` `;` `&` all sent literally |
 | C-literal | `send-keys $'text'` then `Enter` | Need `\n` `\t` escapes |
- 
+
 For multi-line commands:
 
 ```
@@ -142,18 +142,15 @@ tmux -S "$SOCKET" capture-pane -p -t "$TARGET" -S -8
 
 _Do not confuse localhost & remote_
 
-### Cleanup
+### Graceful Cleanup
 
 - DONT CLEANUP AUTOMATICALLY
 - NEVER KILL ANYTHING WITHOUT USER'S ALLOW
-- only kill what you created
-- if there is someone else's session —— try reuse instead of kill
-- never kill-server
- 
+
 ```
 tmux -S "$SOCKET" send-keys -t "$TARGET" C-c    # if needed
 tmux -S "$SOCKET" send-keys -t "$TARGET" C-d
-tmux -S "$SOCKET" kill-session -t "$SESSION"    # final
+tmux -S "$SOCKET" kill-session -t "$SESSION"       # final
 ```
 
 ### Helper: wait-for-text.sh
@@ -179,4 +176,4 @@ Use `wait-for-text.sh -h` for help!
 
 - Python REPL: start with `PYTHON_BASIC_REPL=1 python3 -q`, wait for `^>>>`, send code with `-l`, interrupt with `C-c`. Always use `PYTHON_BASIC_REPL=1` because non-basic REPL breaks send-keys.
 - gdb: `gdb --quiet ./a.out`, disable paging (`set pagination off`), break with `C-c`, inspect (`bt`, `info locals`), exit (`quit` then `y`).
-- Other TTY apps (ipdb, psql, mysql, node, bash): same pattern —— start, wait for prompt, send text and Enter.
+- Other TTY apps: same pattern —— start, wait for prompt, send text and Enter.

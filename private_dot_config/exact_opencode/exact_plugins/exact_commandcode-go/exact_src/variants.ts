@@ -28,6 +28,10 @@ const CLI_EFFORTS: Record<string, string[]> = {
   "xai/grok-4.5": ["low", "medium", "high"],
 }
 
+// Meta Muse Spark 1.2 (standard and contributor) expose minimal/low/medium/
+// high/xhigh per models.dev. Muse Spark 1.1 does not advertise an effort list.
+const MUSE_SPARK_12_EFFORTS = ["minimal", "low", "medium", "high", "xhigh"]
+
 // Fallback for models not in the CLI catalog: opencode's conservative default
 // for OpenAI-compatible reasoning models.
 const DEFAULT_EFFORTS = ["low", "medium", "high"]
@@ -37,6 +41,7 @@ export function reasoningEffortsFor(id: string): string[] {
   for (const [modelId, efforts] of Object.entries(CLI_EFFORTS)) {
     if (lower === modelId.toLowerCase()) return efforts
   }
+  if (lower.includes("muse-spark-1.2")) return MUSE_SPARK_12_EFFORTS
   const efforts = [...DEFAULT_EFFORTS]
   if (lower.includes("deepseek-v4")) efforts.push("max")
   return efforts

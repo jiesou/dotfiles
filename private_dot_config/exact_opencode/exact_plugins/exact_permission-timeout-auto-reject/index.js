@@ -8,11 +8,6 @@
 
 const TIMEOUT_MS = 3 * 60 * 1000 // 3 minutes
 
-const FEEDBACK =
-  "You're going in the wrong direction. At least make a backup before doing anything. " +
-  "DONT BYPASS user permission denials. " +
-  "If you are really blocked, stop and explain first."
-
 const pending = new Map() // requestID -> timeout handle
 
 export const PermissionTimeoutAutoReject = async ({ client }) => {
@@ -26,10 +21,9 @@ export const PermissionTimeoutAutoReject = async ({ client }) => {
         const timer = setTimeout(async () => {
           pending.delete(requestID)
           try {
-            await client.permission.reply({
-              requestID,
-              reply: "reject",
-              message: FEEDBACK,
+            await client.postSessionIdPermissionsPermissionId({
+              path: { id: permission.sessionID, permissionID: requestID },
+              body: { response: "reject" },
             })
           } catch (error) {
             // PermissionNotFoundError + already-replied errors are expected.
