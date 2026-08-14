@@ -5,7 +5,10 @@
     "messages_last": "none",
     "input_buffer_home": "home",
     "input_buffer_end": "end",
-    "submit": "enter,numpadenter"
+    "input_submit": "return,kpenter",
+    "messages_previous": "alt+up",
+    "messages_next": "alt+down",
+    "scrollbar_toggle": "<leader>o"
   },
   "plugin": [
     "oc-tps@latest"

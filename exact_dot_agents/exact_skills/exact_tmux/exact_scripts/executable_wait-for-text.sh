@@ -46,8 +46,10 @@ fi
 tmux_cmd=("tmux")
 [[ -n "$socket" ]] && tmux_cmd+=(-S "$socket")
 
+sleep 0.1  # fix timing issue
 start_history_size=$("${tmux_cmd[@]}" display-message -p -t "$target" "#{history_size}")
 start_cursor=$("${tmux_cmd[@]}" display-message -p -t "$target" '#{cursor_y}')
+start_time=$(date +%s%N)
 while true; do
   current_history_size=$("${tmux_cmd[@]}" display-message -p -t "$target" "#{history_size}")
   start_line=$((start_history_size + start_cursor - current_history_size))
@@ -57,12 +59,16 @@ while true; do
   pane_lines=$(printf '%s\n' "$pane_content" | wc -l)
 
   if matched=$(printf '%s\n' "$pane_new_content" | grep -ioE -- "$pattern" | head -1); then
+    elapsed_ns=$(( $(date +%s%N) - start_time ))
+    elapsed_sec=$(awk -v ns="$elapsed_ns" 'BEGIN { printf "%.2f", ns/1000000000 }')
     if (( pane_lines > 30 )); then
         echo "[truncated; showing last 30 lines]"
     fi
-    echo "[matched: $matched]"
-    echo ""
     echo "$pane_last_30line_content"
+    echo "---"
+    echo "[matched: $matched]"
+    echo "[waited: ${elapsed_sec}s]"
+    echo ""
     exit 0
   fi
 

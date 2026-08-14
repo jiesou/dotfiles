@@ -1,6 +1,6 @@
 ---
 name: max-research
-description: For super complex topics. NOT for simple lookup questions.
+description: For extremely complex topics. NOT for simple questions.
 ---
 
 # Max-Research
@@ -59,7 +59,10 @@ list 只会越滚越长，直到自然收敛。每关掉一项，就把它催生
 - 2. 三方讨论（遍历）：
     - 活人社区 Reddit / Hacker News
     - 垂类视频 哔哩哔哩 / YouTube（yt-dlp，别只看标题）
-    - 垂类论坛 NodeSeek / Hostloc / Linux.do（LLM/AI 相关）/ V2EX
+    - 垂类论坛：
+      - Linux.do、Twitter - LLM/AI
+      - NodeSeek、Hostloc、V2EX - VPS、科学上网
+      - YouTube - U卡/虚拟卡、科学上网、银行信用卡开户
 - 3. 官方发声：官方 Blog、官方论坛 / Discuss
 - 4. 歪门邪道：Commits History（历史版本，故事）、Polymarket（市场怎么定价）、Internet Archive
 
@@ -68,7 +71,7 @@ list 只会越滚越长，直到自然收敛。每关掉一项，就把它催生
 #### 2.3 求解
 针对当前 Why 去取证。关键结论要能追溯独立来源；来源矛盾就查"为什么矛盾"，疑点标 uncertain。把发现与来源写回这个 Why 项下面。
 
-#### 2.4 扩维
+#### 2.4 扩维（核心）
 广泛调研就是扩维的燃料：把 2.2 长出的素材摊开，每个面都问一句：
 1. **法律监管/规则** — 依据是什么？
 2. **历史** — 怎么变成这样的？起源？

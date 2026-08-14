@@ -1,6 +1,6 @@
 ---
 name: bypass-cf-403
-description: "Scraping web pages, bypassing Cloudflare HTTP 403"
+description: "Scraping web pages, bypassing Cloudflare HTTP 403. Use when 403 occurs while fetching; don't back down."
 ---
 
 Use these hosted proxy services to fetch any web page as clean Markdown — even sites behind Cloudflare 5-second shield.

@@ -1,6 +1,6 @@
 ---
 name: self-reflection
-description: Use when solving any problem that benefits from independent verification. NOT for simple lookup questions.
+description: Use when you need to determine the accuracy of the answer.
 ---
 
 # Self-Reflection

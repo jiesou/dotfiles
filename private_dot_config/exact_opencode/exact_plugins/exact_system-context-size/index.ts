@@ -26,7 +26,7 @@ export default (async () => {
     tool: {
       "system-context-report": tool({
         description:
-          "Analyze the actual system prompt assembled by opencode, showing per-section size breakdown (Base / Environment / Skills / MCP / Instructions / Plugin reminders) with sub-item expansion. No args. Send any chat message first so the hook can capture the live system prompt.",
+          "No args.",
         args: {},
         async execute() {
           return buildReport() + (captureStamp

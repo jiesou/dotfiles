@@ -1,18 +1,18 @@
 ---
 name: solution-research
-description: Use when any topic requiring research What/Why/How (this skill benefits almost any discussion), includes open-source projects usage, issue workarounds, and product comparisons, especially for independently comparing routes and solutions.
+description: Use when choosing solutions, including selecting open-source projects, working around issues, and comparing products.
 ---
 
 ## Solution-Research
 
 _一言概之：工程师思维_
 
+- ”找谁解决过“，而不是”我来做这个“
+  - 不做重复劳动——方向比一味地努力更重要。无论干什么，你要干的事情别人肯定尝试过了
 - 深度优先于速度，表面答案最危险
 - 硬数据帮助我们辨别筛选。而”新鲜度（时效性）“和”可持续性“是两大巨擎，缺一不可
   - 十余star、百余下载，基本都是垃圾
 - 新讨论>老公告、务实>哲学
-- 方向比努力重要。站在巨人的肩膀上
-  - 无论干什么，你要干的事情别人肯定尝试过了
 
 ## 流程
 
@@ -68,7 +68,7 @@ _加载这个 Skill，说明你 现在 就需要跟着这个 Skill 的工作流�
 5. Workaround 与兼容性检查
 - 集成成本：采用它还需连带改动什么
 - 已知 bug、blocker
-- 如相关，检查 Linux 平台特定问题
+- 如相关，检查 Atomic Linux 是否适用
 
 6. 可持续性
   - 历来的长期活跃度（Commits History）
