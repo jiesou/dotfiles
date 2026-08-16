@@ -1,0 +1,302 @@
+{
+  "version": 3,
+  "skills": {
+    "easyeda-api": {
+      "source": "easyeda/easyeda-api-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/easyeda/easyeda-api-skill.git",
+      "skillPath": "SKILL.md",
+      "skillFolderHash": "68ebe72c44c3701a85b3f7346502f3d61cb228a6",
+      "installedAt": "2026-06-14T09:00:26Z",
+      "updatedAt": "2026-06-22T07:49:05.366Z"
+    },
+    "edu-analytic-geometry": {
+      "source": "wy51ai/edulab",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wy51ai/edulab.git",
+      "skillPath": "skills/edu-analytic-geometry/SKILL.md",
+      "skillFolderHash": "b2d3ac111104032d37422bacad17cf56520898ee",
+      "installedAt": "2026-06-14T14:46:13Z",
+      "updatedAt": "2026-06-15T03:09:04.878Z"
+    },
+    "edu-solid-geometry": {
+      "source": "wy51ai/edulab",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wy51ai/edulab.git",
+      "skillPath": "skills/edu-solid-geometry/SKILL.md",
+      "skillFolderHash": "28725d0e333aa07d6164c53233600d8d44608448",
+      "installedAt": "2026-06-14T14:46:13Z",
+      "updatedAt": "2026-06-15T03:09:04.879Z"
+    },
+    "gh": {
+      "source": "cli/cli",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/cli/cli.git",
+      "skillPath": "skills/gh/SKILL.md",
+      "skillFolderHash": "cc6ec4740cd90d35fdec0bb125ccbd5ad38e98e0",
+      "installedAt": "2026-06-14T08:52:33Z",
+      "updatedAt": "2026-06-29T03:15:45.608Z"
+    },
+    "markitdown": {
+      "source": "foryourhealth111-pixel/Vibe-Skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/foryourhealth111-pixel/Vibe-Skills.git",
+      "skillPath": "bundled/skills/markitdown/SKILL.md",
+      "skillFolderHash": "e3fac9a8955274cdd3b13c80fd39dab49d803ecb",
+      "installedAt": "2026-06-14T08:55:50Z",
+      "updatedAt": "2026-06-14T08:55:50Z"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/skills.git",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "skillFolderHash": "eb6a23305aea6e340d14b9de3766e721f9f4861b",
+      "installedAt": "2026-06-15T03:03:11.602Z",
+      "updatedAt": "2026-06-29T03:15:50.654Z"
+    },
+    "qu-ai-wei": {
+      "source": "lifelonglazylearner/qu-ai-wei",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/lifelonglazylearner/qu-ai-wei.git",
+      "skillPath": "SKILL.md",
+      "skillFolderHash": "486c80ed6c6aaee541a7a92703add99d0590cd89",
+      "installedAt": "2026-06-20T11:48:15.215Z",
+      "updatedAt": "2026-06-29T03:15:54.676Z"
+    },
+    "anachb": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/anachb/SKILL.md",
+      "skillFolderHash": "393d1cd7e785eff3a743c9542b6eb5bbd1e2c1a5",
+      "installedAt": "2026-06-22T06:54:19.959Z",
+      "updatedAt": "2026-06-22T06:54:19.959Z"
+    },
+    "apple-mail": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/apple-mail/SKILL.md",
+      "skillFolderHash": "c4ae5f4645eb43863269b27b67080f471b42fd0f",
+      "installedAt": "2026-06-22T06:54:19.960Z",
+      "updatedAt": "2026-06-22T06:54:19.960Z"
+    },
+    "commit": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/commit/SKILL.md",
+      "skillFolderHash": "b605d061ba8debee0a20269a1b967bdc715a7c1b",
+      "installedAt": "2026-06-22T06:54:19.960Z",
+      "updatedAt": "2026-06-22T06:54:19.960Z"
+    },
+    "frontend-design": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "skillFolderHash": "f27c7ee2304a7a15f20654f533d6d878acdf488a",
+      "installedAt": "2026-06-22T06:54:19.961Z",
+      "updatedAt": "2026-06-22T06:54:19.961Z"
+    },
+    "ghidra": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/ghidra/SKILL.md",
+      "skillFolderHash": "ca4315094ac32ac10d13c3bb00091cf5f67450c0",
+      "installedAt": "2026-06-22T06:54:19.961Z",
+      "updatedAt": "2026-06-22T06:54:19.961Z"
+    },
+    "github": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/github/SKILL.md",
+      "skillFolderHash": "c308bc949f232a4f31a77263a3d29be8fc55647c",
+      "installedAt": "2026-06-22T06:54:19.963Z",
+      "updatedAt": "2026-06-22T06:54:19.963Z"
+    },
+    "google-workspace": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/google-workspace/SKILL.md",
+      "skillFolderHash": "287104845862894551aa46a0c318c78262a58cc7",
+      "installedAt": "2026-06-22T06:54:19.963Z",
+      "updatedAt": "2026-06-22T06:54:19.963Z"
+    },
+    "librarian": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/librarian/SKILL.md",
+      "skillFolderHash": "d9c9e4f484d7aed8b71f0e9dda7b0abddbdf6b13",
+      "installedAt": "2026-06-22T06:54:19.964Z",
+      "updatedAt": "2026-06-22T06:54:19.964Z"
+    },
+    "mermaid": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/mermaid/SKILL.md",
+      "skillFolderHash": "0d4d0a3da84a1f936740b58dd8e95c11a9ba486f",
+      "installedAt": "2026-06-22T06:54:19.964Z",
+      "updatedAt": "2026-06-22T06:54:19.964Z"
+    },
+    "native-web-search": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/native-web-search/SKILL.md",
+      "skillFolderHash": "47242ea93abbc2b44799734e817321790cdd3195",
+      "installedAt": "2026-06-22T06:54:19.965Z",
+      "updatedAt": "2026-06-22T06:54:19.965Z"
+    },
+    "oebb-scotty": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/oebb-scotty/SKILL.md",
+      "skillFolderHash": "db47f844664a99d4e1918a24037b0188587d1573",
+      "installedAt": "2026-06-22T06:54:19.965Z",
+      "updatedAt": "2026-06-22T06:54:19.965Z"
+    },
+    "openscad": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/openscad/SKILL.md",
+      "skillFolderHash": "a3881628680db453999ef9c08cd646d45f89a262",
+      "installedAt": "2026-06-22T06:54:19.966Z",
+      "updatedAt": "2026-06-22T06:54:19.966Z"
+    },
+    "pi-share": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/pi-share/SKILL.md",
+      "skillFolderHash": "3b78beec7e3bb3a84564fc0fec3523eaf3678074",
+      "installedAt": "2026-06-22T06:54:19.966Z",
+      "updatedAt": "2026-06-22T06:54:19.966Z"
+    },
+    "sentry": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/sentry/SKILL.md",
+      "skillFolderHash": "e6c86e31bd3008ce5876698c7e101c8132134e32",
+      "installedAt": "2026-06-22T06:54:19.967Z",
+      "updatedAt": "2026-06-22T06:54:19.967Z"
+    },
+    "summarize": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/summarize/SKILL.md",
+      "skillFolderHash": "fe35bfe1f6508105f2baf70cd71b6351c0b0bfe4",
+      "installedAt": "2026-06-22T06:54:19.967Z",
+      "updatedAt": "2026-06-22T06:54:19.967Z"
+    },
+    "tmux": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/tmux/SKILL.md",
+      "skillFolderHash": "e13c178bf88cb6c423d5dd6c5ebcfa3b45001f11",
+      "installedAt": "2026-06-22T06:54:19.968Z",
+      "updatedAt": "2026-06-22T06:54:19.968Z"
+    },
+    "update-changelog": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/update-changelog/SKILL.md",
+      "skillFolderHash": "9eb89b2db9e40c45dd75971821542f02d9f1c454",
+      "installedAt": "2026-06-22T06:54:19.968Z",
+      "updatedAt": "2026-06-22T06:54:19.968Z"
+    },
+    "uv": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/uv/SKILL.md",
+      "skillFolderHash": "6d73099efb1a59e824fe2b63102a669bbf338bfe",
+      "installedAt": "2026-06-22T06:54:19.969Z",
+      "updatedAt": "2026-06-22T06:54:19.969Z"
+    },
+    "web-browser": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mitsuhiko/agent-stuff.git",
+      "skillPath": "skills/web-browser/SKILL.md",
+      "skillFolderHash": "3ac5b9a8b3851ebe81462afab8b28204e8da5606",
+      "installedAt": "2026-06-22T06:54:19.969Z",
+      "updatedAt": "2026-06-22T06:54:19.969Z"
+    },
+    "esp-dev-skill": {
+      "source": "JasonYANG170/esp-dev-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/JasonYANG170/esp-dev-skill.git",
+      "skillPath": "SKILL.md",
+      "skillFolderHash": "494a05d3f22048951d2a50020d4a87549d1fc651",
+      "installedAt": "2026-06-25T01:35:09.144Z",
+      "updatedAt": "2026-06-25T01:35:09.144Z"
+    },
+    "create-opencode-plugin": {
+      "source": "igorwarzocha/opencode-workflows",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/igorwarzocha/opencode-workflows.git",
+      "skillPath": "agents/create-opencode-plugin/.opencode/skill/create-opencode-plugin/SKILL.md",
+      "skillFolderHash": "adb02b30cb18c7c7c56253109b6868e39e4f50d0",
+      "installedAt": "2026-07-06T00:05:57.437Z",
+      "updatedAt": "2026-07-06T00:05:57.437Z"
+    },
+    "agentkey": {
+      "source": "chainbase-labs/agentkey",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/chainbase-labs/agentkey.git",
+      "skillPath": "skills/agentkey/SKILL.md",
+      "skillFolderHash": "76510097498267fca7505e3a56b1298790083475",
+      "installedAt": "2026-07-18T19:13:39.104Z",
+      "updatedAt": "2026-07-18T19:13:39.104Z"
+    },
+    "kdocs": {
+      "source": "kdocs-app/kdocs-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/kdocs-app/kdocs-skill.git",
+      "skillPath": "SKILL.md",
+      "skillFolderHash": "1b5d266ec0aa6b02e676fd3ea94f7078c0ca3217336111c8da584ebfc0dd8f56",
+      "installedAt": "2026-08-01T16:46:40.588Z",
+      "updatedAt": "2026-08-01T16:46:40.588Z"
+    },
+    "dsh-landscape": {
+      "source": "cyanseek/dsh-landscape",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/cyanseek/dsh-landscape.git",
+      "skillPath": "skills/dsh-landscape/SKILL.md",
+      "skillFolderHash": "b6a4e23e37bce2cc7b1c3b72983c091d60a6db43",
+      "installedAt": "2026-08-15T13:26:50.247Z",
+      "updatedAt": "2026-08-15T13:26:50.247Z"
+    }
+  },
+  "lastSelectedAgents": [
+    "amp",
+    "antigravity",
+    "antigravity-cli",
+    "cline",
+    "codex",
+    "cursor",
+    "deepagents",
+    "gemini-cli",
+    "github-copilot",
+    "kimi-code-cli",
+    "opencode",
+    "warp",
+    "zed"
+  ],
+  "dismissed": {
+    "findSkillsPrompt": true
+  }
+}

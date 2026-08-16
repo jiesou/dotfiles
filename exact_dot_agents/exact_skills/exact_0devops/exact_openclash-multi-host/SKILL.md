@@ -36,15 +36,17 @@ oc-sync.sh -f transform.awk wsc13
 oc-sync.sh '{...}' all
 ```
 
+`scripts/add-category-ai.awk` — 往 rule-providers 加 `category-ai-!cn` 并插入对应 RULE-SET。**非幂等**：已应用到三台，不要重复运行，否则会重复插入。
+
 ### 每个操作的步骤（严格遵守）
 
 1. **读** [config-diff.md](references/config-diff.md) 确认三台当前状态
 2. **判断** 每台需要什么具体修改（可能不同）
 3. **改前校验** — 用 mihomo core 验证原配置合法性，作为基线：
    ```bash
-   ssh inno11 '/etc/openclash/core/clash_meta -t -f /etc/openclash/config/wscmixed.yaml'
-   ssh wy100 -p 23333 '/etc/openclash/core/clash_meta -t -f /etc/openclash/config/wscmixed.yaml'
-   ssh wsc13 '/etc/openclash/core/clash_meta -t -f /etc/openclash/config/config.yaml'
+   ssh root@192.168.11.1 '/etc/openclash/core/clash_meta -t -f /etc/openclash/config/wscmixed.yaml'
+   ssh -p 23333 root@192.168.100.1 '/etc/openclash/core/clash_meta -t -f /etc/openclash/config/wscmixed.yaml'
+   ssh root@192.168.13.1 '/etc/openclash/core/clash_meta -t -f /etc/openclash/config/config.yaml'
    ```
    如有预存错误，记录下来，确认它们**不是本次修改引入的**。
 4. **生成** 为每台对应的 awk 程序
@@ -52,11 +54,11 @@ oc-sync.sh '{...}' all
 6. **改后复核（肉眼）** — 确认只改了目标行，没有误伤周围内容：
    ```bash
    # 在对应行号附近 grep 确认
-   ssh inno11 "grep -n '相关关键字' /etc/openclash/config/wscmixed.yaml"
+   ssh root@192.168.11.1 "grep -n '相关关键字' /etc/openclash/config/wscmixed.yaml"
    ```
 7. **改后校验** — 再次用 mihomo `-t` 验证配置，确认**没有新增错误**：
    ```bash
-   ssh inno11 '/etc/openclash/core/clash_meta -t -f /etc/openclash/config/wscmixed.yaml'
+   ssh root@192.168.11.1 '/etc/openclash/core/clash_meta -t -f /etc/openclash/config/wscmixed.yaml'
    ```
    - 如果报错和改前**完全一致**（相同错误、相同行号）→ 安全
    - 如果出现**新错误** → 立即回滚，排查问题
@@ -113,6 +115,8 @@ commented { print "#" $0; next }
 ### 修改 override / filter
 
 ```awk
+/^  - name: "CommonProxy"$/ { in_cp = 1 }
+/^  - name: "/ && !/^  - name: "CommonProxy"$/ { in_cp = 0 }
 in_cp && /    filter:/ {
     print "    filter: \"新filter正则\""
     next
@@ -137,3 +141,4 @@ found && /^  [^ ]/ { found=0 }
 - **配置不同**：三台 CommonProxy 的 use 列表不同，LoadProxy 也不同。不要假设某 provider 在某台存在。
 - **busybox awk**：不支持 `-i inplace`，必须写 temp file 再 mv。`oc-sync.sh` 已处理。
 - **YAML 缩进严格**：awk 插入行必须保持 2 空格缩进对齐。
+- **已知预存警告**：`clash_meta -t` 会输出 `[Smart] Transform parsing errors: feature index 27/28/29 out of range`，三台都有且改前就存在，是 smart 模型 feature 数与 `policy-priority`/filter 不匹配导致，**非本次修改引入**，可忽略。改后校验只对比是否出现**新**错误。

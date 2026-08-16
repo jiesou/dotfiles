@@ -38,8 +38,6 @@ eduGateway (immortalwrt)
 | wy100 | root@192.168.100.1 | 23333 | `/etc/openclash/config/wscmixed.yaml` | immortalwrt |
 | wsc13 | root@192.168.13.1 | 22 | `/etc/openclash/config/config.yaml` | immortalwrt |
 
-三台均无 python，只有 busybox 自带的 awk 和 sed。
-
 ## 三台配置差异要点
 
 见 [config-diff.md](references/config-diff.md)。

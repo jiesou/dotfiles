@@ -1,0 +1,20 @@
+{
+  "name": "opencode-timeout-auto-reject",
+  "version": "0.1.0",
+  "description": "Auto-reject OpenCode permission requests.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    "./server": "./index.js"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "permission",
+    "guardrail"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.0.0"
+  }
+}

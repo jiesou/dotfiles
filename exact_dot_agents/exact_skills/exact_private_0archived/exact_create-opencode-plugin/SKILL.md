@@ -1,7 +1,7 @@
 ---
 name: create-opencode-plugin
 description: |-
-  Create OpenCode plugins using the @opencode-ai/plugin SDK. Use proactively when developing new plugins in .opencode/plugin/ or ~/.config/opencode/plugin/.
+  Create OpenCode plugins. Use when developing in ~/.config/opencode/plugin/.
 ---
 
 # Creating OpenCode Plugins

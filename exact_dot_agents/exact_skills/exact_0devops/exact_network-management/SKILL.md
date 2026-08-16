@@ -334,7 +334,6 @@ SSH 均可直接通过密钥接入以下设备：
 
 ### 配置文件操作约定
 
-
 同步/修改 OpenClash 配置时，始终编辑当前活跃的配置文件：
 
 | 路由器 | 活跃配置 |
@@ -373,6 +372,16 @@ SSH 均可直接通过密钥接入以下设备：
 ```
 ssh root@192.168.11.1 'cat /etc/openclash/config/wscmixed.yaml' | grep -B 1 -A 10 'premiumip:'
 ```
+
+#### 关于 "OpenCodeFree" proxy group
+
+2026-08-15: OpenCode Zen 上提供的免费模型（如 Big Pickle、DeepSeek V4 Flash）有用量限制，每 5 小时和 12 小时都会刷新，有多级免费用量限制。但它实际上是只基于 IP 来进行限制的，而不依赖任何账号/密钥验证。
+
+因此，通过 OpenCodeFree 的 proxy group，允许将 opencode.ai 域名单独路由到这个 group 下。这样，如果免费配额用完了，就针对 opencode.ai 换一个节点换一个 IP 即可享受新额度。
+
+提示：在 OpenCode Agent 外，也可直接使用 OpenCodeFree，只需要将 API key 固定设为 "public"，添加 OpenCode User-Agent 等手段绕过即可。除此之外，默认情况下 DeepSeek V4 Flash Free 的上下文被限制在 200+K，但实际上只在前端做了限制，可以直接覆盖配置文件来启用 1M（100 万）上下文。
+
+_未来 OpenCode 免费配额的使用可能会发生变化，这里仅记录一下_
 
 ## 断网故障排除直接流程（无论什么问题，严格遵守）
 
