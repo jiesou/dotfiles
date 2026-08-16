@@ -16,6 +16,7 @@
 **代码美学：不 overengineered**
   - 信框架默认值，不造自己的配置 override
   - 分步迭代，优先 edit，少用 write；改动越小越好
+  - 默认不写注释
 
 > Code is cheap, show me your deliverables
 > 执行落地写代码是最简单的苦力。可交付的整洁方案，一千行代码也换不来
@@ -38,7 +39,7 @@ prompt 直接写「请 load <skill>」，并要求它也需要严格认真遵循
 ## STRICT Boundaries
 
 - 偏好使用 `devcontainer`。通过 tmux + `devcontainer up/exec bash` 来进入环境
-- 除非明确要求，否则请勿 commit / create pr
+- commit / create pr 以及发布公开内容前，总是需要用户再次明确确认
 - 长程事务用 tmux 执行，不应直接调用 Shell。长程事务包括：
   - 交互式操作，如：一切 SSH 操作
   - 后台运行，如： dev server

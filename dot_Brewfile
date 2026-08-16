@@ -1,5 +1,6 @@
 tap "anomalyco/tap", trusted: true
 tap "espressif/eim"
+tap "ublue-os/experimental-tap"
 # Arduino command-line interface
 brew "arduino-cli"
 # Resource monitor. C++ version and continuation of bashtop and bpytop
@@ -26,6 +27,8 @@ brew "gh"
 brew "iperf3"
 # Simple terminal UI for git commands
 brew "lazygit"
+# NCurses Disk Usage
+brew "ncdu"
 # Ambitious Vim-fork focused on extensibility and agility
 brew "neovim"
 # Small build system for use with gyp or CMake
@@ -34,6 +37,10 @@ brew "ninja"
 brew "nmap"
 # Open-source, cross-platform JavaScript runtime environment
 brew "node"
+# Fast, disk space efficient package manager
+brew "pnpm"
+# Display and control your Android device
+brew "scrcpy"
 # Simple TTY terminal I/O application
 brew "tio"
 # Command-line unarchiving tools supporting multiple formats
@@ -44,6 +51,8 @@ brew "uv"
 brew "anomalyco/tap/opencode", trusted: true
 # ESP-IDF Installation Manager - CLI tool for setting up ESP-IDF development environment
 brew "espressif/eim/eim", trusted: true
+# OpenAI's official ChatGPT desktop app
+cask "ublue-os/experimental-tap/chatgpt-linux", trusted: true
 # Terminal-based AI coding assistant
 cask "claude-code"
 # OpenAI's coding agent that runs in your terminal
@@ -81,6 +90,7 @@ flatpak "app.zen_browser.zen"
 flatpak "be.alexandervanhee.gradia"
 flatpak "ca.desrt.dconf-editor"
 flatpak "cc.arduino.IDE2"
+flatpak "cn.feishu.Feishu"
 flatpak "cn.lceda.LCEDAPro"
 flatpak "com.baidu.NetDisk"
 flatpak "com.bambulab.BambuStudio"
