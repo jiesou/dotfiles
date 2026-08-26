@@ -1,0 +1,3 @@
+name: Edu 教学
+description: 教育专用 Agent——解析几何、立体几何、语文八股作文等教学场景，仅暴露教学类 Skills。
+order: 10

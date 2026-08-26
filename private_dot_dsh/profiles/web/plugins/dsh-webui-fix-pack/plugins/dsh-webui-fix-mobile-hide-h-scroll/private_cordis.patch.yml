@@ -1,0 +1,4 @@
+# @jiesou/dsh-webui-fix-mobile-hide-h-scroll bundle patch: mounts the plugin.
+- insert:
+    - id: mobile-hide-h-scroll
+      name: '@jiesou/dsh-webui-fix-mobile-hide-h-scroll'

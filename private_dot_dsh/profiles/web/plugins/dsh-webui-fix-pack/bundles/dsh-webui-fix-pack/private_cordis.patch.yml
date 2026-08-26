@@ -1,0 +1,27 @@
+# dsh-webui-fix-pack bundle layer: installs all dsh webui fix plugins.
+# Override individual plugins in your profile's later cordis.patch.yml by id.
+- insert:
+    - id: composer-focus-restore
+      name: '@jiesou/dsh-webui-fix-composer-focus-restore'
+    - id: double-enter-to-steer
+      name: '@jiesou/dsh-webui-fix-double-enter-to-steer'
+    - id: hide-like-dislike
+      name: '@jiesou/dsh-webui-fix-hide-like-dislike'
+    - id: hide-session-log
+      name: '@jiesou/dsh-webui-fix-hide-session-log-btn'
+    - id: mobile-enter-newline
+      name: '@jiesou/dsh-webui-fix-mobile-enter-newline'
+    - id: mobile-keyboard-blur
+      name: '@jiesou/dsh-webui-fix-mobile-keyboard-blur'
+    - id: mobile-hide-h-scroll
+      name: '@jiesou/dsh-webui-fix-mobile-hide-h-scroll'
+    - id: subagent-panel
+      name: '@jiesou/dsh-webui-fix-subagent-panel'
+    - id: mobile-stats-line
+      name: '@jiesou/dsh-webui-fix-mobile-stats-line'
+    - id: pwa
+      name: '@jiesou/dsh-webui-fix-pwa'
+    - id: session-row-context-menu
+      name: '@jiesou/dsh-webui-fix-session-row-context-menu'
+    - id: session-list-frame-coalesce
+      name: '@jiesou/dsh-webui-fix-session-list-frame-coalesce'

@@ -1,0 +1,66 @@
+{
+  "name": "dsh-profile-web",
+  "private": true,
+  "dependencies": {
+    "@bill9109/dsh-conversation-share": "github:bill9109/dsh-conversation-share",
+    "@bill9109/dsh-web-ui-notify": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-web-ui-notify",
+    "@dsh-external/dsh-mobile": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-mobile",
+    "@jiesou/dsh-cline-free-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-cline-free-provider",
+    "@jiesou/dsh-commandcode-go-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-commandcode-go",
+    "@jiesou/dsh-nous-portal-free-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-nous-portal-free-provider",
+    "@jiesou/dsh-opencode-zen-free-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-opencode-zen-free-provider",
+    "@jiesou/dsh-stream-rules": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-stream-rules",
+    "@jiesou/dsh-timeout-auto-reject": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-timeout-auto-reject",
+    "@jiesou/dsh-webui-fix-pack": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/bundles/dsh-webui-fix-pack",
+    "@js2hou/dsh-mcp-manager": "github:Js2Hou/dsh-mcp-manager",
+    "@linxin666/dsh-chat-recovery": "^0.3.3",
+    "dsh-context": "^0.31.0",
+    "dsh-lan": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-lan",
+    "dsh-rewind-plugin": "^0.4.1",
+    "dsh-sandbox-landlock": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-sandbox-landlock",
+    "dsh-session-title-cold": "github:fengs2021/dsh-session-title-cold",
+    "dsh-tool-deny": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-tool-deny",
+    "dsh-ya-simple-shortcuts": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-ya-simple-shortcuts",
+    "dshmarket": "^1.18.1"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "dsh-lan",
+        "@bill9109/dsh-web-ui-notify",
+        "@dsh-external/dsh-mobile",
+        "@jiesou/dsh-commandcode-go-provider",
+        "@jiesou/dsh-stream-rules",
+        "@jiesou/dsh-cline-free-provider",
+        "@jiesou/dsh-nous-portal-free-provider",
+        "@jiesou/dsh-opencode-zen-free-provider",
+        "@jiesou/dsh-timeout-auto-reject",
+        "dsh-sandbox-landlock",
+        "dshmarket",
+        "@jiesou/dsh-webui-fix-pack",
+        "dsh-context",
+        "dsh-ya-simple-shortcuts",
+        "@js2hou/dsh-mcp-manager",
+        "dsh-rewind-plugin",
+        "@bill9109/dsh-conversation-share",
+        "dsh-session-title-cold",
+        "@linxin666/dsh-chat-recovery"
+      ]
+    }
+  },
+  "devDependencies": {
+    "@jiesou/dsh-webui-fix-composer-focus-restore": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-composer-focus-restore",
+    "@jiesou/dsh-webui-fix-double-enter-to-steer": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-double-enter-to-steer",
+    "@jiesou/dsh-webui-fix-hide-like-dislike": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-hide-like-dislike",
+    "@jiesou/dsh-webui-fix-hide-session-log-btn": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-hide-session-log-btn",
+    "@jiesou/dsh-webui-fix-mobile-enter-newline": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-mobile-enter-newline",
+    "@jiesou/dsh-webui-fix-mobile-hide-h-scroll": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-mobile-hide-h-scroll",
+    "@jiesou/dsh-webui-fix-mobile-keyboard-blur": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-mobile-keyboard-blur",
+    "@jiesou/dsh-webui-fix-mobile-stats-line": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-mobile-stats-line",
+    "@jiesou/dsh-webui-fix-pwa": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-pwa",
+    "@jiesou/dsh-webui-fix-session-row-context-menu": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-session-row-context-menu",
+    "@jiesou/dsh-webui-fix-subagent-panel": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/plugins/dsh-webui-fix-subagent-panel"
+  }
+}

@@ -1,0 +1,7 @@
+node_modules/
+*.tgz
+package-lock.json
+bun.lock
+*.tsbuildinfo
+rules/*.local.ts
+rules/*.local.js

@@ -14,9 +14,15 @@ DIRS=(
   "$HOME/.config/nvim"
   "$HOME/.config/opencode"
   "$HOME/.ssh"
+  "$HOME/.dsh/profiles"
+  "$HOME/.dsh/.agent-presets"
+  "$HOME/.dsh/AGENTS.md"
+  "$HOME/.dsh/cordis.patch.yml"
+  "$HOME/.dsh/settings.yaml"
+  "$HOME/.dsh/.credentials.yaml"
 )
 
-D=(); for x in "${DIRS[@]}"; do [ -d "$x" ] && D+=("$x"); done
+D=(); for x in "${DIRS[@]}"; do [ -e "$x" ] && D+=("$x"); done
 
 SRC=$(chezmoi source-path)
 

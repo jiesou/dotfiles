@@ -1,0 +1,29 @@
+{
+  "name": "@jiesou/dsh-webui-fix-session-list-frame-coalesce",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Coalesce dsh session-list snapshot rebuilds to at most one per animation frame; stops the ~10fps main-thread saturation that 1400+ sessions suffer while any session streams or a subagent tree churns, and unblocks resizes and the sidebar drawer slide.",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiesou/dsh-webui-fix-pack.git",
+    "directory": "plugins/dsh-webui-fix-session-list-frame-coalesce"
+  }
+}

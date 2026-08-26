@@ -1,0 +1,4 @@
+# @jiesou/dsh-webui-fix-hide-session-log-btn bundle patch: mounts the plugin.
+- insert:
+    - id: hide-session-log
+      name: '@jiesou/dsh-webui-fix-hide-session-log-btn'

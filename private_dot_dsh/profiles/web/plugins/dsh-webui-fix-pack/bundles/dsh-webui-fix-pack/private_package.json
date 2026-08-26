@@ -1,0 +1,32 @@
+{
+  "name": "@jiesou/dsh-webui-fix-pack",
+  "version": "0.4.0",
+  "main": "./package.json",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@jiesou/dsh-webui-fix-composer-focus-restore": "latest",
+    "@jiesou/dsh-webui-fix-double-enter-to-steer": "latest",
+    "@jiesou/dsh-webui-fix-hide-like-dislike": "latest",
+    "@jiesou/dsh-webui-fix-hide-session-log-btn": "latest",
+    "@jiesou/dsh-webui-fix-mobile-enter-newline": "latest",
+    "@jiesou/dsh-webui-fix-mobile-keyboard-blur": "latest",
+    "@jiesou/dsh-webui-fix-mobile-hide-h-scroll": "latest",
+    "@jiesou/dsh-webui-fix-subagent-panel": "latest",
+    "@jiesou/dsh-webui-fix-mobile-stats-line": "latest",
+    "@jiesou/dsh-webui-fix-pwa": "latest",
+    "@jiesou/dsh-webui-fix-session-row-context-menu": "latest",
+    "@jiesou/dsh-webui-fix-session-list-frame-coalesce": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiesou/dsh-webui-fix-pack.git",
+    "directory": "bundles/dsh-webui-fix-pack"
+  }
+}

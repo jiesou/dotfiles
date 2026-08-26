@@ -1,0 +1,34 @@
+# Disable the stock sandbox provider; mount landlock as the sole sandbox.
+- id: sandbox
+  disabled: true
+- insert:
+    - id: sandbox-landlock
+      name: dsh-sandbox-landlock
+      config:
+        writeDirs:
+          - ~/.dsh
+          - ~/.agents
+          - /var/home/linuxbrew/.linuxbrew/lib/node_modules/@deepseek-ai
+          - ~/.cache/opencode
+          - ~/.local/share/opencode
+          - ~/Downloads
+          - ~/Documents/dev/.blog
+          - ~/Documents/dev/Android
+          - ~/Documents/dev/AppImages
+          - ~/Documents/dev/blender
+          - ~/Documents/dev/mcps
+          - ~/.ssh
+          - /etc/ssh
+          - ~/.config/systemd/user
+          - /etc/systemd
+          - ~/.cache
+          - ~/.local/bin
+          - ~/.npm
+          - ~/.bun
+          - ~/.local/share/pnpm
+          - ~/.gradle
+          - ~/.m2
+          - ~/.android
+          - ~/.platformio
+          - ~/.espressif
+          - ~/.arduino15

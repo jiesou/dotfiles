@@ -1,0 +1,4 @@
+# dsh bundle patch: inserts this plugin into a profile's layer stack.
+- insert:
+    - id: double-enter-to-steer
+      name: '@jiesou/dsh-webui-fix-double-enter-to-steer'

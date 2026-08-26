@@ -1,0 +1,29 @@
+{
+  "name": "@jiesou/dsh-webui-fix-mobile-enter-newline",
+  "version": "0.1.3",
+  "type": "module",
+  "description": "On mobile soft keyboards, Enter inserts a newline instead of sending; desktop behavior is unchanged.",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiesou/dsh-webui-fix-pack.git",
+    "directory": "plugins/dsh-webui-fix-mobile-enter-newline"
+  }
+}

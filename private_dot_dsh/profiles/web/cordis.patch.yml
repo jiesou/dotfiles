@@ -1,0 +1,46 @@
+# Web-profile patch layer. MCP servers live in ~/.dsh/cordis.patch.yml
+# (machine-global); the MCP Manager panel edits that file via patchFile below.
+- id: webserver
+  config:
+    host: 0.0.0.0
+    port: !!js ctx.webStartup.port ?? 3080
+- id: web-runtime
+  config:
+    printUrl: true
+    surfaceContext: true
+    trustedHosts:
+      - chenpc.lan
+- id: mcp-manager
+  config:
+    patchFile: /home/chen/.dsh/cordis.patch.yml
+- insert:
+    - id: tool-deny
+      name: dsh-tool-deny
+      config:
+        denyTools: []
+- id: ui-chat-recovery
+  disabled: true
+- id: composer-focus-restore
+  disabled: true
+- id: double-enter-to-steer
+  disabled: true
+- id: hide-like-dislike
+  disabled: true
+- id: hide-session-log
+  disabled: true
+- id: mobile-enter-newline
+  disabled: true
+- id: mobile-keyboard-blur
+  disabled: true
+- id: mobile-hide-h-scroll
+  disabled: true
+- id: subagent-panel
+  disabled: true
+- id: mobile-stats-line
+  disabled: true
+- id: pwa
+  disabled: true
+- id: session-row-context-menu
+  disabled: true
+- id: session-list-frame-coalesce
+  disabled: true

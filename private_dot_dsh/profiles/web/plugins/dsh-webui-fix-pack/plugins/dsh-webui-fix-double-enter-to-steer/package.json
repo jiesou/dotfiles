@@ -1,0 +1,29 @@
+{
+  "name": "@jiesou/dsh-webui-fix-double-enter-to-steer",
+  "version": "0.1.2",
+  "type": "module",
+  "description": "When queued messages exist, pressing Enter on an empty composer steers them into the running turn (double Enter to steer).",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiesou/dsh-webui-fix-pack.git",
+    "directory": "plugins/dsh-webui-fix-double-enter-to-steer"
+  }
+}

@@ -1,0 +1,701 @@
+/* dsh-mobile global sheet — every rule is scoped under [data-dsh-mobile]
+   (set on <html> by the controller at apply), so uninstalling the plugin
+   leaves the stock GUI byte-identical.
+
+   Selectors key off stable, version-independent hooks only: the AppFrame's
+   data-* attributes (data-sidebar-collapsed / data-details-collapsed, which
+   the frame div itself carries in every snapshot and official bundle,
+   wherever it sits in the shell tree — rc.5 wraps the frame in an extra
+   shell div, so no `#root >` child prefix is assumed), the conversation
+   skeleton's data seats ([data-phase], [data-conversation-scroll],
+   [data-composer-seat], [data-composer-card]), and the drag handles'
+   data-side attribute. No hashed class names — the same sheet must work
+   against unpatched distributions.
+
+   Mobile layout follows PiUI's chat pager with the sidebar left OPEN: the
+   STOCK frame becomes a horizontal scroll-snap pager of two cards — the
+   sidebar page is a half-open card (phone: ~70vw capped at 360px; wide
+   mobile screens 560-768px — landscape phones, large foldables, small
+   tablets: half the viewport capped at 420px — PiUI's overlayWidth idea)
+   and the chat page is full-width, so swiping to the sidebar still shows
+   the chat peeking out on the right. The sidebar shell freezes its content
+   at the desktop 280px inline width for its collapse slide; the pager
+   stretches it to fill the page column (min-width rule in the pager
+   section), so on wide screens the content adapts to the width instead of
+   staying phone-sized. Both cards are rounded and shadowed, PiUI style.
+   The controller keeps the sidebar expanded (native wide rendering) and
+   flips the pager on state changes. */
+
+/* ---------- tokens ---------- */
+[data-dsh-mobile] {
+  /* Safe-area insets (notched phones, standalone PWA). env() resolves to
+     0px in browsers without the concept, so desktop is unaffected. */
+  --dshm-safe-top: env(safe-area-inset-top, 0px);
+  --dshm-safe-right: env(safe-area-inset-right, 0px);
+  --dshm-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --dshm-safe-left: env(safe-area-inset-left, 0px);
+  /* Virtual-keyboard inset, driven by the controller (visualViewport). */
+  --dshm-keyboard-inset: 0px;
+  /* Sidebar page width (phones): at least the sidebar's own 280px content
+     width (so it is never clipped), at most 360px, with ~70vw — the chat
+     card then shows only a sliver on the right (PiUI's overlayWidth idea,
+     tightened so the chat does not dominate). Wide mobile screens
+     (560-768px) override this token below so the page grows toward half
+     the viewport. */
+  --dshm-sidebar-width: clamp(280px, 70vw, 360px);
+  /* PiUI-style 3D flip of the chat card, driven by the controller on scroll. */
+  --dshm-rotate: 0deg;
+  --dshm-scale: 1;
+  --dshm-offset-x: 0px;
+  --dshm-origin-x: 50% 50%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Wide mobile screens (560-768px — landscape phones, large foldables,
+   small tablets like the iPad mini): the sidebar page grows past the phone
+   cap toward HALF the viewport (50vw, capped at 420px), so at 768px the
+   two pages meet 50/50 (PiUI's half-open symmetry) and the chat sliver
+   never loses its tap-to-return presence. Growth is monotone with the
+   viewport — never narrower than the phone cap, so no regression. The
+   composer has the room too: the model-name cap relaxes from 96px to
+   160px. */
+@media (min-width: 560px) and (max-width: 768px) {
+  [data-dsh-mobile] {
+    --dshm-sidebar-width: clamp(360px, 50vw, 420px);
+  }
+
+  /* The trigger is pinned via aria-haspopup='menu': a bare `button` would
+     also hit the open picker's option rows and nav cells (their first
+     spans are optionCopy/cellLabel) and deform the menu card. */
+  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:first-child {
+    max-width: 160px;
+  }
+}
+
+/* ---------- shell ergonomics ---------- */
+[data-dsh-mobile] body {
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Browsers with dvh use the dynamic viewport: iOS Safari URL-bar safe.
+   `#root` height is `100%`, NOT `100dvh`: the host shell (dsh-app on
+   Android) pads `body` below the real status bar with box-sizing:border-box
+   and sizes `#root` at 100% — a 100dvh root would overflow that padding and
+   add a vertical scrollbar (root fills the viewport, body adds padding).
+   `100%` resolves against the body content box in BOTH cases: with the host
+   padding it is the remaining height; in a plain PWA body itself is 100dvh,
+   so the root fills the viewport the same way. Browsers without dvh get the
+   same 100%/100vh pairing from the fallback below. */
+@supports (height: 100dvh) {
+  [data-dsh-mobile] body {
+    height: 100dvh;
+  }
+}
+
+[data-dsh-mobile] body {
+  height: 100vh;
+}
+
+[data-dsh-mobile] #root {
+  height: 100%;
+}
+
+/* ---------- mobile pager (narrow viewports) ---------- */
+
+@media (max-width: 768px) {
+  /* The AppFrame keeps at least one of its two data attributes in every
+     state; the union selects the frame on any viewport. Reflow the grid
+     tracks into two snap pages: the sidebar page at the half-open width,
+     the chat page full-width (so the chat stays visible beside the
+     sidebar), the details track dropped (no phone use). */
+  [data-dsh-mobile] div[data-sidebar-collapsed],
+  [data-dsh-mobile] div[data-details-collapsed] {
+    grid-template-columns: var(--dshm-sidebar-width) 100% 0 !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  /* Hide the pager's own horizontal scrollbar on every engine. */
+  [data-dsh-mobile] div[data-sidebar-collapsed]::-webkit-scrollbar,
+  [data-dsh-mobile] div[data-details-collapsed]::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  /* The two live pages snap to the scrollport start (scroll-snap-stop keeps
+     a fast swipe from skipping a page). */
+  [data-dsh-mobile] div[data-sidebar-collapsed] > :nth-child(-n+2),
+  [data-dsh-mobile] div[data-details-collapsed] > :nth-child(-n+2) {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  /* Sidebar page: a plain page sharing the chat background — flat, no card
+     treatment and no divider line against the chat — with safe-area top so
+     its controls clear the notch. The chat card's radius and shadow are
+     what separate the two (PiUI). The sidebar column itself is already
+     bg-base; the sidebar shell's own fill is reset to transparent so every
+     layer of the sidebar matches the chat. */
+  [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child,
+  [data-dsh-mobile] div[data-details-collapsed] > :first-child {
+    background: var(--dsw-alias-bg-base);
+    border-right: none;
+    padding-top: var(--dshm-safe-top);
+  }
+
+  /* The sidebar shell's own fill (specific-sidebar-fill) is reset to
+     transparent — across the one or two wrapper levels the shell tree may
+     insert between the frame column and the sidebar root (rc.5 wraps the
+     sidebar in an extra div) — so every layer of the sidebar page matches
+     the chat background. Deeper elements keep their own states (hover,
+     active) untouched. */
+  [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child > :first-child,
+  [data-dsh-mobile] div[data-details-collapsed] > :first-child > :first-child,
+  [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child > :first-child > :first-child,
+  [data-dsh-mobile] div[data-details-collapsed] > :first-child > :first-child > :first-child {
+    background: transparent;
+  }
+
+  /* The sidebar shell freezes its content at the expanded desktop width
+     (inline style) so the collapse slide can clip it in place; the phone
+     layout keeps the sidebar open, so that frozen width would leave the
+     right side of the page empty on wide screens — the content would stay
+     280px while the page grew. Min-width (not width) stretches the shell
+     to fill the page column: the inline width stays the floor, so the
+     content can never shrink below its desktop layout. The attribute
+     selector is exact — the shell root is the ONLY inline-width element in
+     the sidebar tree (ui-sidebar / ui-workspace / ui-settings carry no
+     inline styles; the primitives Modal portals out of the tree), and
+     scoping under the frame's first child keeps the frame's own inline
+     grid-template-columns out of reach. */
+  [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child div[style*='width'],
+  [data-dsh-mobile] div[data-details-collapsed] > :first-child div[style*='width'] {
+    min-width: 100%;
+  }
+
+  /* Chat page: the PiUI rounded card — rounded and shadowed, clipped to the
+     radius, no border so no divider line sits between it and the sidebar.
+     The conversation renders completely untouched inside.
+     The radius/shadow are a SIDEBAR-page affordance: while the chat card is
+     exposed as a sliver beside the sidebar it reads as a distinct card. On
+     the CHAT page (data-dshm-page=chat on <html>, kept by the controller)
+     the card goes full-bleed — square corners, no shadow, edge to edge —
+     so the user reading the conversation never sees a rounded border or
+     shadow inside the screen, exactly like OpenCodeUI's full-width mobile
+     chat. The inner layout is untouched; only the card chrome changes. */
+  [data-dsh-mobile] div[data-sidebar-collapsed] > :nth-child(2),
+  [data-dsh-mobile] div[data-details-collapsed] > :nth-child(2) {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--dsw-alias-bg-base);
+    box-shadow: 0 6px 28px color-mix(in srgb, var(--dsw-static-neutral-1000) 16%, transparent);
+    transform: translate3d(var(--dshm-offset-x, 0px), 0, 0)
+      rotateY(var(--dshm-rotate, 0deg))
+      scale(var(--dshm-scale, 1));
+    transform-origin: var(--dshm-origin-x, 50% 50%);
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    will-change: transform;
+  }
+
+  /* Chat page (resting on the conversation): full-bleed, no card chrome —
+     square corners and no shadow so nothing inside the screen suggests a
+     card. Only the exposed sliver state (sidebar page) keeps the radius. */
+  [data-dsh-mobile][data-dshm-page='chat'] div[data-sidebar-collapsed] > :nth-child(2),
+  [data-dsh-mobile][data-dshm-page='chat'] div[data-details-collapsed] > :nth-child(2) {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* The session list's bottom scroll fade (ui-workspace .fade, a 72px
+     transparent→fill overlay pinned to the list bottom) is a desktop
+     affordance; on the always-open phone sidebar it just dims the tail of
+     the list. Selected structurally (the tree body's span child, next to
+     the role=tree list), never by hashed class name. */
+  [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child div:has(> [role='tree']) > span,
+  [data-dsh-mobile] div[data-details-collapsed] > :first-child div:has(> [role='tree']) > span {
+    display: none;
+  }
+
+  /* Drag handles are desktop-only affordances. */
+  [data-dsh-mobile] [data-side] {
+    display: none !important;
+  }
+
+  /* Session header: compact with a safe-area top. */
+  [data-dsh-mobile] [data-phase='active'] > header {
+    padding: calc(6px + var(--dshm-safe-top)) 8px 0 8px;
+  }
+
+  /* Conversation column: snugger side clearance for the composer card. */
+  [data-dsh-mobile] [data-phase] {
+    --dsh-composer-side-clearance: 12px;
+  }
+
+  /* Sticky composer seat: lift the input card above the home indicator and
+     the virtual keyboard (both insets are 0 outside mobile contexts). */
+  [data-dsh-mobile] [data-composer-seat] {
+    padding-bottom: calc(var(--dshm-safe-bottom) + var(--dshm-keyboard-inset));
+  }
+
+  /* Hidden scrollbars are the norm on phones: no reserved gutter, no bars. */
+  [data-dsh-mobile] [data-conversation-scroll] {
+    scrollbar-gutter: auto;
+  }
+
+  /* Touch targets in the control regions: header, composer, and sidebar
+     rows get a comfortable hit height (kept off inline message chrome,
+     which would stretch rows). */
+  [data-dsh-mobile] [data-phase='active'] > header button,
+  [data-dsh-mobile] [data-composer-card] button,
+  [data-dsh-mobile] [role='treeitem'] button {
+    min-height: 36px;
+  }
+
+  /* ---------- composer toolbar (mobile fit) ----------
+
+     The stock row (attach + modes … model + context + send) is squeezed on
+     phones because .trailing is flex:none: the right cluster can never
+     shrink, so the left tools get starved and the + chip deforms against
+     the card edge. On phones the row instead: (1) tightens the tool gaps
+     so the permission chip sits close to the + button, (2) makes the
+     permission chip ALWAYS icon-only (the stock @container 460px collapse
+     only kicks in below that row width, so wide mobile screens 560-768px
+     would show the label again), (3) caps the model name width and
+     auto-scrolls it (marquee) when it overflows — the controller measures
+     the overflow and sets a data attribute plus shift/duration CSS vars,
+     (4) lets the trailing cluster shrink so the model label absorbs the
+     deficit, and (5) pins every fixed-size chip (+, permission, context
+     ring, send) with flex:none so nothing ever deforms, squeezes or
+     overlaps. Selectors use stable hooks only: aria-label prefix for the
+     permission trigger (localized), the input.model data-slot for the
+     model trigger, aria-haspopup=listbox for the commands + chip, and
+     :has(> [data-slot=…]) for the trailing seat. */
+
+  /* Tool gaps: the + chip sits close to the permission chip (stock 16px)
+     and the row's left/right clusters stay snug (stock 12px) — the room
+     goes to the model name instead. The row also becomes the model picker
+     menu's positioning context (see the root-static rule below), so the
+     menu right-aligns to the WHOLE row and dodges the screen edges on
+     narrow phones. */
+  [data-dsh-mobile] [data-composer-card] div:has(> button[aria-haspopup='listbox']) {
+    gap: 8px;
+  }
+
+  [data-dsh-mobile] [data-composer-card] > div:last-child {
+    gap: 8px;
+    position: relative;
+  }
+
+  /* The model picker menu is anchored right:0 to its .root seat (stock
+     position:relative), whose right edge sits ~94px left of the row's
+     right edge (ring + send + gaps) — a 240px menu then opens past the
+     screen's LEFT edge on ≤360px phones (measured: left = vw - 366). On
+     mobile the seat loses its positioning and the ROW becomes the
+     containing block: the menu right-aligns to the row, so its left edge
+     is vw - 32 - 248 ≈ 40px at 320px — full 240px width, no clipping,
+     no magic numbers. */
+  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] > div {
+    position: static;
+  }
+
+  /* The + (commands) chip: a fixed 36px circle (touch-size, matching the
+     send button) that can never shrink or deform. */
+  [data-dsh-mobile] [data-composer-card] button[aria-haspopup='listbox'] {
+    flex: none;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+
+  /* Permission chip: icon-only 36px control — the label and chevron spans
+     drop, the shield glyph alone identifies the mode (the trigger's
+     aria-label stays for a11y). If a host-configured mode carries no glyph
+     (no first span), the fallback keeps its label: the first child is
+     never hidden. */
+  [data-dsh-mobile] [data-composer-card] button[aria-label*='访问模式'],
+  [data-dsh-mobile] [data-composer-card] button[aria-label*='Access mode'] {
+    flex: none;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  [data-dsh-mobile] [data-composer-card] button[aria-label*='访问模式'] > span:not(:first-child),
+  [data-dsh-mobile] [data-composer-card] button[aria-label*='Access mode'] > span:not(:first-child) {
+    display: none;
+  }
+
+  /* The trailing cluster may shrink (stock .trailing is flex:none): with
+     the model label absorbing below, the row can always fit — the label
+     window takes every extra pixel of deficit, so no toolbar chip ever
+     deforms. */
+  [data-dsh-mobile] [data-composer-card] div:has(> [data-slot='conversation.input.model']) {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /* The model trigger chip itself is the trailing cluster's only
+     shrinkable seat: it yields width to the ring and the send button
+     before anything else can be squeezed (its inner label keeps the
+     marquee window above). Pinned via aria-haspopup='menu' so the open
+     picker's option/cell rows keep their own geometry. */
+  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /* The context ring keeps its fixed seat (stock 28px circle, flex:none
+     already on the button; the wrapper is pinned too, so the ring can
+     never be squeezed against the model chip or the send button). */
+  [data-dsh-mobile] [data-composer-card] div:has(> [data-slot='conversation.input.model']) > :not([data-slot]) {
+    flex: none;
+  }
+
+  /* The ring button matches the permission chip's behavior: a 36px circle
+     (the stock 28px + the touch min-height rule made it a squeezed 28x36
+     pill), with the glyph stepped up to 16px like the shield. */
+  [data-dsh-mobile] [data-composer-card] button[aria-haspopup='dialog'] {
+    width: 36px;
+    height: 36px;
+  }
+
+  [data-dsh-mobile] [data-composer-card] [aria-haspopup='dialog'] svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Send / stop: the stock 34px circle + the touch min-height rule makes
+     it a squeezed 34x36 ellipse (same mechanism as the ring pill) — the
+     trailing cluster's direct buttons (send, and stop while interruptible;
+     the ring lives inside its span wrapper, the model chip in its slot)
+     get the full 36px circle back, matching the rest of the toolbar. */
+  [data-dsh-mobile] [data-composer-card] div:has(> [data-slot='conversation.input.model']) > button {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Context ring's breakdown panel (the 264px stock card): keep it compact
+     on phones — capped to the viewport with a margin. (The settings-dialog
+     rules are scoped to :has(> nav) precisely so this small dialog keeps
+     its own geometry.) */
+  [data-dsh-mobile] [data-composer-card] [role='dialog'] {
+    box-sizing: border-box;
+    width: min(264px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+  }
+
+  /* Model name: capped width with a floor so the marquee window stays
+     readable. At rest the stock ellipsis hints; when the name overflows,
+     the controller wraps TWO item spans (text + text clone, each with a
+     trailing gap) in a [data-dshm-marquee-runner] layer and tags the
+     label with data-dshm-marquee + --dshm-marquee-duration. The keyframes
+     slide the runner by -50% (one text width + one gap) on the
+     COMPOSITOR and loop in ONE direction — tail exits, gap passes, head
+     re-enters: a classic SPACED ticker, no alternate bounce. The label's
+     translateZ(0) is clipping insurance: iOS Safari's compositing quirk
+     lets a transformed child escape an overflow:hidden ancestor
+     otherwise — that escape is what looked like the name overlapping the
+     ring.
+     The trigger is pinned via aria-haspopup='menu' throughout: the open
+     picker's option rows (first span = optionCopy, a flex column) and
+     nav cells (first span = cellLabel) live under the same slot div, and
+     a bare `button > span:first-child` would apply this whole block to
+     them — nowrap + translateZ deforming the menu card (the report this
+     rule set fixed). */
+  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:first-child {
+    max-width: 96px;
+    min-width: 48px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    /* This element becomes its own compositing ancestor, so the animating
+       runner layer cannot bleed past it on iOS Safari. */
+    transform: translateZ(0);
+  }
+
+  /* The transform layer: two item spans (text + clone), each with a
+     trailing gap — -50% lands exactly one text width + one gap ahead, so
+     the loop seam is invisible AND the repetitions breathe. */
+  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:first-child > [data-dshm-marquee-runner] {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] [data-dshm-marquee-runner] > [data-dshm-marquee-item] {
+    display: inline-block;
+    white-space: nowrap;
+    padding-right: 32px;
+  }
+
+  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:first-child[data-dshm-marquee] > [data-dshm-marquee-runner] {
+    animation: dshm-marquee var(--dshm-marquee-duration, 8s) linear infinite;
+  }
+
+  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:first-child[data-dshm-marquee]:hover > [data-dshm-marquee-runner] {
+    animation-play-state: paused;
+  }
+
+  @keyframes dshm-marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* ---------- question takeover card (mobile fit) ----------
+
+     The ui-user-questions QuestionComposer card caps at min(60vh, 520px)
+     with the body scrolling, but the question text (the h2 title in the
+     header — a non-shrinking row) and the option list compete for the
+     same fixed card height: a long question pushes the options and the
+     custom-answer input below the fold. On mobile the title (and the
+     optional MarkdownText detail div) get a small capped, self-scrolling
+     window — same behavior as the option list, no fade, no scrollbar
+     chrome — and the option group absorbs the remaining body height so
+     the answers stay in view and the custom-answer row settles near the
+     bottom. Selectors key off the stable seats only: [data-question-scroll]
+     is the body, the card is its :has() parent section, the title is the
+     header's h2, the option group is the body's role'd direct div
+     (radiogroup / group), and the detail div is the body's only non-role
+     direct div. */
+
+  [data-dsh-mobile] section:has(> [data-question-scroll]) > header h2,
+  [data-dsh-mobile] [data-question-scroll] > div:not([role]) {
+    max-height: min(24vh, 160px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  [data-dsh-mobile] [data-question-scroll] > [role='radiogroup'],
+  [data-dsh-mobile] [data-question-scroll] > [role='group'] {
+    flex: 1 1 auto;
+  }
+
+  /* ---------- message tail stats (mobile fit) ----------
+
+     The assistant turn's tail clock row — "03:09 · 用时 1分42秒 · 首
+     token 5.5秒 · 114 tok/s" — can outgrow narrow screens (the readings
+     are one nowrap line). On phones the label takes the row's leftover
+     width (flex:1, min-width:0) and scrolls horizontally: swipe to see
+     the rest, no scrollbar anywhere, and overscroll-behavior:contain
+     keeps the swipe from chaining into the pager flip. Keyed off the
+     turn tail's data-turn-tail root (assistant only): the row is the
+     root's last child, the time label its last span — user messages'
+     clock (timeStart) sits FIRST in the row, so it can never match.
+     No hashed class names. */
+
+  [data-dsh-mobile] [data-turn-tail] > div:last-child > span:last-child {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  [data-dsh-mobile] [data-turn-tail] > div:last-child > span:last-child::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ---------- session header (mobile fit) ----------
+
+     The background-jobs menu anchors left:0 to its trigger's .root seat
+     (the header actions cluster, right-aligned): a 336px menu opens to
+     the RIGHT of a seat that already sits near the screen edge, so its
+     right border gets clipped on phones (the stock max-width caps the
+     width but not the left offset). On mobile the menu flips to
+     right-aligned against the trigger: its right edge lands ~16px from
+     the screen edge and the width cap (calc(100vw - 32px)) then pins the
+     left edge at >=16px — full width, never clipped, rows already elide
+     (.label/.status ellipsis in the stock sheet). Keyed by the
+     localized list aria-label, never hashed classes. */
+
+  [data-dsh-mobile] [data-phase='active'] > header ul[aria-label*='后台任务'],
+  [data-dsh-mobile] [data-phase='active'] > header ul[aria-label*='Background jobs'] {
+    left: auto;
+    right: 0;
+  }
+
+  /* ---------- settings dialog (mobile fit) ----------
+
+     The stock settings panel is a fixed 800px two-column modal (188px nav
+     rail + content column). Squeezed into a phone it keeps the 188px rail
+     and crushes the content column to ~half the screen, deforming every
+     option row. On mobile the panel keeps its DIALOG nature — a centered
+     rounded card with a margin from the viewport edges (the stock modal is
+     already a dialog; it must not become a full-bleed sheet) — but becomes
+     a single column: the nav rail turns into a top horizontal tab strip
+     (icon + label, scrollable), the title row carries the actions + close
+     buttons on the same line (desktop shows them on one line across the
+     two columns; the mobile column must keep them together), and the
+     content column takes the remaining height. Follows OpenCodeUI's mobile
+     settings dialog. Selectors use the stable role/data-slot hooks only —
+     [role=dialog] for the panel, nav for the rail, the content column as
+     the dialog's last child — never hashed class names. */
+
+  /* Panel: centered card, single column. The stock modal layer already
+     centers it (overlay flex + mask); keeping width/height capped below
+     the viewport with a margin preserves the dialog affordance.
+     The selector is scoped to the settings dialog (:has(> nav) — only the
+     settings panel carries a nav rail): a bare [role=dialog] would also
+     hit the composer's context-ring panel (a 264px breakdown card) and
+     blow it up to the settings geometry. */
+  [data-dsh-mobile] [role='dialog']:has(> nav) {
+    flex-direction: column;
+    width: min(560px, calc(100vw - 32px));
+    height: min(720px, calc(100vh - 32px));
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+    border-radius: 20px;
+  }
+
+  /* Nav rail -> top horizontal tab strip. The rail's own column layout is
+     overridden structurally: the title row becomes the dialog's header
+     line (title left, actions + close right via the absolute content
+     header), and the cell list flows horizontally, scrolling when it
+     overflows. */
+  [data-dsh-mobile] [role='dialog'] > nav {
+    flex: none;
+    flex-direction: column;
+    width: 100%;
+    padding: 14px 14px 0;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  /* Nav title: the dialog title, left-aligned on the header line. */
+  [data-dsh-mobile] [role='dialog'] > nav > div:first-child {
+    padding: 0 4px;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 500;
+  }
+
+  /* Nav cell list: horizontal scrollable row of pill tabs. */
+  [data-dsh-mobile] [role='dialog'] > nav > div:nth-child(2) {
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [data-dsh-mobile] [role='dialog'] > nav > div:nth-child(2)::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Nav cells: pill tabs — no fixed width, horizontal padding, nowrap. */
+  [data-dsh-mobile] [role='dialog'] > nav button {
+    flex: none;
+    width: auto;
+    height: 34px;
+    padding: 0 14px;
+    gap: 6px;
+    border-radius: 999px;
+  }
+
+  /* The content column's header row (actions + close) is lifted onto the
+     dialog's title line: absolute at the top-right of the card, same
+     vertical center as the nav title, so "打开配置文件" and the close
+     button sit beside the title instead of on their own row. The column
+     itself then starts below the tab strip (its header no longer takes
+     flow height). Scoped to the settings dialog (:has(> nav)): without
+     it, the context-ring panel's bar segments would be lifted too. */
+  [data-dsh-mobile] [role='dialog']:has(> nav) > div:last-child > div:first-child {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  /* The lifted header must not reserve flow height below the tabs. */
+  [data-dsh-mobile] [role='dialog']:has(> nav) > div:last-child > div:first-child + * {
+    margin-top: 0;
+  }
+
+  /* Content column: the remaining height under the tab strip. */
+  [data-dsh-mobile] [role='dialog']:has(> nav) > div:last-child {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+  }
+
+  /* Options area: the stock 24px side padding is reduced to 16px on
+     mobile — the rows carry NO side padding of their own (their 16px is
+     vertical), so this single inset is the one symmetric margin: rows are
+     width:100% and the option text right-pads 48px for its selector, so a
+     leftover/stacked padding would read as "left has more whitespace,
+     right looks clipped". 16px both sides keeps rows breathing without
+     crowding the selectors; the area scrolls. */
+  [data-dsh-mobile] [role='dialog']:has(> nav) > div:last-child > div:last-child {
+    padding: 4px 16px 16px;
+    overflow-y: auto;
+  }
+
+  /* ---------- ui-primitives Modal (agent-preset viewer, deletes, etc.) ----------
+
+     The shared Modal card (ui-primitives) sizes its dialog content-box
+     (`width: min(380px, 100%)`, content-box box model) and its footer row
+     carries `padding: 0 24px` on a content-box width — so the footer's
+     real width is card-width + 48px and it spills out of the card on
+     phones (measured: footer right 413px vs card right 366px at 390px
+     viewport; hidden on desktop by the surrounding 24px mask padding).
+     Fix the box model on the footer row only (its direct children are
+     buttons; the settings dialog's last child is the content column, so
+     `:last-child:has(> button)` cannot collide). The card itself already
+     fits phones (342px at 390px), and the code `<pre>` scrolls both axes
+     on its own — only the footer needs the border-box correction. */
+  [data-dsh-mobile] [role='dialog'] > :last-child:has(> button) {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* Coarse pointers (touch) never hover: drop scrollbars entirely. */
+@media (pointer: coarse) {
+  [data-dsh-mobile] * {
+    scrollbar-width: none;
+  }
+
+  [data-dsh-mobile] *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
+/* Respect reduced-motion: programmatic flips snap instead of sliding, and
+   the model-name marquee falls back to the static ellipsis (the controller
+   does not even wrap the runner under reduce; this rule is the belt). */
+@media (prefers-reduced-motion: reduce) {
+  [data-dsh-mobile] {
+    scroll-behavior: auto !important;
+  }
+
+  [data-dsh-mobile] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:first-child > [data-dshm-marquee-runner] {
+    animation: none !important;
+  }
+}
+

@@ -1,0 +1,5 @@
+# dsh-timeout-auto-reject bundle layer: inserts the timeout-auto-reject plugin row.
+# Override options in your profile's later cordis.patch.yml under id: timeout-auto-reject
+- insert:
+    - id: timeout-auto-reject
+      name: '@jiesou/dsh-timeout-auto-reject'

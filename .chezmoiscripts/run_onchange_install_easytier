@@ -34,7 +34,8 @@ echo "run_onchange_install_easytier: Registering system service with 10.144.${su
 sudo "$ET_CLI" service install --ipv4 "10.144.${suffix}/16" --network-name jiesou_easytier \
   -p udp://110.42.103.37:11010 \
   -p ws://i-et.jiecs.top \
-  -p tcp://i.loliis.top:11010
+  -p tcp://i.loliis.top:11010 \
+  -p udp://192.168.100.100:11010
 sudo "$ET_CLI" service start || true
 sudo systemctl disable easytier.service 2>/dev/null || true
 

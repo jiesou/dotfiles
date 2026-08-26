@@ -1,0 +1,4 @@
+# @jiesou/dsh-webui-fix-hide-like-dislike bundle patch: mounts the plugin.
+- insert:
+    - id: hide-like-dislike
+      name: '@jiesou/dsh-webui-fix-hide-like-dislike'

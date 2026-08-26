@@ -1,0 +1,19 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@jiesou/dsh-cline-free-provider':
+        specifier: link:/var/home/chen/.dsh/profiles/web/plugins/dsh-cline-free-provider
+        version: link:../web/plugins/dsh-cline-free-provider
+      '@jiesou/dsh-nous-portal-free-provider':
+        specifier: link:/var/home/chen/.dsh/profiles/web/plugins/dsh-nous-portal-free-provider
+        version: link:../web/plugins/dsh-nous-portal-free-provider
+      '@jiesou/dsh-opencode-zen-free-provider':
+        specifier: link:/var/home/chen/.dsh/profiles/web/plugins/dsh-opencode-zen-free-provider
+        version: link:../web/plugins/dsh-opencode-zen-free-provider

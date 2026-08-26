@@ -1,0 +1,29 @@
+{
+  "name": "@jiesou/dsh-webui-fix-hide-session-log-btn",
+  "version": "0.2.2",
+  "description": "Hide the Session log button in the DSH Web UI (client-only plugin, label-matched).",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiesou/dsh-webui-fix-pack.git",
+    "directory": "plugins/dsh-webui-fix-hide-session-log-btn"
+  }
+}

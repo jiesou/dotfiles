@@ -1,0 +1,7 @@
+- id: webserver
+  config:
+    host: 0.0.0.0
+    port: !!js ctx.webStartup.port ?? 3080
+- insert:
+    - id: lan-secure-context
+      name: 'dsh-lan'

@@ -1,0 +1,139 @@
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+agent-default-model:
+  provider: opencode-zen-free-provider
+  model: x-preview-f-free
+llm-pi-ai:
+  providers:
+    sui-xiang-claude-kiro:
+      displayName: SuiXiang Claude Kiro
+      apiKeyEnv: SUIXIANG_CLAUDE_API_KEY
+      api: openai-completions
+      baseURL: https://sui-xiang.com
+      models:
+        - id: claude-opus-5
+          contextWindow: 1048576
+          maxTokens: 131072
+          reasoningEfforts:
+            off: null
+            low: low
+            medium: medium
+            high: high
+            xhigh: xhigh
+            max: max
+    sui-xiang-gpt-pro:
+      displayName: SuiXiang GPT Pro
+      apiKeyEnv: SUIXIANG_GPT_API_KEY
+      api: openai-completions
+      baseURL: https://sui-xiang.com
+      models:
+        - id: gpt-5.6-luna
+          contextWindow: 272000
+          maxTokens: 128000
+          reasoningEfforts:
+            off: null
+            low: low
+            medium: medium
+            high: high
+            xhigh: xhigh
+            max: max
+        - id: gpt-5.6-sol
+          contextWindow: 272000
+          maxTokens: 128000
+          reasoningEfforts:
+            off: null
+            low: low
+            medium: medium
+            high: high
+            xhigh: xhigh
+            max: max
+        - id: gpt-5.6-terra
+          contextWindow: 272000
+          maxTokens: 128000
+          reasoningEfforts:
+            off: null
+            low: low
+            medium: medium
+            high: high
+            xhigh: xhigh
+            max: max
+    sui-xiang-kimi:
+      displayName: SuiXiang Kimi
+      apiKeyEnv: SUIXIANG_KIMI_API_KEY
+      api: openai-completions
+      baseURL: https://sui-xiang.com
+      models:
+        - id: k3
+          contextWindow: 1048576
+          maxTokens: 131072
+          reasoningEfforts:
+            off: null
+            low: low
+            high: high
+            max: max
+    sui-xiang-grok:
+      displayName: SuiXiang Grok
+      apiKeyEnv: SUIXIANG_GROK_API_KEY
+      api: openai-completions
+      baseURL: https://sui-xiang.com
+      models:
+        - id: grok-4.6
+          contextWindow: 500000
+          maxTokens: 131072
+          reasoningEfforts:
+            low: low
+            medium: medium
+            high: high
+            xhigh: xhigh
+    sui-xiang-volce:
+      displayName: SuiXiang Volce
+      apiKeyEnv: SUIXIANG_VOLCE_API_KEY
+      api: openai-completions
+      baseURL: https://sui-xiang.com
+      models:
+        - id: deepseek-v4-flash
+          contextWindow: 1048576
+          maxTokens: 384000
+          reasoningEfforts:
+            off: null
+            low: low
+            high: high
+            max: max
+        - id: deepseek-v4-pro
+          contextWindow: 1048576
+          maxTokens: 384000
+          reasoningEfforts:
+            off: null
+            low: low
+            high: high
+            max: max
+        - id: doubao-seed-evolving
+          contextWindow: 1048576
+          maxTokens: 262144
+          reasoningEfforts:
+            off: null
+            minimal: minimal
+            low: low
+            medium: medium
+            high: high
+        - id: glm-latest
+          contextWindow: 200000
+          maxTokens: 131072
+          reasoningEfforts:
+            off: null
+            high: high
+            xhigh: xhigh
+    ramalama:
+      displayName: Ramalama
+      api: openai-completions
+      baseURL: http://localhost:8080/v1
+      models:
+        - id: qwen3.5-9b
+      apiKeyEnv: WEBHOOK_SITE_TEST_API_KEY
+agent-presets:
+  default: focus
+dsh-better-sidebar:
+  openByDefault: false
+  interceptOpenPath: true
+ui-theme:
+  preference: system

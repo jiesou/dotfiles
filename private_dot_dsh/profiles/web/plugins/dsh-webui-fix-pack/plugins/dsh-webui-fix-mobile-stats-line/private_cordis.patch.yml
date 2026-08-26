@@ -1,0 +1,4 @@
+# @jiesou/dsh-webui-fix-mobile-stats-line bundle patch: mounts the plugin.
+- insert:
+    - id: mobile-stats-line
+      name: '@jiesou/dsh-webui-fix-mobile-stats-line'

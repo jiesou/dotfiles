@@ -1,0 +1,27 @@
+{
+  "name": "dsh-profile-dsh-tui",
+  "private": true,
+  "dependencies": {
+    "@deepseek-harness-tui/dsh-tui": "0.8.6",
+    "@jiesou/dsh-cline-free-provider": "^0.1.9",
+    "@jiesou/dsh-commandcode-go-provider": "^0.1.5",
+    "@jiesou/dsh-opencode-zen-free-provider": "^0.1.9",
+    "@jiesou/dsh-stream-rules": "^0.1.7",
+    "@jiesou/dsh-timeout-auto-reject": "^0.1.2",
+    "dsh-sandbox-landlock": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-sandbox-landlock"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-harness-tui/dsh-tui",
+        "@jiesou/dsh-cline-free-provider",
+        "@jiesou/dsh-commandcode-go-provider",
+        "@jiesou/dsh-opencode-zen-free-provider",
+        "@jiesou/dsh-stream-rules",
+        "@jiesou/dsh-timeout-auto-reject",
+        "dsh-sandbox-landlock"
+      ]
+    }
+  }
+}

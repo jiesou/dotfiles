@@ -1,0 +1,4 @@
+# dsh bundle patch: inserts this plugin into a profile's layer stack.
+- insert:
+    - id: nous-portal-free-provider
+      name: '@jiesou/dsh-nous-portal-free-provider'

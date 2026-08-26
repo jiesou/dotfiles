@@ -1,0 +1,35 @@
+{
+  "name": "dsh-tool-deny",
+  "version": "0.1.0",
+  "description": "DSH plugin: remove named tools from agent visibility via tools.restrict({ deny }) — denied tools never enter the model request, all other tools stay untouched. 纯 Cordis 插件，insert 行实时挂载。",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "tests",
+    "README.md"
+  ],
+  "license": "MIT",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "pnpm run typecheck && pnpm run build && pnpm run test"
+  },
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

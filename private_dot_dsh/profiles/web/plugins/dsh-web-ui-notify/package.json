@@ -1,0 +1,82 @@
+{
+  "name": "@bill9109/dsh-web-ui-notify",
+  "version": "0.2.0",
+  "description": "Notifications for DeepSeek Harness approvals, questions, and turn completion — on the desktop AND on your phone (Web Push / PWA).",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh-plugin",
+    "dsh-bundle",
+    "web-ui",
+    "desktop-notification",
+    "approval",
+    "notify",
+    "web-push",
+    "pwa",
+    "mobile",
+    "push"
+  ],
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "README.i18n.yaml",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "license": "BSD-3-Clause",
+  "engines": {
+    "node": "^20.0.0 || >=22.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bill9109/dsh-web-ui-notify.git"
+  },
+  "homepage": "https://github.com/bill9109/dsh-web-ui-notify#readme",
+  "bugs": {
+    "url": "https://github.com/bill9109/dsh-web-ui-notify/issues"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "vitest run",
+    "verify:i18n": "node scripts/verify-i18n.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/web-push": "^3.6.4",
+    "vitest": "^4.1.8",
+    "jsdom": "^26.0.0",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/dom": "^10.4.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}
