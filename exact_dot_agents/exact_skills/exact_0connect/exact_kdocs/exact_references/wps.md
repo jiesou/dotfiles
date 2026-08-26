@@ -10,7 +10,7 @@
 
 - 面向在线文字文档，不是本地 `.docx` 文件直传接口
 - 支持创建空白在线文档、导出为 DOCX / PDF / 图片 / AP
-- 提供 Core Execute 原子能力，对文档进行段落/区间级别的增删改查和格式设置等操作
+- 提供结构化原子工具，对文档进行段落/区间级别的增删改查和格式设置等操作
 - 若只是读取正文内容，仍优先使用通用工具 `read_file`
 
 ### 何时使用 `wps.*`
@@ -28,6 +28,7 @@
 
 - 格式：服务名和工具分开: 服务名 wps.xx
   例如：kdocs wps.export
+- 文档定位：除创建空白文档 / 纯任务查询外，统一传 `url` / `link_id` / `file_id` **三选一**
 
 ## 导出能力总览
 
@@ -40,22 +41,38 @@
 ### 选择建议
 
 - 需要拿到 `.docx` 下载地址：用 `wps.export`，传 `format=docx`
-- 需要导出图片：用 `wps.export_image`，传 `format=png/jpeg`  和 `url` / `link_id` / `id` 三选一
+- 需要导出图片：用 `wps.export_image`，传 `format=png/jpeg`，定位 `url` / `link_id` / `file_id` 三选一
 - 需要导出 PDF：先 `wps.export`，传 `format=pdf`；再按需用 `wps.query_export`
 - 需要导出 AP：先 `wps.export`，传 `format=ap`；再用 `wps.query_export`（`format=ap` 时须传 export 返回的 `file_id`）
 
-## Core Execute 概述
+## 结构化文档工具
 
-`wps.core_execute` 是在线文字的统一原子操作入口，通过 `command` 选择操作类型，`param` 传递命令参数。
+推荐优先使用以下按能力域划分的结构化原子工具：
 
-当前已上线 3 个模块。命令查找、完整路由表和参数速查见：[execute.md](wps/execute.md)
+| 能力域 | 工具 |
+|--------|------|
+| 文本 | `wps.read_text` / `wps.write_text` / `wps.search_replace` / `wps.format_text` |
+| 表格 | `wps.read_table` / `wps.write_table` / `wps.format_table` |
+| 图片 | `wps.read_image` / `wps.write_image` |
+| 形状 | `wps.read_shape` / `wps.write_shape` |
+| 元素 | `wps.read_element` / `wps.write_element` |
+| 内容控件 | `wps.read_content_control` / `wps.write_content_control` |
+| 脚注尾注 | `wps.read_footnote` / `wps.write_footnote` |
+| 页眉页脚 | `wps.read_header_footer` / `wps.write_header_footer` |
+| 域 | `wps.read_field` / `wps.write_field` |
+| 水印 | `wps.write_watermark` |
+| 文档属性 | `wps.read_info` / `wps.write_info` / `wps.set_list_style` |
 
-| 模块 | 能力 | 详细参考 |
-|------|------|---------|
-| 文档内容 | 段落/区间读写、查找替换 | [content.md](wps/content.md) |
-| 段落格式 | 对齐、缩进、行间距 | [paragraph-format.md](wps/paragraph-format.md) |
-| 字符格式 | 字体样式、高亮色 | [character-format.md](wps/character-format.md) |
-| 枚举值 | 对齐/行距/颜色/下划线常量 | [enums.md](wps/enums.md) |
+### 图片类写操作
+
+以下 action 需传入**公网可访问的图片 URL**（服务端会拉取图片）：
+
+| 工具 | action | 顶层参数 | 说明 |
+|------|--------|----------|------|
+| `wps.write_watermark` | `insert_image_watermark` | `file_path` | 插入图片水印 |
+| `wps.write_shape` | `insert_shape_picture` | `file_path` | 插入浮动图片形状 |
+
+也可通过 `body` 传入完整请求体，`body` 优先于顶层参数；图片类 action 的底层字段由服务自动补全。
 
 ---
 
@@ -75,13 +92,14 @@
 
 **幂等性**：否 — 导出为异步任务，用 task_id 轮询结果而非重复提交
 
+
 #### 调用示例
 
 `format=docx` 导出 DOCX：
 
 ```json
 {
-  "link_id": "link_xxx",
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
   "format": "docx",
   "with_checksums": "md5,sha256"
 }
@@ -91,7 +109,7 @@
 
 ```json
 {
-  "link_id": "link_xxx",
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
   "format": "pdf",
   "from_page": 1,
   "to_page": 10
@@ -102,7 +120,7 @@
 
 ```json
 {
-  "link_id": "link_xxx",
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
   "format": "ap",
   "name": "季度经营分析"
 }
@@ -111,9 +129,9 @@
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享链接 ID
-- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `format` (string, 必填): 导出格式。可选值：`docx` / `pdf` / `ap`
 - `with_checksums` (string, 可选): `format=docx` 时可传，校验算法列表，如 `md5,sha256`
 - `cid` (string, 可选): `format=docx` 时可传，分享链接 ID
@@ -140,13 +158,14 @@
 
 **幂等性**：否 — 导出为异步任务，用 task_id 轮询结果而非重复提交
 
+
 #### 调用示例
 
 导出为 PNG 长图：
 
 ```json
 {
-  "link_id": "link_xxx",
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
   "format": "png",
   "dpi": 150,
   "from_page": 1,
@@ -158,9 +177,9 @@
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享链接 ID
-- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `format` (string, 必填): 导出图片格式。可选值：`png` / `jpeg`
 - `dpi` (number, 可选): 导出图片 DPI。可选值：`96` / `150` / `300`；默认值：`96`
 - `water_mark` (boolean, 可选): 是否添加水印；默认值：`true`
@@ -259,10 +278,13 @@
 - range_font：区间字体（需 begin、end）
 
 
+#### 工具选择
+
+- **适用**：读取在线文字文档正文内容时（优先于 wps.core_execute 的 getFullContent 等老命令）
+
 
 > 段落索引从 1 开始；字符位置 begin/end 从 0 开始
-> 推荐优先使用本工具，而非 wps.core_execute 的 getFullContent 等老命令
-> id 为 file_id，不是 link_id
+> 定位传 url / link_id / file_id 三选一；file_id 为云文档文件 ID
 
 #### 调用示例
 
@@ -270,7 +292,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "full_content"
 }
 ```
@@ -279,7 +301,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "paragraph",
   "paragraph_index": 2
 }
@@ -289,7 +311,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "range_content",
   "begin": 10,
   "end": 50
@@ -299,9 +321,9 @@
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): 读取操作类型，见 description.detail 中的 action 列表
 - `paragraph_index` (number, 可选): 段落索引，从 1 开始；action 为 paragraph* 时必填
 - `begin` (number, 可选): 起始字符位置，从 0 开始；action 为 range* 时必填
@@ -333,14 +355,25 @@
 - range_insert：在字符区间插入（需 begin、end、text）
 - range_update：更新字符区间的文本内容（需 begin、end、content）
 - range_delete：删除字符区间（需 begin、end）
+- set_borders：设置段落边框（需 paragraph_index、border_type、border_key、border_value）
+  border_key=Color 时 border_value 必须是 RGB(BGR) 整数（如黄=65535、红=255、蓝=16711680），不是 WdColorIndex
+  border_key=LineWidth 时 border_value 必须是 WdLineWidth 枚举（如 0.50磅=4、1.00磅=8、2.25磅=18、3.00磅=24），不是磅值小数
+  Color / LineWidth 各自按官方类型传参，服务端不做换算、勿混用
+- set_shading：设置段落底纹（需 paragraph_index、shading_key、shading_value）
+  shading_key=BackgroundPatternColor → shading_value 为 RGB(BGR)，自动色用 -1
+  shading_key=BackgroundPatternColorIndex → shading_value 为 WdColorIndex（0..16）
+  两套 key 勿混用；不要把索引写到 BackgroundPatternColor 上
+- set_tab_stops：设置制表位（需 paragraph_index、tab_position/tab_alignment/tab_leader 或 position/alignment/leader）
+- clear_tab_stops：清除段落制表位（需 paragraph_index；不传 paragraph_index 时清除全部）
 
 
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：action=delete_all 会不可逆清空正文，执行前用 read_text 备份或确认；range_delete/paragraph_delete 同理先确认区间
 
+
 **幂等性**：否 — 删除类操作不可重试；插入类操作重试前先用 read_text 确认当前内容，避免重复插入
+
 
 > delete_all 会清空文档正文，操作前请确认
 > paragraph_position 仅支持 before / after
@@ -353,7 +386,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "insert",
   "text": "【摘要】",
   "position": 0
@@ -364,7 +397,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "paragraph_insert",
   "paragraph_index": 1,
   "paragraph_position": "after",
@@ -376,7 +409,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "paragraph_heading_insert",
   "paragraph_index": 2,
   "paragraph_position": "after",
@@ -389,7 +422,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "append_heading",
   "text": "第二章 方法",
   "heading_level": 1
@@ -400,7 +433,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "range_delete",
   "begin": 100,
   "end": 150
@@ -410,9 +443,9 @@
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): 写入操作类型
 - `text` (string, 可选): 要插入或追加的文本内容
 - `content` (string, 可选): 更新后的文本内容（action=paragraph_update/range_update 时必填）
@@ -423,6 +456,20 @@
 
 - `begin` (number, 可选): 区间起始字符位置
 - `end` (number, 可选): 区间结束字符位置
+- `border_type` (number, 可选): 边框位置 WdBorderIndex（上=-1 左=-2 底=-3 右=-4 横向=-5 纵向=-6 斜下=-7 斜上=-8）
+- `border_key` (string, 可选): 边框属性名（action=set_borders）：LineStyle | LineWidth | Color。 各 key 的 value 类型不同，勿混用： LineStyle→WdLineStyle；LineWidth→WdLineWidth 枚举；Color→RGB(BGR)（不是 WdColorIndex）。
+
+- `border_value` (number, 可选): 边框属性值（action=set_borders），必须与 border_key 匹配： LineStyle=WdLineStyle（如单实线=1）； LineWidth=WdLineWidth 枚举（0.25磅=2、0.50磅=4、0.75磅=6、1.00磅=8、1.50磅=12、2.25磅=18、3.00磅=24、4.50磅=36、6.00磅=48）， 禁止传磅值小数（如 2.25）；服务端不做磅值↔枚举换算； Color=RGB(BGR) 如 65535=黄、255=红、16711680=蓝、0=黑（不是 WdColorIndex）。
+
+- `shading_key` (string, 可选): 底纹属性名（action=set_shading）： BackgroundPatternColor（RGB）或 BackgroundPatternColorIndex（WdColorIndex）。
+
+- `shading_value` (number, 可选): 底纹属性值（action=set_shading）。 与 shading_key 匹配：BackgroundPatternColor 传 RGB(BGR，自动=-1）； BackgroundPatternColorIndex 传 WdColorIndex 0..16。
+
+- `color` (number, 可选): 仅作 BackgroundPatternColor 的 RGB(BGR) 简写，勿传 WdColorIndex。 推荐显式传 shading_key + shading_value。
+
+- `position` (number, 可选): 制表位位置磅值（action=set_tab_stops；等同 tab_position）
+- `alignment` (number, 可选): 制表位对齐方式（action=set_tab_stops；等同 tab_alignment）
+- `leader` (number, 可选): 前导符类型（action=set_tab_stops；等同 tab_leader）
 
 #### 返回值说明
 
@@ -444,12 +491,13 @@
 - replace：将 find_text 替换为 replace_text
 
 
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：replace 前先用 action=search 确认 find_text 匹配处；is_all=true 时影响全文所有出现处
 
+
 **幂等性**：否 — replace 不可盲目重试；重试前用 action=search 确认匹配位置与次数
+
 
 > is_all 省略时默认为全部匹配
 > replace 不会修改 find_text 为空时的行为，请确保 find_text 非空
@@ -460,7 +508,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "search",
   "find_text": "季度报告",
   "is_all": true
@@ -471,7 +519,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "replace",
   "find_text": "草稿",
   "replace_text": "定稿",
@@ -483,7 +531,7 @@
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "replace",
   "find_text": "2024",
   "replace_text": "2025",
@@ -494,9 +542,9 @@
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): search 或 replace
 - `find_text` (string, 必填): 要查找的文本
 - `replace_text` (string, 可选): 替换后的文本；action=replace 时必填
@@ -527,19 +575,20 @@ scope：paragraph（段落）或 range（字符区间）
 - indent：缩进（indent_type、indent_value、indent_unit）
 - heading：标题级别（heading_level，正整数 1-9 或负整数）
 - format：段落单项格式（key、value）
-- format_batch：批量段落格式（format_batch）
+- format_batch：批量段落格式（format_items）
 - font_color：字体颜色（r、g、b，RGB 分量 0-255）
-- font_batch：批量字体（font_style 或 format_batch）
+- font_batch：批量字体（font_style 或 font_items）
 - font_style：字体样式对象（font_style）
 - clear_format：清除格式
 
 
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：scope=range 时先用 read_text 确认 begin/end；scope=paragraph 时确认 paragraph_index
 
+
 **幂等性**：是 — 格式操作可重复执行，失败或效果不符时可调整参数后再次调用
+
 
 > scope=range 时必须同时提供 begin 与 end
 > font_style 支持多属性自动路由到 font_batch；也可显式使用 action=font_batch + font_items
@@ -554,7 +603,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "paragraph",
   "action": "alignment",
   "paragraph_index": 1,
@@ -566,7 +615,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "range",
   "action": "font_style",
   "begin": 0,
@@ -582,7 +631,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "paragraph",
   "action": "indent",
   "paragraph_index": 2,
@@ -596,7 +645,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "range",
   "action": "font_style",
   "begin": 0,
@@ -611,7 +660,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "paragraph",
   "action": "font",
   "paragraph_index": 1,
@@ -624,7 +673,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "range",
   "action": "font_style",
   "begin": 0,
@@ -640,7 +689,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "range",
   "action": "font_style",
   "begin": 5,
@@ -656,7 +705,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "range",
   "action": "font_batch",
   "begin": 0,
@@ -690,7 +739,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "range",
   "action": "font_style",
   "begin": 0,
@@ -705,9 +754,9 @@ scope：paragraph（段落）或 range（字符区间）
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `scope` (string, 必填): 作用范围，paragraph 或 range
 - `action` (string, 必填): 格式操作类型
 - `paragraph_index` (number, 可选): 段落索引（scope=paragraph 时必填）
@@ -730,7 +779,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 - `key` (string, 可选): 格式属性名（action=format 时，如 Alignment、LineSpacing）
 - `value` (string, 可选): 格式属性值（action=format 时，会自动推断类型）
-- `format_batch` (array, 可选): 批量格式项数组（action=format_batch 时）
+- `format_items` (array, 可选): 批量格式项数组（action=format_batch 时）
 - `font_items` (array, 可选): 批量字体项数组（action=font_batch 时），每项为 {key, value} 对象。 key 使用 PascalCase WPS Font 属性名：Name（字体名）、Size（字号）、Bold（true/false）、 Italic、Underline（WdUnderline 枚举数值）、Color（RGB 整数值）、ColorIndex（WdColorIndex）、 StrikeThrough、DoubleStrikeThrough、Superscript、Subscript、Spacing、Scaling。 示例：[{"key":"Bold","value":true},{"key":"Size","value":18},{"key":"Name","value":"仿宋"}]。 这是**同时设置多个字体属性的推荐方式**
 
 - `r` (number, 可选): 红色分量 0-255（action=font_color 时）
@@ -763,9 +812,14 @@ scope：paragraph（段落）或 range（字符区间）
 - range：表格范围信息（需 table_index）
 
 
+#### 工具选择
+
+- **适用**：读取在线文字文档中的表格时
+- **勿用**（改用 `wps.write_table`）：修改表格结构
+- **勿用**（改用 `wps.format_table`）：修改表格格式
+
 
 > table_index、row、col 均从 1 开始
-> 修改表格结构请使用 wps.write_table，格式请用 wps.format_table
 
 #### 调用示例
 
@@ -773,7 +827,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "count"
 }
 ```
@@ -782,7 +836,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "dimensions",
   "table_index": 1
 }
@@ -792,7 +846,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "cell",
   "table_index": 1,
   "row": 2,
@@ -803,9 +857,9 @@ scope：paragraph（段落）或 range（字符区间）
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): 查询类型
 - `table_index` (number, 可选): 表格索引，从 1 开始；除 count 外通常必填
 - `row` (number, 可选): 行号，从 1 开始
@@ -839,16 +893,20 @@ scope：paragraph（段落）或 range（字符区间）
 - range_insert：在字符区间处插入表格（需 begin、end、rows、cols）
 
 
+#### 工具选择
 
-#### 操作约束
+- **勿用**（改用 `wps.format_table`）：设置表格单元格内容与样式
+
+#### 调用约束
 
 - **前置检查**：delete/delete_all 等删除操作不可逆，执行前用 read_table 确认 table_index 与行列号
 
+
 **幂等性**：否 — delete/delete_row/delete_column/delete_all 不可重试；插入类操作重试前先 read_table 确认结构
+
 
 > delete_all 会移除文档内全部表格，请谨慎使用
 > insert_row / insert_column 的 position 表示在目标行/列之前或之后插入
-> 单元格内容与样式请用 wps.format_table
 
 #### 调用示例
 
@@ -856,7 +914,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "insert",
   "rows": 3,
   "cols": 4
@@ -867,7 +925,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "paragraph_insert",
   "paragraph_index": 1,
   "paragraph_position": "after",
@@ -880,7 +938,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "delete_row",
   "table_index": 1,
   "row": 2
@@ -890,9 +948,9 @@ scope：paragraph（段落）或 range（字符区间）
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): 操作类型
 - `rows` (number, 可选): 表格行数（插入时）
 - `cols` (number, 可选): 表格列数（插入时）
@@ -925,6 +983,11 @@ scope：paragraph（段落）或 range（字符区间）
 - row_height、row_font、row_alignment
 - column_width、column_font、column_alignment
 - borders、table_alignment
+- cell_border（单元格边框，需 border_index/border_key/border_value；
+  颜色必须用 border_key=ColorIndex + WdColorIndex，不要用 Color/RGB；
+  线宽必须用 border_key=LineWidth + WdLineWidth 枚举，不要传磅值小数）
+- repeat_header_row（首行跨页重复，enabled 默认 true）
+- table_sort、auto_fit、cell_margins、row_break_across_pages、convert_to_text
 - merge_cells（合并矩形区域，需 start_row/start_col/end_row/end_col）
 - split_cell、split_table
 - merge_row（将指定行的所有单元格合并为一个，需 row）
@@ -941,18 +1004,22 @@ scope：paragraph（段落）或 range（字符区间）
 禁止直接猜测列号！如5列表格的"最后两列"是 start_col=4,end_col=5 而非 1,2
 
 
+#### 工具选择
 
-#### 操作约束
+- **勿用**（改用 `wps.write_table`）：创建或删除表格
+
+#### 调用约束
 
 - **前置检查**：先用 read_table 确认 table_index、row、col；merge/split 前确认目标区域
 
+
 **幂等性**：是 — 格式与单元格内容设置可重复执行，失败或效果不符时可调整参数后再次调用
+
 
 > table_index 为必填；merge_* 与 split_* 需配合行列范围参数
 > merge_row 将指定 row 的所有列合并为一个单元格；merge_column 将指定 col 的所有行合并为一个单元格
 > 合并跨多行或多列的矩形区域（如合并最后两列、合并前三行的第1-2列）必须使用 merge_cells + start_row/start_col/end_row/end_col，而非 merge_row/merge_column
 > 使用 merge_cells 合并'最后N列'等相对位置时，需先调用 read_table(action=dimensions) 获取总行列数，再计算正确的 start_col/end_col
-> 创建/删除表格请用 wps.write_table
 > batch_data 结构以 API 返回字段为准，示例仅为示意
 
 #### 调用示例
@@ -961,7 +1028,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "cell_content",
   "table_index": 1,
   "row": 1,
@@ -974,7 +1041,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "merge_cells",
   "table_index": 1,
   "start_row": 1,
@@ -988,7 +1055,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "merge_row",
   "table_index": 1,
   "row": 1
@@ -999,7 +1066,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "merge_column",
   "table_index": 1,
   "col": 2
@@ -1010,7 +1077,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "merge_cells",
   "table_index": 3,
   "start_row": 1,
@@ -1024,7 +1091,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "merge_cells",
   "table_index": 3,
   "start_row": 1,
@@ -1038,7 +1105,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "batch_rows",
   "table_index": 1,
   "batch_data": [
@@ -1062,9 +1129,9 @@ scope：paragraph（段落）或 range（字符区间）
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): 格式操作类型
 - `table_index` (number, 必填): 表格索引，从 1 开始
 - `row` (number, 可选): 行号（cell_*、row_*、merge_row 等操作需要）
@@ -1077,6 +1144,15 @@ scope：paragraph（段落）或 range（字符区间）
 - `height` (number, 可选): 行高（row_height）
 - `width` (number, 可选): 列宽（column_width）
 - `line_style` (number, 可选): 边框线样式（borders）
+- `line_width` (number, 可选): 整表边框线宽磅值（仅 action=borders，如 3.0）。 与 cell_border 的 LineWidth（WdLineWidth 枚举）不是同一套类型，勿混用。
+
+- `border_color` (number, 可选): 边框颜色索引（borders，WdColorIndex）
+- `border_index` (number, 可选): 单元格边框位置（cell_border，底边框=3）
+- `border_key` (string, 可选): 边框属性名（cell_border）：LineStyle | LineWidth | ColorIndex。 各 key 的 value 类型不同，勿混用： LineStyle→WdLineStyle；LineWidth→WdLineWidth 枚举；ColorIndex→WdColorIndex（不要用 Color/RGB）。
+
+- `border_value` (string, 可选): 边框属性值（cell_border），必须与 border_key 匹配： LineStyle=WdLineStyle； LineWidth=WdLineWidth 枚举（0.25磅=2、0.50磅=4、0.75磅=6、1.00磅=8、1.50磅=12、2.25磅=18、3.00磅=24、4.50磅=36、6.00磅=48）， 禁止传磅值小数；服务端不做磅值↔枚举换算； ColorIndex=WdColorIndex（0..16，如 6=红、7=黄）。
+
+- `enabled` (boolean, 可选): 是否启用首行重复（repeat_header_row）
 - `table_alignment` (number, 可选): 表格整体对齐方式
 - `start_row` (number, 可选): 合并区域起始行
 - `start_col` (number, 可选): 合并区域起始列
@@ -1113,7 +1189,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 
 > 图片索引从 1 开始，与 list 返回顺序一致
-> 插入/删除图片请用 wps.write_image，改尺寸请用 wps.resize_image
+> 插入/删除图片请用 wps.write_image
 
 #### 调用示例
 
@@ -1121,7 +1197,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "count"
 }
 ```
@@ -1130,7 +1206,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "list"
 }
 ```
@@ -1139,7 +1215,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "data",
   "index": 1
 }
@@ -1148,9 +1224,9 @@ scope：paragraph（段落）或 range（字符区间）
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): 查询类型，count / list / data
 - `index` (number, 可选): 图片索引，从 1 开始；action=data 时必填
 
@@ -1177,15 +1253,15 @@ scope：paragraph（段落）或 range（字符区间）
 - range_insert：在字符区间插入（需 begin、end、file_path）
 
 
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：delete/delete_all 不可逆，执行前用 read_image list 确认 index；file_path 须存在且可读
 
+
 **幂等性**：否 — delete/delete_all 不可重试；插入类操作重试前先 read_image 确认是否已插入
 
+
 > file_path 须为运行环境可读的本地路径
-> 插入后可用 wps.resize_image 调整尺寸
 > delete_all 不可恢复，操作前请确认
 
 #### 调用示例
@@ -1194,7 +1270,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "insert",
   "file_path": "/tmp/chart.png",
   "width": 400,
@@ -1206,7 +1282,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "paragraph_insert",
   "paragraph_index": 2,
   "paragraph_position": "after",
@@ -1218,7 +1294,7 @@ scope：paragraph（段落）或 range（字符区间）
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "delete",
   "index": 1
 }
@@ -1227,9 +1303,9 @@ scope：paragraph（段落）或 range（字符区间）
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): 操作类型
 - `file_path` (string, 可选): 本地或可访问的图片文件路径（插入类 action 时必填）
 - `width` (number, 可选): 插入时图片宽度（像素或磅，依 API 约定）
@@ -1249,90 +1325,9 @@ scope：paragraph（段落）或 range（字符区间）
 
 ---
 
-### 13. wps.resize_image
-
-#### 功能说明
-
-对指定索引的图片调整宽高、按比例缩放或恢复原始尺寸。
-
-可用 action：
-- resize：设置绝对宽高（需 width、height）
-- scale：按比例缩放（需 scale_width、scale_height，百分比）
-- reset：恢复原始尺寸
-
-
-
-#### 操作约束
-
-- **前置检查**：先用 read_image list 确认图片 index 与当前尺寸
-
-**幂等性**：是 — 尺寸调整可重复执行，效果不符时可再次调用 resize/scale
-
-> index 必填；可先调用 wps.read_image list 确认索引
-> scale 的 scale_width / scale_height 为百分比，100 表示保持原尺寸
-> reset 不需要 width/height/scale 参数
-
-#### 调用示例
-
-设置为固定宽高：
-
-```json
-{
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
-  "action": "resize",
-  "index": 1,
-  "width": 320,
-  "height": 240
-}
-```
-
-按比例缩小一半：
-
-```json
-{
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
-  "action": "scale",
-  "index": 1,
-  "scale_width": 50,
-  "scale_height": 50
-}
-```
-
-恢复原始尺寸：
-
-```json
-{
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
-  "action": "reset",
-  "index": 1
-}
-```
-
-
-#### 参数说明
-
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
-- `action` (string, 必填): resize / scale / reset
-- `index` (number, 必填): 图片索引，从 1 开始
-- `width` (number, 可选): 目标宽度（action=resize）
-- `height` (number, 可选): 目标高度（action=resize）
-- `scale_width` (number, 可选): 水平缩放百分比，如 50 表示缩至 50%（action=scale）
-- `scale_height` (number, 可选): 垂直缩放百分比（action=scale）
-
-#### 返回值说明
-
-```json
-{"code": 0, "message": "成功", "data": {}}
-
-```
-
----
-
 ## 五、文档元素
 
-### 14. wps.read_element
+### 13. wps.read_element
 
 #### 功能说明
 
@@ -1347,9 +1342,13 @@ action 按 type 不同：
 - comment：count、list、data、index、author（author 筛选作者）
 
 
+#### 工具选择
+
+- **适用**：查询在线文字文档中的元素时
+- **勿用**（改用 `wps.write_element`）：增删改元素
+
 
 > type 与 action 组合须匹配，否则会返回参数错误
-> 增删改元素请用 wps.write_element
 > hyperlink 的 index 从 1 开始，与 list 结果对应
 
 #### 调用示例
@@ -1358,7 +1357,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "type": "bookmark",
   "action": "count"
 }
@@ -1368,7 +1367,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "type": "bookmark",
   "action": "exists",
   "bookmark_name": "Chapter1"
@@ -1379,7 +1378,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "type": "comment",
   "action": "list"
 }
@@ -1388,9 +1387,9 @@ action 按 type 不同：
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `type` (string, 必填): 元素类型，bookmark / toc / hyperlink / comment
 - `action` (string, 必填): 查询操作，见 description.detail
 - `bookmark_name` (string, 可选): 书签名称（type=bookmark 且 action=data/exists 时）
@@ -1408,7 +1407,7 @@ action 按 type 不同：
 
 ---
 
-### 15. wps.write_element
+### 14. wps.write_element
 
 #### 功能说明
 
@@ -1418,21 +1417,25 @@ type 取值：bookmark、toc、hyperlink、comment
 
 action 按 type 不同：
 - bookmark：add、rename、replace_content、delete、paragraph_insert、range_insert
-- toc：insert、delete、delete_all、paragraph_insert、range_insert（insert 可选 upper_level、lower_level、toc_index）
+- toc：insert、delete、delete_all、paragraph_insert、range_insert、format、update、update_all（insert 可选 upper_level、lower_level、toc_index）
 - hyperlink：modify_address、delete、delete_all、paragraph_insert、range_insert（需 address、display_text；delete/delete_all 可选 is_del_text）
-- comment：paragraph_insert、range_insert（需 text）
+- comment：paragraph_insert、range_insert、modify_text（需 index+text）、reply、delete、delete_all
 
 
+#### 工具选择
 
-#### 操作约束
+- **勿用**（改用 `wps.read_element`）：查询元素
+
+#### 调用约束
 
 - **前置检查**：删除类 action 不可逆；执行前用 read_element 确认 type、索引或 bookmark_name
 
+
 **幂等性**：否 — delete/delete_all 不可重试；增改操作重试前先 read_element 确认状态
+
 
 > paragraph_insert / range_insert 各 type 含义不同，请对照 action 与必填参数
 > rename 需同时提供 bookmark_name 与 new_name
-> 查询元素请用 wps.read_element
 
 #### 调用示例
 
@@ -1440,7 +1443,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "type": "bookmark",
   "action": "add",
   "bookmark_name": "Section_A"
@@ -1451,7 +1454,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "type": "toc",
   "action": "insert",
   "upper_level": 1,
@@ -1463,7 +1466,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "type": "hyperlink",
   "action": "range_insert",
   "begin": 50,
@@ -1476,9 +1479,9 @@ action 按 type 不同：
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `type` (string, 必填): 元素类型，bookmark / toc / hyperlink / comment
 - `action` (string, 必填): 操作类型，见 description.detail
 - `bookmark_name` (string, 可选): 书签名称
@@ -1508,7 +1511,7 @@ action 按 type 不同：
 
 ## 六、文档属性
 
-### 16. wps.read_info
+### 15. wps.read_info
 
 #### 功能说明
 
@@ -1520,11 +1523,17 @@ action 按 type 不同：
 - section_count：节（分节）数量
 - section_page_setup：指定节的页面设置（需 section_index）
 - style_list：文档可用样式列表
+- revision_all：获取全部修订信息
+- revision_by_author：按作者筛选修订（需 author）
 
 
+#### 工具选择
 
-> 修改修订/节属性请用 wps.write_info
-> 列表与段落样式请用 wps.set_list_style
+- **适用**：读取在线文字文档信息/节属性时
+- **勿用**（改用 `wps.write_info`）：修改修订/节属性
+- **勿用**（改用 `wps.set_list_style`）：列表与段落样式
+
+
 > section_index 从 1 开始
 
 #### 调用示例
@@ -1533,7 +1542,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "revision_count"
 }
 ```
@@ -1542,7 +1551,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "revision_status"
 }
 ```
@@ -1551,7 +1560,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "section_page_setup",
   "section_index": 1
 }
@@ -1560,11 +1569,12 @@ action 按 type 不同：
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): 查询类型
 - `section_index` (number, 可选): 节索引，从 1 开始；action=section_page_setup 时必填
+- `author` (string, 可选): 修订作者（action=revision_by_author）
 
 #### 返回值说明
 
@@ -1575,7 +1585,7 @@ action 按 type 不同：
 
 ---
 
-### 17. wps.write_info
+### 16. wps.write_info
 
 #### 功能说明
 
@@ -1587,16 +1597,23 @@ action 按 type 不同：
 - revision_reject：拒绝指定修订（需 revision_index）
 - revision_accept_all：接受全部修订
 - revision_reject_all：拒绝全部修订
+- revision_accept_by_author：接受指定作者修订（需 author）
+- revision_reject_by_author：拒绝指定作者修订（需 author）
 - section_page_setup：设置节页面属性（需 section_index、key、value）
 - section_delete：删除节（需 section_index）
+- section_break：在段落后插入分节符（需 paragraph_index、break_type）
+- section_border：设置节页面边框（需 section_index；key/value 或 line_style）
+  key=Color 时 value 必须是 RGB(BGR)，不是 WdColorIndex
+- section_columns：设置分栏（需 section_index、num_columns、spacing 等）
 
 
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：revision_accept_all 不可逆，执行前用 read_info revision_count 确认；section_delete 前确认 section_index
 
+
 **幂等性**：否 — revision_accept_all、section_delete 不可重试；revision_switch 可重复设置
+
 
 > revision_accept_all 不可撤销，执行前请确认
 > page_setup 字段以 API 文档为准，示例键名仅为示意
@@ -1608,7 +1625,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "revision_switch",
   "enable": true
 }
@@ -1618,7 +1635,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "revision_accept_all"
 }
 ```
@@ -1627,7 +1644,7 @@ action 按 type 不同：
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "action": "section_page_setup",
   "section_index": 1,
   "key": "PageWidth",
@@ -1638,15 +1655,24 @@ action 按 type 不同：
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `action` (string, 必填): 操作类型
 - `revision_index` (number, 可选): 修订索引（accept/reject 时）
 - `enable` (boolean, 可选): 是否启用修订跟踪（revision_switch）
 - `section_index` (number, 可选): 节索引，从 1 开始
-- `key` (string, 可选): 页面设置属性名（section_page_setup，如 PageWidth、TopMargin）
-- `value` (string, 可选): 页面设置属性值（section_page_setup，会自动推断类型）
+- `key` (string, 可选): section_page_setup：页面属性名（如 PageWidth、TopMargin）。 section_border：LineStyle | LineWidth | Color（Color 值为 RGB/BGR，非 WdColorIndex）。
+
+- `value` (string, 可选): section_page_setup：页面属性值。 section_border：与 key 匹配（Color=RGB(BGR)；LineStyle/LineWidth=枚举）。
+
+- `author` (string, 可选): 修订作者（revision_accept_by_author / revision_reject_by_author）
+- `paragraph_index` (number, 可选): 段落索引（section_break）
+- `break_type` (string, 可选): 分节符类型 next_page / continuous 等（section_break）
+- `line_style` (number, 可选): 页面边框线型 WdLineStyle（section_border，等价 key=LineStyle）
+- `color` (number, 可选): 页面边框颜色 RGB(BGR)（section_border 简写，勿传 WdColorIndex）
+- `num_columns` (number, 可选): 栏数（section_columns）
+- `spacing` (number, 可选): 栏间距磅值（section_columns）
 
 #### 返回值说明
 
@@ -1657,7 +1683,7 @@ action 按 type 不同：
 
 ---
 
-### 18. wps.set_list_style
+### 17. wps.set_list_style
 
 #### 功能说明
 
@@ -1668,15 +1694,17 @@ scope：paragraph 或 range
 可用 action：
 - list_query：查询当前列表信息
 - list_set：设置列表（需 gallery_type，可选 template_index、level、is_continue）
+- list_remove：移除列表格式
 - style_set：应用命名样式（需 style_name）
 
 
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：style_set 前用 read_info action=style_list 确认 style_name 存在；list_set 前可用 list_query 查看当前列表
 
+
 **幂等性**：是 — 列表与样式设置可重复执行，效果不符时可调整 list_info/style_name 后再次调用
+
 
 > style_name 须为文档已有样式，可用 wps.read_info action=style_list 列举
 > gallery_type 为列表样式类型，template_index/level/is_continue 为可选配置
@@ -1688,7 +1716,7 @@ scope：paragraph 或 range
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "paragraph",
   "action": "list_query",
   "paragraph_index": 3
@@ -1699,7 +1727,7 @@ scope：paragraph 或 range
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "paragraph",
   "action": "list_set",
   "paragraph_index": 3,
@@ -1713,7 +1741,7 @@ scope：paragraph 或 range
 
 ```json
 {
-  "id": "0adce7c06a112f869cd1d24bbe598cbe",
+  "file_id": "0adce7c06a112f869cd1d24bbe598cbe",
   "scope": "range",
   "action": "style_set",
   "begin": 0,
@@ -1725,9 +1753,9 @@ scope：paragraph 或 range
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
 - `scope` (string, 必填): 作用范围，paragraph 或 range
 - `action` (string, 必填): list_query / list_set / style_set
 - `paragraph_index` (number, 可选): 段落索引（scope=paragraph 时必填）
@@ -1748,180 +1776,703 @@ scope：paragraph 或 range
 
 ---
 
-## 七、原子操作（旧版降级）
+## 七、内容控件
 
-### 19. wps.core_execute
+### 18. wps.read_content_control
 
 #### 功能说明
 
-⚠️ 本接口为旧版降级接口，新功能请优先使用 wps.read_text / wps.write_text / wps.search_replace / wps.format_text 等结构化接口。
 
-通过 `id + command + param` 调用在线文字原子能力。
-每个 command 对应一种原子操作，param 结构随 command 不同。
-
-**一、文档内容**
-- 读取: getFullContent / getParagraphContent / getRangeContent / getParagraphsCount
-- 修改: modifyParagraphContent / modifyRangeContent
-- 查找替换: findContent / replaceContent
-
-**二、段落格式**
-- 对齐: modifyParagraphAlignment / modifyRangeAlignment
-- 缩进: modifyParagraph[Left|Right|FirstLine]Indent / modifyRange[Left|Right|FirstLine]Indent
-- 行间距: modifyParagraphLineSpacing / modifyRangeLineSpacing
-
-**三、字符格式**
-- 字符样式: modifyParagraphFontStyle / modifyRangeFontStyle（key-value 模式）
-- 高亮色: modifyParagraphHighlight / modifyRangeHighlight
-
-各命令完整参数与枚举表见 wps 经验文档。
+可用 action：
+- get_content_controls_count：控件总数
+- get_all_content_controls：全部控件列表
+- get_content_control_by_index：按索引查询
+- get_content_control_by_tag：按 Tag 查询
+- get_content_control_by_title：按 Title 查询
 
 
 
-> param 结构随 command 变化，不传则为 {}
-> 段落索引 n 从 1 开始，超出范围自动限制到最后一段
-> 区间参数 begin/end 为字符位置，从 0 开始
-> key-value 类命令（FontStyle）通过 key 选择属性，value 类型随 key 变化
+**幂等性**：是
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
 
 #### 调用示例
 
-读取全文：
+示例调用：
 
 ```json
 {
-  "id": "file_xxx",
-  "command": "getFullContent"
-}
-```
-
-读取第 3 段：
-
-```json
-{
-  "id": "file_xxx",
-  "command": "getParagraphContent",
-  "param": {
-    "n": 3
-  }
-}
-```
-
-修改第 1 段内容：
-
-```json
-{
-  "id": "file_xxx",
-  "command": "modifyParagraphContent",
-  "param": {
-    "n": 1,
-    "str": "新的段落内容"
-  }
-}
-```
-
-全文替换：
-
-```json
-{
-  "id": "file_xxx",
-  "command": "replaceContent",
-  "param": {
-    "findText": "旧词",
-    "replaceText": "新词",
-    "isAll": true
-  }
-}
-```
-
-设置段落居中：
-
-```json
-{
-  "id": "file_xxx",
-  "command": "modifyParagraphAlignment",
-  "param": {
-    "n": 1,
-    "algMode": 1
-  }
-}
-```
-
-修改首行缩进 2 字符：
-
-```json
-{
-  "id": "file_xxx",
-  "command": "modifyParagraphFirstLineIndent",
-  "param": {
-    "n": 1,
-    "indent": 2,
-    "unit": "ch"
-  }
-}
-```
-
-设置 1.5 倍行距：
-
-```json
-{
-  "id": "file_xxx",
-  "command": "modifyParagraphLineSpacing",
-  "param": {
-    "n": 1,
-    "spacingRule": 1
-  }
-}
-```
-
-设置段落字体加粗：
-
-```json
-{
-  "id": "file_xxx",
-  "command": "modifyParagraphFontStyle",
-  "param": {
-    "n": 1,
-    "key": "Bold",
-    "value": true
-  }
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "get_content_control_by_index"
 }
 ```
 
 
 #### 参数说明
 
-- `url` (string, 三选一必填: `url` / `link_id` / `id`): 文档 URL
-- `link_id` (string, 三选一必填: `url` / `link_id` / `id`): 分享链接 ID
-- `id` (string, 三选一必填: `url` / `link_id` / `id`): 文件 ID
-- `command` (string, 必填): 原子操作命令名，支持以下值：
-文档内容: getFullContent / getParagraphContent / getRangeContent / getParagraphsCount / modifyParagraphContent / modifyRangeContent / findContent / replaceContent
-段落格式: modifyParagraphAlignment / modifyRangeAlignment / modifyParagraphLeftIndent / modifyParagraphRightIndent / modifyParagraphFirstLineIndent / modifyRangeLeftIndent / modifyRangeRightIndent / modifyRangeFirstLineIndent / modifyParagraphLineSpacing / modifyRangeLineSpacing
-字符格式: modifyParagraphFontStyle / modifyRangeFontStyle / modifyParagraphHighlight / modifyRangeHighlight
-
-- `param` (object, 可选): 命令参数对象，结构随 command 变化。速查：
-- getFullContent / getParagraphsCount: 无需参数
-- getParagraphContent: {n}
-- getRangeContent: {begin, end}
-- modifyParagraphContent: {n, str}
-- modifyRangeContent: {begin, end, str}
-- findContent: {findText, isAll}
-- replaceContent: {findText, replaceText, isAll}
-- modifyParagraphAlignment: {n, algMode}
-- modifyRangeAlignment: {begin, end, algMode}
-- modifyParagraph[Left|Right|FirstLine]Indent: {n, indent, unit}
-- modifyRange[Left|Right|FirstLine]Indent: {begin, end, indent, unit}
-- modifyParagraphLineSpacing: {n, spacingRule, spacingValue}
-- modifyRangeLineSpacing: {begin, end, spacingRule, spacingValue}
-- modifyParagraphFontStyle: {n, key, value}
-- modifyRangeFontStyle: {begin, end, key, value}
-- modifyParagraphHighlight: {n, highColor}
-- modifyRangeHighlight: {begin, end, highColor}
-各命令完整参数说明与枚举值见 wps 经验文档。
-
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 查询操作
+- `index` (number, 可选): 控件索引，get_content_control_by_index 时必填
+- `tag` (string, 可选): 控件 Tag，get_content_control_by_tag 时必填
+- `title` (string, 可选): 控件 Title，get_content_control_by_title 时必填
+- `body` (object, 可选): 完整请求体，优先使用
 
 #### 返回值说明
 
 ```json
-{"ok": true, "message": "success", "data": "..."}
+{"code": 0, "message": "成功", "data": {}}
+
+```
+
+---
+
+### 19. wps.write_content_control
+
+#### 功能说明
+
+
+可用 action：
+- insert_plain_text_content_control：纯文本控件
+- insert_rich_text_content_control：富文本控件
+- insert_checkbox_content_control：复选框
+- insert_date_picker_content_control：日期选择器
+- insert_drop_down_content_control：下拉列表
+- add_drop_down_item：添加下拉项
+- remove_drop_down_item：移除下拉项
+- set_content_control_value：设置值
+- set_content_control_value_by_tag：按 Tag 设置值
+- set_content_control_props：设置属性
+- delete_content_control：按索引删除
+- delete_content_control_by_tag：按 Tag 删除
+- delete_all_content_controls：删除全部
+
+
+
+**幂等性**：否 — 写操作非幂等，重试前请确认当前文档状态
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
+
+#### 调用示例
+
+示例调用：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "insert_checkbox_content_control"
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 写操作
+- `index` (number, 可选): 控件索引
+- `tag` (string, 可选): 控件 Tag
+- `title` (string, 可选): 控件 Title
+- `value` (string, 可选): 控件值
+- `body` (object, 可选): 完整请求体，优先使用
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {}}
+
+```
+
+---
+
+## 八、文档形状
+
+### 20. wps.read_shape
+
+#### 功能说明
+
+
+可用 action：
+- get_shapes_count：形状总数
+- get_all_shapes_info：全部形状列表
+- get_shape_info：单个形状详情
+- get_shape_text：形状内文本
+
+
+
+**幂等性**：是
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
+
+#### 调用示例
+
+示例调用：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "get_all_shapes_info"
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 查询操作
+- `shape_index` (number, 可选): 形状索引，get_shape_info/get_shape_text 时必填
+- `body` (object, 可选): 完整请求体，优先使用
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {}}
+
+```
+
+---
+
+### 21. wps.write_shape
+
+#### 功能说明
+
+
+可用 action：
+- insert_basic_shape：插入基本图形
+- insert_line：插入线条
+- insert_text_box：插入文本框
+- insert_shape_picture：插入图片形状（需公网可访问的图片 URL）
+- set_shape_props：设置属性
+- set_shape_text：设置文本
+- set_shape_fill_color：设置填充色（传 color=RGB(BGR) 整数，如黄=65535、红=255；勿传 WdColorIndex）
+- set_shape_line_color：设置线条颜色（同上，color=RGB(BGR)，非 WdColorIndex）
+- set_shape_line_width：设置线宽
+- set_shape_wrap_type：设置环绕方式
+- set_shape_zorder：设置叠放次序
+- delete_shape：删除指定形状
+- delete_all_shapes：删除全部形状
+
+
+
+**幂等性**：否 — 写操作非幂等，重试前请确认当前文档状态
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
+> insert_shape_picture 需 file_path 为公网可访问的图片 URL；action 选定后由服务自动补全图片形状所需字段
+
+#### 调用示例
+
+插入基本图形：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "insert_basic_shape"
+}
+```
+
+插入图片形状：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "insert_shape_picture",
+  "file_path": "https://example.com/picture.png",
+  "left": 100,
+  "top": 100,
+  "width": 200,
+  "height": 150
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 写操作
+- `shape_index` (number, 可选): 形状索引
+- `color` (number, 可选): 填充/线条颜色 RGB(BGR) 整数值（set_shape_fill_color / set_shape_line_color）。 例：黄=65535、红=255、蓝=16711680、黑=0。不是 WdColorIndex（0..16）。
+
+- `value` (string, 可选): 与 color 等价的颜色值字符串（部分路径用 value 透传）
+- `begin_x` (number, 可选): 线条起点 X（insert_line）
+- `begin_y` (number, 可选): 线条起点 Y（insert_line）
+- `end_x` (number, 可选): 线条终点 X（insert_line）
+- `end_y` (number, 可选): 线条终点 Y（insert_line）
+- `left` (number, 可选): 左边距
+- `top` (number, 可选): 上边距
+- `width` (number, 可选): 宽度
+- `height` (number, 可选): 高度
+- `text` (string, 可选): 形状文本
+- `file_path` (string, 可选): 图片 URL（insert_shape_picture 时必填，须公网可访问）
+- `body` (object, 可选): 完整请求体，优先使用
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {}}
+
+```
+
+---
+
+## 九、脚注尾注
+
+### 22. wps.read_footnote
+
+#### 功能说明
+
+
+可用 action：
+- get_footnotes_count：脚注总数
+- get_endnotes_count：尾注总数
+- get_all_footnotes：全部脚注列表
+- get_all_endnotes：全部尾注列表
+- get_footnote_by_index：按索引查脚注
+- get_endnote_by_index：按索引查尾注
+
+
+
+**幂等性**：是
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
+
+#### 调用示例
+
+示例调用：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "get_all_endnotes"
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 查询操作
+- `index` (number, 可选): 脚注/尾注索引
+- `body` (object, 可选): 完整请求体，优先使用
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {}}
+
+```
+
+---
+
+### 23. wps.write_footnote
+
+#### 功能说明
+
+
+可用 action：
+- insert_footnote_by_paragraph：在段落处插脚注
+- insert_footnote_by_range：在区间插脚注
+- insert_endnote_by_paragraph：在段落处插尾注
+- insert_endnote_by_range：在区间插尾注
+- modify_footnote_text：修改脚注文本
+- modify_endnote_text：修改尾注文本
+- delete_footnote：删除脚注
+- delete_endnote：删除尾注
+- delete_all_footnotes：删除全部脚注
+- delete_all_endnotes：删除全部尾注
+
+
+
+**幂等性**：否 — 写操作非幂等，重试前请确认当前文档状态
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
+
+#### 调用示例
+
+示例调用：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "insert_endnote_by_paragraph"
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 写操作
+- `index` (number, 可选): 脚注/尾注索引
+- `paragraph_index` (number, 可选): 段落索引
+- `begin` (number, 可选): 区间起始
+- `end` (number, 可选): 区间结束
+- `text` (string, 可选): 脚注/尾注文本
+- `body` (object, 可选): 完整请求体，优先使用
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {}}
+
+```
+
+---
+
+## 十、页眉页脚
+
+### 24. wps.read_header_footer
+
+#### 功能说明
+
+
+可用 action：
+- get_header_content：页眉内容
+- get_footer_content：页脚内容
+
+
+
+**幂等性**：是
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
+
+#### 调用示例
+
+示例调用：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "get_footer_content"
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 查询操作
+- `section_index` (number, 可选): 节索引，从 1 开始，默认 1
+- `header_footer_type` (number, 可选): 页眉/页脚类型：1=主（默认）、2=首页、3=偶数页。 文档已开启「首页不同」时，查首页内容用 2。
+
+- `body` (object, 可选): 完整请求体，优先使用
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {"header_content": "技术文档"}}
+
+```
+
+---
+
+### 25. wps.write_header_footer
+
+#### 功能说明
+
+设置/删除页眉页脚。推荐顶层传参；也可传 `body` 覆盖完整请求体。
+
+可用 action：
+- set_header_content / set_footer_content：设置内容（需 content）
+- set_header_font_style / set_footer_font_style：设置字体（需 font_style，或顶层 font_name/italic/color_index 等）
+- set_header_alignment / set_footer_alignment：对齐（需 alignment；0=左 1=中 2=右）
+- insert_page_number_in_header / insert_page_number_in_footer：插入页码（可选 alignment）
+- link_to_previous_header / link_to_previous_footer：链接上一节（可选 enabled，默认开启链接）
+- set_different_first_page_header_footer：首页不同（需 enabled=true/false）
+- set_different_odd_even_header_footer：奇偶页不同（需 enabled=true/false）
+- remove_header / remove_footer：删除
+
+对齐：WdParagraphAlignment，0=左、1=居中、2=右、3=两端对齐。0 是有效左对齐，勿省略。
+字体颜色：用 font_style.color_index（WdColorIndex 0..16），不是 RGB。
+每次 font 调用只生效 font_style 中的第一个属性；多属性请分多次调用。
+
+
+
+**幂等性**：否 — 写操作非幂等，重试前请确认当前文档状态
+
+
+> 未传 body 时由顶层参数组装；alignment/enabled/font_style 必须出现在请求中才会生效
+> alignment=0 表示左对齐，不是「未设置」
+> 页眉页脚字体颜色用 color_index（WdColorIndex），不是 RGB
+> 推荐传 `body` 对象承载完整请求体
+
+#### 调用示例
+
+第1节启用首页不同页眉页脚：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "set_different_first_page_header_footer",
+  "section_index": 1,
+  "enabled": true
+}
+```
+
+第2节页眉右对齐：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "set_header_alignment",
+  "section_index": 2,
+  "alignment": 2
+}
+```
+
+第1节页脚设为斜体：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "set_footer_font_style",
+  "section_index": 1,
+  "font_style": {
+    "italic": true
+  }
+}
+```
+
+页眉字体颜色（WdColorIndex 红=6）：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "set_header_font_style",
+  "section_index": 1,
+  "font_style": {
+    "color_index": 6
+  }
+}
+```
+
+页脚插入页码：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "insert_page_number_in_footer",
+  "section_index": 1,
+  "alignment": 1
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 写操作（见 detail 列表）
+- `section_index` (number, 可选): 节索引，从 1 开始，默认 1
+- `header_footer_type` (number, 可选): 页眉/页脚类型（WPS Headers/Footers.Item）：1=主页眉页脚（默认）、 2=首页、3=偶数页。开启「首页不同」后写首页内容时用 2。
+
+- `content` (string, 可选): 页眉/页脚文本（set_header_content / set_footer_content）
+- `alignment` (number, 可选): 对齐（set_*_alignment / insert_page_number_*）： 0=左、1=居中、2=右、3=两端对齐。必须显式传数字；传 0 表示左对齐（不会被当成缺省）。
+
+- `enabled` (boolean, 可选): 开关。set_different_first_page_header_footer / set_different_odd_even_header_footer 时必填 true/false；link_to_previous_* 时 true=链接上一节、false=取消链接。
+
+- `font_style` (object, 可选): 字体样式（set_header_font_style / set_footer_font_style）。 支持：font_name(string)、font_size(float)、bold(bool)、italic(bool)、 underline(string/int, WdUnderline)、color_index(string/int, WdColorIndex 0..16)。 color_index 示例：6=红、7=黄、2=蓝；不要传 RGB。 也可把 font_name / italic / color_index 等放在顶层，服务端会折叠进 font_style。
+
+- `font_name` (string, 可选): 字体名简写（等同 font_style.font_name）
+- `font_size` (number, 可选): 字号简写（等同 font_style.font_size）
+- `bold` (boolean, 可选): 加粗简写（等同 font_style.bold）
+- `italic` (boolean, 可选): 斜体简写（等同 font_style.italic）
+- `color_index` (number, 可选): 字体颜色索引简写（等同 font_style.color_index，WdColorIndex 0..16）。 不是 RGB；段落/形状 RGB 颜色接口与此不同，勿混用。
+
+- `key` (string, 可选): 字体属性名备选（如 Italic、Bold、ColorIndex、Name），与 value 成对使用
+- `value` (string, 可选): 与 key 成对；布尔用 true/false，枚举用数字字符串
+- `body` (object, 可选): 完整请求体，优先使用（可含 properties / font_style / alignment / enabled 等）
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {}}
+
+```
+
+---
+
+## 十一、域
+
+### 26. wps.read_field
+
+#### 功能说明
+
+
+可用 action：
+- get_fields_count：域总数
+- get_all_fields：全部域列表
+- get_field_by_index：按索引查询
+
+
+
+**幂等性**：是
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
+
+#### 调用示例
+
+示例调用：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "get_all_fields"
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 查询操作
+- `index` (number, 可选): 域索引，get_field_by_index 时必填
+- `body` (object, 可选): 完整请求体，优先使用
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {}}
+
+```
+
+---
+
+### 27. wps.write_field
+
+#### 功能说明
+
+
+可用 action：
+- insert_field_by_paragraph：在段落处插入域
+- insert_field_by_range：在区间插入域
+- update_field：更新单个域
+- update_all_fields：更新全部域
+- toggle_field_code：切换域代码显示
+- unlink_field：断开域链接
+- delete_field：删除域
+
+
+
+**幂等性**：否 — 写操作非幂等，重试前请确认当前文档状态
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
+
+#### 调用示例
+
+示例调用：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "insert_field_by_paragraph"
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 写操作
+- `index` (number, 可选): 域索引
+- `paragraph_index` (number, 可选): 段落索引
+- `begin` (number, 可选): 区间起始
+- `end` (number, 可选): 区间结束
+- `field_code` (string, 可选): 域代码
+- `body` (object, 可选): 完整请求体，优先使用
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {}}
+
+```
+
+---
+
+## 十二、水印
+
+### 28. wps.write_watermark
+
+#### 功能说明
+
+
+可用 action：
+- insert_text_watermark：插入文字水印（可选 color=RGB 整数，默认灰 12632256；勿传 WdColorIndex）
+- insert_image_watermark：插入图片水印（需公网可访问的图片 URL）
+- delete_watermark：删除水印
+
+
+
+**幂等性**：否 — 写操作非幂等，重试前请确认当前文档状态
+
+
+> 推荐传 `body` 对象承载完整请求体；未传时从顶层参数组装
+> insert_image_watermark 需 file_path 为公网可访问的图片 URL；action 选定后由服务自动补全图片水印所需字段
+
+#### 调用示例
+
+插入文字水印：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "insert_text_watermark",
+  "text": "机密"
+}
+```
+
+插入图片水印：
+
+```json
+{
+  "file_id": "023bf8fd81ab3d089b9d284a29d9b143",
+  "action": "insert_image_watermark",
+  "file_path": "https://example.com/watermark.png"
+}
+```
+
+
+#### 参数说明
+
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL；与 link_id、file_id 三选一
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享 id；与 url、file_id 三选一
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 id；与 url、link_id 三选一
+- `action` (string, 必填): 写操作
+- `text` (string, 可选): 水印文字（insert_text_watermark 时）
+- `color` (number, 可选): 文字水印颜色 RGB 整数（默认 12632256 灰色），不是 WdColorIndex
+- `file_path` (string, 可选): 图片 URL（insert_image_watermark 时必填，须公网可访问）
+- `body` (object, 可选): 完整请求体，优先使用
+
+#### 返回值说明
+
+```json
+{"code": 0, "message": "成功", "data": {}}
 
 ```
 
@@ -1935,26 +2486,31 @@ scope：paragraph 或 range
 | 1 | `wps.export` | export | 统一导出在线文字文档 | `url`\|`link_id`\|`file_id`, `format` |
 | 2 | `wps.export_image` | export | 将在线文字导出为图片 | `url`\|`link_id`\|`file_id`, `format` |
 | 3 | `wps.query_export` | export | 统一查询异步导出结果 | `format`, `task_id` |
-| 4 | `wps.core_execute` | execute | [旧版降级] 在线文字原子操作入口，通过 command 指定操作类型 | `url`\|`link_id`\|`id`, `command` |
-| 5 | `wps.read_text` | doc_text | 读取在线文字文档的文本内容 | `url`\|`link_id`\|`id`, `action` |
-| 6 | `wps.write_text` | doc_text | 在在线文字文档中插入、追加或删除文本 | `url`\|`link_id`\|`id`, `action` |
-| 7 | `wps.search_replace` | doc_text | 在在线文字文档中搜索或替换文本 | `url`\|`link_id`\|`id`, `action`, `find_text` |
-| 8 | `wps.format_text` | doc_text | 设置在线文字文档的文本格式 | `url`\|`link_id`\|`id`, `scope`, `action` |
-| 9 | `wps.read_table` | doc_table | 查询在线文字文档中的表格信息 | `url`\|`link_id`\|`id`, `action` |
-| 10 | `wps.write_table` | doc_table | 在在线文字文档中创建或删除表格 | `url`\|`link_id`\|`id`, `action` |
-| 11 | `wps.format_table` | doc_table | 设置在线文字文档中表格的格式 | `url`\|`link_id`\|`id`, `action`, `table_index` |
-| 12 | `wps.read_image` | doc_image | 查询在线文字文档中的图片信息 | `url`\|`link_id`\|`id`, `action` |
-| 13 | `wps.write_image` | doc_image | 在在线文字文档中插入或删除图片 | `url`\|`link_id`\|`id`, `action` |
-| 14 | `wps.resize_image` | doc_image | 调整在线文字文档中图片的尺寸 | `url`\|`link_id`\|`id`, `action`, `index` |
-| 15 | `wps.read_element` | doc_element | 查询在线文字文档中的元素（书签、目录、超链接、批注） | `url`\|`link_id`\|`id`, `type`, `action` |
-| 16 | `wps.write_element` | doc_element | 在在线文字文档中创建、修改或删除元素 | `url`\|`link_id`\|`id`, `type`, `action` |
-| 17 | `wps.read_info` | doc_info | 查询在线文字文档的属性信息 | `url`\|`link_id`\|`id`, `action` |
-| 18 | `wps.write_info` | doc_info | 修改在线文字文档的属性 | `url`\|`link_id`\|`id`, `action` |
-| 19 | `wps.set_list_style` | doc_info | 设置在线文字文档的列表或段落样式 | `url`\|`link_id`\|`id`, `scope`, `action` |
-
-## Core Execute 使用指引
-
-- 命令路由表与参数速查 → [execute.md](wps/execute.md)
+| 4 | `wps.read_text` | doc_text | 读取在线文字文档的文本内容 | `url`\|`link_id`\|`file_id`, `action` |
+| 5 | `wps.write_text` | doc_text | 在在线文字文档中插入、追加或删除文本 | `url`\|`link_id`\|`file_id`, `action` |
+| 6 | `wps.search_replace` | doc_text | 在在线文字文档中搜索或替换文本 | `url`\|`link_id`\|`file_id`, `action`, `find_text` |
+| 7 | `wps.format_text` | doc_text | 设置在线文字文档的文本格式 | `url`\|`link_id`\|`file_id`, `scope`, `action` |
+| 8 | `wps.read_table` | doc_table | 查询在线文字文档中的表格信息 | `url`\|`link_id`\|`file_id`, `action` |
+| 9 | `wps.write_table` | doc_table | 在在线文字文档中创建或删除表格 | `url`\|`link_id`\|`file_id`, `action` |
+| 10 | `wps.format_table` | doc_table | 设置在线文字文档中表格的格式 | `url`\|`link_id`\|`file_id`, `action`, `table_index` |
+| 11 | `wps.read_image` | doc_image | 查询在线文字文档中的图片信息 | `url`\|`link_id`\|`file_id`, `action` |
+| 12 | `wps.write_image` | doc_image | 在在线文字文档中插入或删除图片 | `url`\|`link_id`\|`file_id`, `action` |
+| 13 | `wps.read_element` | doc_element | 查询在线文字文档中的元素（书签、目录、超链接、批注） | `url`\|`link_id`\|`file_id`, `type`, `action` |
+| 14 | `wps.write_element` | doc_element | 在在线文字文档中创建、修改或删除元素 | `url`\|`link_id`\|`file_id`, `type`, `action` |
+| 15 | `wps.read_info` | doc_info | 查询在线文字文档的属性信息 | `url`\|`link_id`\|`file_id`, `action` |
+| 16 | `wps.write_info` | doc_info | 修改在线文字文档的属性 | `url`\|`link_id`\|`file_id`, `action` |
+| 17 | `wps.set_list_style` | doc_info | 设置在线文字文档的列表或段落样式 | `url`\|`link_id`\|`file_id`, `scope`, `action` |
+| 18 | `wps.read_content_control` | doc_content_control | 查询在线文字文档中的内容控件（ContentControl） | `url`\|`link_id`\|`file_id`, `action` |
+| 19 | `wps.write_content_control` | doc_content_control | 插入、修改或删除在线文字文档中的内容控件 | `url`\|`link_id`\|`file_id`, `action` |
+| 20 | `wps.read_shape` | doc_shape | 查询在线文字文档中的浮动形状对象（线条、文本框、基本图形等，非位图图片） | `url`\|`link_id`\|`file_id`, `action` |
+| 21 | `wps.write_shape` | doc_shape | 插入、修改或删除在线文字文档中的浮动形状对象 | `url`\|`link_id`\|`file_id`, `action` |
+| 22 | `wps.read_footnote` | doc_footnote | 查询在线文字文档中的脚注与尾注 | `url`\|`link_id`\|`file_id`, `action` |
+| 23 | `wps.write_footnote` | doc_footnote | 插入、修改或删除在线文字文档中的脚注与尾注 | `url`\|`link_id`\|`file_id`, `action` |
+| 24 | `wps.read_header_footer` | doc_header_footer | 查询在线文字文档的页眉与页脚内容 | `url`\|`link_id`\|`file_id`, `action` |
+| 25 | `wps.write_header_footer` | doc_header_footer | 设置或删除在线文字文档的页眉页脚 | `url`\|`link_id`\|`file_id`, `action` |
+| 26 | `wps.read_field` | doc_field | 查询在线文字文档中的域（Field，如页码、日期、交叉引用等） | `url`\|`link_id`\|`file_id`, `action` |
+| 27 | `wps.write_field` | doc_field | 插入、更新或删除在线文字文档中的域 | `url`\|`link_id`\|`file_id`, `action` |
+| 28 | `wps.write_watermark` | doc_watermark | 插入或删除在线文字文档的水印 | `url`\|`link_id`\|`file_id`, `action` |
 
 ## 典型用途
 
@@ -1963,7 +2519,7 @@ scope：paragraph 或 range
 | 空白文档创建 | 新建在线文字后再进入后续编辑流程 |
 | 文档导出 | 通过 `wps.export`、`wps.export_image`、`wps.query_export` 完成 |
 | AP 生成 | 通过 `wps.export(format=ap)` 与 `wps.query_export(format=ap)` 完成 |
-| 内容读写 | 通过 `wps.core_execute` → `getFullContent` / `modifyParagraphContent` 等 完成 |
-| 查找替换 | 通过 `wps.core_execute` → `findContent` / `replaceContent` 等 完成 |
-| 段落格式 | 通过 `wps.core_execute` → `modifyParagraphAlignment` / `modifyParagraphLineSpacing` 等 完成 |
-| 字符样式 | 通过 `wps.core_execute` → `modifyParagraphFontStyle` / `modifyRangeHighlight` 等 完成 |
+| 内容读写 | 通过 `wps.read_text` / `wps.write_text` 等结构化工具完成 |
+| 查找替换 | 通过 `wps.search_replace` 完成 |
+| 段落格式 | 通过 `wps.format_text` 完成 |
+| 字符样式 | 通过 `wps.format_text` 完成 |

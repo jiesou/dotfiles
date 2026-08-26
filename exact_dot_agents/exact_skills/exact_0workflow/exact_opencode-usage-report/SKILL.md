@@ -1,6 +1,7 @@
 ---
 name: opencode-usage-report
 description: opencode go token usage report from opencode workspace API.
+disable-model-invocation: true
 ---
 
 # opencode-usage-report

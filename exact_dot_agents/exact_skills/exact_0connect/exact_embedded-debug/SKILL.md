@@ -1,6 +1,7 @@
 ---
 name: embedded-debug
 description: "Serial and openocd access."
+disable-model-invocation: true
 ---
 
 # Embedded Debug

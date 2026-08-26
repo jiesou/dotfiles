@@ -32,7 +32,7 @@
 | [`download_file`](drive/read_and_download.md) | 获取文件下载信息 | `url`\|`link_id`\|`file_id` |
 | [`download_attachment`](drive/read_and_download.md) | 获取文档附件的下载信息 | `url`\|`link_id`\|`file_id`, `attachment_id` |
 | [`read_file`](drive/read_and_download.md) | 读取文档内容为 Markdown/结构化数据 | `url`\|`link_id`\|`file_id` |
-| [`get_file_info`](drive/read_and_download.md) | 获取文件（夹）详细信息 | `file_id` |
+| [`get_file_info`](drive/read_and_download.md) | 获取文件（夹）详细信息 | `url`\|`link_id`\|`file_id` |
 
 ## 三、文件组织
 
@@ -57,11 +57,11 @@
 | [`cancel_share`](drive/share.md) | 取消文件分享 | `url`\|`link_id`\|`file_id` |
 | [`get_share_info`](drive/share.md) | 获取分享链接信息 | `url`\|`link_id`\|`file_id` |
 | [`list_drive_roles`](drive/share.md) | 获取文档权限角色列表 | `drive_id` |
-| [`list_document_collaborators`](drive/share.md) | 获取文档最近协作成员 | `file_id`, `limit` |
-| [`search_document_collaborators`](drive/share.md) | 搜索文档协作者 | `drive_id`, `file_id`, `key` |
+| [`list_document_collaborators`](drive/share.md) | 获取文档最近协作成员 | `url`\|`link_id`\|`file_id`, `limit` |
+| [`search_document_collaborators`](drive/share.md) | 搜索文档协作者 | `url`\|`link_id`\|`file_id`, `key` |
 | [`get_file_link`](drive/share.md) | 获取文件的云文档在线访问链接 | `url`\|`link_id`\|`file_id` |
-| [`set_collaborator_permissions`](drive/share.md) | 批量设置协作者权限 | `drive_id`, `link_id`, `role_id`, `subjects` |
-| [`cancel_collaborator_permissions`](drive/share.md) | 批量取消协作者授权 | `drive_id`, `link_id`, `subjects` |
+| [`set_collaborator_permissions`](drive/share.md) | 批量设置协作者权限 | `url`\|`link_id`\|`file_id`, `role_id`, `subjects` |
+| [`cancel_collaborator_permissions`](drive/share.md) | 批量取消协作者授权 | `url`\|`link_id`\|`file_id`, `subjects` |
 
 ## 五、搜索
 
@@ -104,7 +104,7 @@
 |------|------|----------|
 | [`list_latest_items`](drive/recent_and_recycle.md) | 获取最近访问文档列表 | `page_size` |
 | [`list_deleted_files`](drive/recent_and_recycle.md) | 获取回收站文件列表 | `page_size` |
-| [`restore_deleted_file`](drive/recent_and_recycle.md) | 将回收站文件还原到原位置 | `url`\|`link_id`\|`file_id` |
+| [`restore_deleted_file`](drive/recent_and_recycle.md) | 将回收站文件还原到原位置 | `file_id` |
 
 ## 九、评论
 

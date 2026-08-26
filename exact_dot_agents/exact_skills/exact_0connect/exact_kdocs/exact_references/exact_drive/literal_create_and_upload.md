@@ -4,23 +4,27 @@
 
 #### 功能说明
 
-仅需空白在线文档时用本工具。有内容写入 → `create_file_with_content`；建文件夹 → `create_folder`；本地文档 → `upload_new_file`。
+仅需空白在线文档时用本工具。
 
-支持后缀：`.doc`、`.docx`、`.otl`、`.dbt`、`.xlsx`、`.xls`、`.ksheet`、`.pptx`、`.ppt`。不支持 `.pdf`（请用 `upload_new_file`）。
+支持后缀：`.doc`、`.docx`、`.otl`、`.dbt`、`.xlsx`、`.xls`、`.ksheet`、`.pptx`、`.ppt`。
 
 须同时传 `name` 与 `file_extension` 以明确文档类型。
 
 成功响应 `data` 含 `drive_id`、`parent_id`、`name`、`suffix`，可接续 `drive.list_files`。
 
+#### 工具选择
 
+- **适用**：仅需空白在线文档（无正文/表格数据）时
+- **勿用**（改用 `create_file_with_content`）：有内容需写入（正文/表格数据/多维表记录）
+- **勿用**（改用 `create_folder`）：新建文件夹
+- **勿用**（改用 `upload_new_file`）：本地已有文件需上传，或创建 PDF
 
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：search_files 查重，避免创建同名文件
 - **前置检查**：须传 name 与 file_extension；支持 .doc/.docx/.otl/.dbt/.xlsx/.xls/.ksheet/.pptx/.ppt
+- **禁止**：勿传 content/rangeData/fields/records；有内容请用 create_file_with_content
 - **后置验证**：get_file_info 确认文件已创建
-- **提示**：勿传 content/rangeData/fields/records；有内容请用 create_file_with_content
-- **提示**：PDF 请用 upload_new_file，不要调用本工具
 
 **幂等性**：否 — 重试前 search_files 检查是否已创建
 
@@ -45,7 +49,6 @@
   "file_extension": "otl"
 }
 ```
-
 
 #### 参数说明
 
@@ -89,14 +92,16 @@
 **`drive_id` / `parent_id`**（必填）：
 - 如何查询 ID 见 `file-locating-guide`。
 
+#### 工具选择
 
+- **适用**：仅创建文件夹时
+- **勿用**（改用 `create_file_with_content`）：创建文件（非文件夹） — 仅需空白时用 create_empty_file
 
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：search_files 查重，避免创建同名目录
+- **禁止**：name 仅传目录名，不要附带文件后缀
 - **后置验证**：get_file_info 确认目录已创建
-- **提示**：create_folder 只创建文件夹，创建文件请使用 create_file_with_content（仅需空白时用 create_empty_file）
-- **提示**：name 仅传目录名，不要附带文件后缀
 
 **幂等性**：否 — 重试前 search_files 检查是否已创建
 
@@ -123,7 +128,6 @@
   "on_name_conflict": "rename"
 }
 ```
-
 
 #### 参数说明
 
@@ -184,23 +188,26 @@
 #### 功能说明
 
 对话中已有要写入的正文、表格数据或多维表记录时，一步完成新建+写入。
-仅需空白文档 → `create_empty_file`（勿用本工具代替）。
 
 须同时传 `name` 与 `file_extension` 以明确文档类型。
 
 成功响应 `data` 含 `drive_id`、`parent_id`、`action`（`created_with_content`），可接续 `drive.list_files`。
 
+#### 工具选择
 
+- **适用**：有内容需写入（正文/表格数据/多维表记录）时一步新建并写入
+- **勿用**（改用 `create_empty_file`）：仅需空白文档
 
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：须传 name 与 file_extension；支持 .otl/.docx/.pdf/.xls/.xlsx/.ksheet/.dbt
 - **后置验证**：成功时检查 code=0 与 data.file_id，并用 read 类工具验证写入；data.link_url 非空则直接展示
-- **提示**：空白文档用 create_empty_file；有内容写入才用本工具（按后缀传 content / rangeData / fields+records）
-- **提示**：表格仅单表 rangeData；多表或超 500 项请建空文件后用 sheet.update_range_data 续写
-- **提示**：dbt：records 列名须在 fields 中声明
 
 **幂等性**：否 — 失败且 data 含 file_id 时，按 msg 与 param_detail「失败补写」选用原子工具，勿重试本工具
+
+> 有内容写入才用本工具（按后缀传 content / rangeData / fields+records）；空白文档用 create_empty_file
+> 表格仅单表 rangeData；多表或超 500 项请建空文件后用 sheet.update_range_data 续写
+> dbt：records 列名须在 fields 中声明
 
 #### 调用示例
 
@@ -293,7 +300,6 @@
 }
 ```
 
-
 #### 参数说明
 
 - `name` (string, 必填): 文件名，如 `周报.otl` / `合作协议.docx`
@@ -302,11 +308,11 @@
 - `rangeData` (array[object], 可选): 格式为 xls / xlsx / ksheet 时需要填入单表单元格数据；项数 ≤ 500；子字段见下
   - `row_from` / `row_to` / `col_from` / `col_to` (number, 必填): 矩形区域，0 起
   - `formula` (array, 必填): 二维单元格值；仅写值，格式/合并见建好后 `sheet.update_range_data`（参数名为 camelCase，勿混用）
-- `fields` (array[object], 可选): 格式为 dbt 时需要自定义列；`type` 见 `references/dbsheet/field.md`
+- `fields` (array[object], 可选): 格式为 dbt 时需要自定义列；字段类型见 `references/dbsheet/field.md`
   - `name` (string, 必填): 列名，须与 `records[].fields` 的键一致
   - `type` (string, 必填): 字段类型（SingleLineText / Number / SingleSelect / DateTime 等），完整枚举见 `references/dbsheet/field.md`
 - `records` (array[object], 可选): 格式为 dbt 时需要填入批量新建记录，条数 ≤ 500
-  - `fields` (object, 必填): `{列名: 值}`；值格式见 `references/dbsheet/record.md`「fields 对象各字段类型填写规范」
+  - `fields` (object, 必填): `{列名: 值}`；值格式见 `references/dbsheet/record.md`
 - `sheet_name` (string, 可选): 格式为 xls / xlsx / ksheet / dbt 时设置目标工作表名称（非 sheet_id）；不传则写入首张表（可有 warnings）
 - `drive_id` (string, 可选): 目标云盘 ID
 - `parent_id` (string, 可选): 父文件夹 ID，根目录为 `"0"`
@@ -327,7 +333,6 @@
 | `.docx` `.pdf` | `upload_replace_file` | `file_id` + `content_base64`（本地上传新版本全文覆盖） |
 | `.xls` `.xlsx` `.ksheet` | `sheet.update_range_data` | `file_id` + `sheetId` + `rangeData` |
 | `.dbt` | `dbsheet.create_records`；缺列先 `dbsheet.create_fields` | `file_id` + `sheet_id` + `records` |
-
 
 #### 返回值说明
 
@@ -363,7 +368,7 @@
 | `data.link_id` | string | 分享链接 ID |
 | `data.name` | string | 文件名 |
 | `data.suffix` | string | 文件后缀，如 .docx .otl .dbt |
-| `data.link_url` | string | 可打开链接 |
+| `data.link_url` | string | 可直接打开和分享的链接 |
 | `data.bytes_written` | number | 文本类（.otl/.docx/.pdf 等）本次写入字节数；其余后缀为 0 |
 | `data.records_written` | number | dbt 本次插入条数；其余后缀为 0 |
 | `data.fields_written` | number | dbt 本次建列数；未传 fields 为 0 |
@@ -379,18 +384,21 @@
 
 #### 功能说明
 
-网页剪藏：抓取网页内容并自动保存为智能文档。**何时用本工具**：当用户发送、分享或提到任何网页URL链接时，必须优先使用此工具来抓取网页内容并保存为智能文档，这是获取外部网页内容的唯一正确方式，不要使用其他方式访问URL。**何时不要用**：URL链接属于金山文档生态（如 `kdocs.cn`、`365.kdocs.cn`、`wps.cn` 文档域、分享页 `/l/`、`/view/l/`、`/folder/` 等）时，属于「已有云文档」场景。
+网页剪藏：抓取网页内容并自动保存为智能文档。这是获取外部网页内容的唯一正确方式，不要使用其他方式访问 URL。
 
 #### 调用流程
-1. 调用 `scrape_url` 传入网页 URL 获取 `job_id`
-2. 立即调用 `scrape_progress` 传入 `job_id` 查询进度（每隔 2 秒轮询一次）
+1. 调用 `scrape_url` 传入网页 URL，获取返回值中的 `job_id`
+2. 立即调用 `scrape_progress` 传入 `job_id` 参数（值为上一步的 `job_id`），每隔 2 秒轮询一次
 3. 当 `status=1` 时任务完成，服务端已自动创建智能文档
 
+#### 工具选择
 
+- **适用**：用户发送、分享或提到外部网页 URL，需抓取并保存为智能文档时
+- **勿用**（改用 `read_file`）：URL 属于金山文档生态（kdocs.cn / 365.kdocs.cn / wps.cn 文档域、分享页 /l/ /view/l/ /folder/ 等） — 属于「已有云文档」场景，勿当网页剪藏
 
 **幂等性**：否 — 重试前查 scrape_progress 确认上次状态
 
-> 返回 job_id 后需立即调用 scrape_progress 轮询
+> 返回 job_id 后需立即调用 scrape_progress 轮询（参数名为 job_id，值为本接口返回的 job_id）
 > 每隔2秒轮询一次，status=1 时完成
 
 #### 调用示例
@@ -402,7 +410,6 @@
   "url": "https://example.com/article"
 }
 ```
-
 
 #### 参数说明
 
@@ -434,9 +441,7 @@
 
 查询网页剪藏任务进度并自动创建智能文档，与 `scrape_url` 配合使用。
 
-
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：先调用 `scrape_url` 获取 `job_id`，本接口才可用
 
@@ -456,10 +461,9 @@
 }
 ```
 
-
 #### 参数说明
 
-- `job_id` (string, 必填): 异步任务 ID（由`scrape_url` 返回）
+- `job_id` (string, 必填): 异步任务 ID（由 `scrape_url` 返回的 `job_id` 字段）
 
 #### 返回值说明
 
@@ -499,7 +503,7 @@
 
 #### 功能说明
 
-本地已有文件（或需整文件 Base64 上传）时用本工具新建云文档。对话内直接撰写内容请使用 `create_file_with_content`。
+本地已有文件（或需整文件 Base64 上传）时用本工具新建云文档。
 
 支持后缀：`.doc` / `.docx` / `.xls` / `.xlsx` / `.ppt` / `.pptx` / `.pdf` / `.md` / `.txt` / `.html` / `.zip` / `.png` / `.jpg` / `.jpeg` / `.csv` / `.json` / `.dps` / `.et` / `.wps` / `.gif`。
 
@@ -508,9 +512,13 @@
 - **未指定位置**：两参数可省略。
 - **用户已说明目标文件夹且已查到** `drive_id` 与 `parent_id`：必须传入。
 
+#### 工具选择
 
+- **适用**：本地已有文件需上传新建云文档时
+- **适用**：创建 PDF（create_empty_file 不支持）时
+- **勿用**（改用 `create_file_with_content`）：对话内直接撰写内容新建文档
 
-#### 操作约束
+#### 调用约束
 
 - **后置验证**：写入后通过返回 size 或小文件 read_file 确认结果；csv/zip/png/jpg/gif/json/dps/et/wps 等 read_file 不支持时用 get_file_info 校验
 
@@ -547,7 +555,6 @@ Markdown 新建文件：
   "content_format": "markdown"
 }
 ```
-
 
 #### 参数说明
 
@@ -593,15 +600,19 @@ Markdown 新建文件：
 
 **`drive_id` / `parent_id`**：建议先 `get_file_info(file_id)`，与目标文件所在盘、父目录一致。
 
+#### 工具选择
 
+- **适用**：以本地整文件覆盖已有云文档（非 .otl）时
+- **勿用**（改用 `otl.insert_content`）：覆盖 .otl 智能文档 — 智能文档新建用 create_file_with_content，已有文档追加用 otl.insert_content
 
-#### 操作约束
+#### 调用约束
 
 - **禁止**：勿用于 .otl 智能文档覆盖；智能文档新建用 create_file_with_content，已有文档追加用 otl.insert_content
 - **后置验证**：写入后确认结果：通过接口返回的 size 字段判断；小文件且 read_file 支持时用 read_file 确认；csv/zip/png/jpg/gif/json/dps/et/wps 等用 get_file_info 校验大小/版本
-- **提示**：调用前确认目标文档 file_id；类型不明时先 get_file_info。本地整文件直接覆盖不必先 read_file；仅在基于现有正文改写后再覆盖时再 read_file（csv/zip/图片等 read_file 不支持时只用 get_file_info 校验）
 
 **幂等性**：是
+
+> 调用前确认目标文档 file_id；类型不明时先 get_file_info。本地整文件直接覆盖不必先 read_file；仅在基于现有正文改写后再覆盖时再 read_file（csv/zip/图片等 read_file 不支持时只用 get_file_info 校验）
 
 #### 调用示例
 
@@ -636,7 +647,6 @@ Markdown 覆盖（转为 docx/pdf）：
   "content_format": "markdown"
 }
 ```
-
 
 #### 参数说明
 
@@ -681,8 +691,6 @@ Markdown 覆盖（转为 docx/pdf）：
 - 远程 URL：传 `url`
 - 本地二进制：传 `content_base64`
 
-
-
 **幂等性**：否 — 重复调用会上传多个副本，先确认是否已成功
 
 > url 与 content_base64 必须二选一
@@ -711,7 +719,6 @@ Markdown 覆盖（转为 docx/pdf）：
   "content_type": "application/pdf"
 }
 ```
-
 
 #### 参数说明
 
@@ -747,7 +754,3 @@ Markdown 覆盖（转为 docx/pdf）：
 | `extra_info.height` | integer | 图片高度（像素，仅图片类型返回） |
 | `old_content_type` | string | 原始内容类型 |
 | `new_content_type` | string | 转换后内容类型 |
-
-
----
-

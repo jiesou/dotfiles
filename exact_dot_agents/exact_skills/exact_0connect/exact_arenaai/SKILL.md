@@ -1,6 +1,7 @@
 ---
 name: arenaai
 description: "Query arena.ai LLM rankings and benchmarks."
+disable-model-invocation: true
 ---
 
 # Arena AI Benchmark

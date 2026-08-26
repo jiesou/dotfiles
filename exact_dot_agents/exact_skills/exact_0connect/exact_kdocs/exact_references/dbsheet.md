@@ -16,6 +16,7 @@
 | [`dbsheet.delete_sheet`](dbsheet/data_table.md) | 删除数据表 | `url`\|`link_id`\|`file_id`, `sheet_id` |
 | [`dbsheet.sheet_batch_create`](dbsheet/data_table.md) | 批量创建工作表 | `url`\|`link_id`\|`file_id`, `body` |
 | [`dbsheet.sheet_batch_delete`](dbsheet/data_table.md) | 批量删除工作表 | `url`\|`link_id`\|`file_id`, `body` |
+| [`dbsheet.get_schema_detail`](dbsheet/data_table.md) | 获取完整 Schema（含侧边栏智能文档和富文本字段的 content_id） | `url`\|`link_id`\|`file_id` |
 
 ## 二、视图管理
 
@@ -122,6 +123,22 @@
 | [`dbsheet.list_webhooks`](dbsheet/webhook.md) | 查询全部 Hook 订阅 | `url`\|`link_id`\|`file_id` |
 | [`dbsheet.create_webhook`](dbsheet/webhook.md) | 创建 Hook 订阅 | `url`\|`link_id`\|`file_id`, `body` |
 | [`dbsheet.delete_webhook`](dbsheet/webhook.md) | 取消 Hook 订阅 | `url`\|`link_id`\|`file_id`, `hook_id` |
+
+## 十一、智能文档/富文本字段块操作
+
+> 多维表格智能文档（FlexPaper sheet）与富文本字段内的文档块增删改查与格式转换
+
+| 工具 | 功能 | 必填参数 |
+|------|------|----------|
+| [`dbsheet.create_innerdoc_flexpaper`](dbsheet/innerdoc_block.md) | 在多维表格文件中新建一个智能文档（FlexPaper sheet） | `url`\|`link_id`\|`file_id`, `name` |
+| [`dbsheet.innerdoc_block_create`](dbsheet/innerdoc_block.md) | 创建侧边栏智能文档/富文本字段内的文档块 | `url`\|`link_id`\|`file_id`, `attachment_id`, `arg` |
+| [`dbsheet.innerdoc_block_query`](dbsheet/innerdoc_block.md) | 查询侧边栏智能文档/富文本字段内的单个文档块 | `url`\|`link_id`\|`file_id`, `attachment_id`, `arg` |
+| [`dbsheet.innerdoc_block_list`](dbsheet/innerdoc_block.md) | 批量查询侧边栏智能文档/富文本字段内的文档块列表 | `url`\|`link_id`\|`file_id`, `attachment_id`, `arg` |
+| [`dbsheet.innerdoc_block_update`](dbsheet/innerdoc_block.md) | 更新侧边栏智能文档/富文本字段内的单个文档块 | `url`\|`link_id`\|`file_id`, `attachment_id`, `arg` |
+| [`dbsheet.innerdoc_block_batch_update`](dbsheet/innerdoc_block.md) | 批量更新侧边栏智能文档/富文本字段内的多个文档块 | `url`\|`link_id`\|`file_id`, `attachment_id`, `arg` |
+| [`dbsheet.innerdoc_block_delete`](dbsheet/innerdoc_block.md) | 删除侧边栏智能文档/富文本字段内的单个文档块 | `url`\|`link_id`\|`file_id`, `attachment_id`, `arg` |
+| [`dbsheet.innerdoc_block_batch_delete`](dbsheet/innerdoc_block.md) | 批量删除侧边栏智能文档/富文本字段内的多个文档块 | `url`\|`link_id`\|`file_id`, `attachment_id`, `arg` |
+| [`dbsheet.innerdoc_block_convert`](dbsheet/innerdoc_block.md) | 将 HTML/Markdown 转换为侧边栏智能文档/富文本字段内的文档块结构 | `url`\|`link_id`\|`file_id`, `attachment_id`, `arg` |
 
 ## 工具组合速查
 

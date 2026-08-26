@@ -1,6 +1,7 @@
 ---
 name: lcsc-coupon-optimizer
 description: szlcsc.com electronic components purchase. 
+disable-model-invocation: true
 ---
 
 # LCSC 满减凑单优化

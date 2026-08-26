@@ -1,6 +1,7 @@
 ---
 name: galgame-download
 description: Download via casaos (host) aria2.
+disable-model-invocation: true
 ---
 
 # Galgame Download

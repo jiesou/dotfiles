@@ -6,6 +6,7 @@ metadata:
     github-repo: https://github.com/wy51ai/edulab
     github-tree-sha: 28725d0e333aa07d6164c53233600d8d44608448
 name: edu-solid-geometry
+disable-model-invocation: true
 ---
 # 立体几何解题 → 交互网页
 

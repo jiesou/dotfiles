@@ -1,6 +1,7 @@
 ---
 name: network-management
 description: Network topology, SSH access, routing, OpenClash config operations.
+disable-model-invocation: true
 ---
 
 # 网络管理
@@ -316,7 +317,7 @@ SSH 均可直接通过密钥接入以下设备：
 | ----- | ---- |
 | 电信光猫 (192.168.1.1) | 用户 useradmin 密码 Lenovo2366 |
 | 360T5G-BCA2.lan (192.168.11.118) | 用户 admin 密码 12345678 |
-| R7000-E772.lan (192.168.11.843) | 用户 admin/root 密码 12345678 |
+| R7000-E772.lan (192.168.11.243) | 用户 admin/root 密码 12345678 |
 | WiFi: TP-LINK-AC1900 | `2QiA74UZ` |
 | WiFi: TP-LINK-AC1900-5G | `2QiA74UZ` |
 | 黑色大的 wy TPLINK 硬路由 (192.168.2.1) | 管理密码 Lenovo2366 |

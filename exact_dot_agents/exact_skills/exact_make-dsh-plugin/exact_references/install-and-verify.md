@@ -30,7 +30,7 @@ dsh plugin --profile web add <包>       # 装依赖（进 profile node_modules�
 |---|---|
 | client/ 源码或构建 | 重建（`build-client.mjs`）+ 浏览器冒烟（headless Chrome dump-dom 断言 DOM marker 存在、无 "Failed to load plugins"） |
 | assets/ | 重装 + 刷新页面即可（路由按请求读磁盘，无需重启 web） |
-| index.mjs / src（Node half） | 门禁 + **重启 web**（ESM 缓存，见 [gotchas.md](gotchas.md) 2） |
+| src/（Node half 源码） | `pnpm check` + **重启 web**（重建后 ESM 缓存仍按 URL 命中旧模块，见 [gotchas.md](gotchas.md) 2） |
 
 bundle 插件同此表；额外确认挂载后 `__DSH_BOOT__` 含 client 行、`/plugins/<id>/client.js` 200（若带 client half）、无 `loaded without registering` 报错。
 

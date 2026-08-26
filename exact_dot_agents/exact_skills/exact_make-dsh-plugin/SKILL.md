@@ -4,7 +4,7 @@ description: Create DeepSeek Harness plugins.
 license: MIT
 metadata:
   author: dsh-external/plugin-registry
-  version: "3.0.0"
+  version: "3.1.0"
 requires:
   bins:
     - dsh
@@ -56,9 +56,11 @@ bundle 里照常工作）——选型看是否需要组合层，而非 UI 形态
 my-plugin/
 ├── package.json            # name/version + main/exports + dsh.bundle/dsh.client
 ├── cordis.patch.yml        # dsh.bundle 声明的组合层（insert 挂载自身）
-├── index.mjs               # Node half 入口：完整 Cordis 插件（main/exports["."]）
+├── src/index.ts            # Node half 入口源码：完整 Cordis 插件（name/inject/apply）
+├── lib/                    # tsdown 构建产物（lib/index.js，入库——git 源一行安装的前提）
 ├── client/  lib/client.js  # client bundle 源码 / 构建产物（dsh.client 通道）
-└── scripts/                # 门禁 + 生成器（可选）
+├── tests/                  # vitest specs（门禁）
+└── tsconfig.json  tsdown.config.ts
 ```
 
 npm 包名默认应采用 `@user/package` 形式，不占全局命名空间
@@ -82,7 +84,7 @@ make-skill）见 `references/entry-contract.md` 对应小节——不要发明�
 
 ## Step 3：Node half——Cordis entry
 
-`index.mjs` 导出完整 Cordis 插件（`name`/`inject`/`apply`）。用 `defineTool`
+`src/index.ts` 导出完整 Cordis 插件（`name`/`inject`/`apply`），经 `pnpm build`（tsdown）编译为 `lib/index.js`——`main`/`exports["."]` 指向构建产物。用 `defineTool`
 注册工具；服务/事件/命令/prompt 是完整 Cordis，无需声明。依赖解析是官方
 运行时的职责（`@deepseek-ai/*`、`cordis`——profile pnpm 闭包注入，勿声明）。
 在 `ctx.effect()`/`ctx.on()` 内注册，disable 时清理。
@@ -143,7 +145,7 @@ npm 包（或 git 源）是分发单元——设置好让用户能找到并安�
 
 **发布检查清单**（分享仓库前）：
 - [ ] `package.json#main`/`exports` 指向 entry；`dsh.bundle.patch` → `cordis.patch.yml`
-- [ ] 门禁通过（`scripts/gates/run.mjs`）——仓库自带门禁
+- [ ] `pnpm check` 通过（typecheck + vitest + build，重建产物已入库）
 - [ ] README 有安装（`dsh plugin --profile web add` 含具体 ref）、使用、能力表
 - [ ] 仓库 description + topics 已设置（见上）
 - [ ] 安装冒烟：装 → 挂载 → boot log 干净

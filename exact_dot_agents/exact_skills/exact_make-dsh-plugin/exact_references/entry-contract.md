@@ -10,11 +10,13 @@
 my-plugin/
 ├── package.json            # name/version + main/exports + dsh.*
 ├── cordis.patch.yml        # dsh.bundle.patch 指向的组合层（insert 挂载自身）
-├── index.mjs               # Node half 入口：完整 Cordis 插件（main/exports["."]）
+├── src/index.ts            # Node half 入口源码：完整 Cordis 插件
+├── lib/                    # tsdown 构建产物（lib/index.js + index.d.ts，入库）
+├── tests/                  # vitest specs（门禁）
 ├── client/  lib/client.js  # client bundle 源码 / 构建产物（dsh.client 通道）
 ├── skills/                 # agent skills（SKILL.md 文件树，可选）
 ├── mcp/                    # MCP server 逻辑（stdio，可选）
-└── scripts/                # 门禁与生成器（可选）
+└── tsconfig.json  tsdown.config.ts  # TS 工程
 ```
 
 ## package.json——dsh 字段契约
@@ -24,12 +26,19 @@ my-plugin/
   "name": "my-plugin",
   "version": "0.1.0",
   "type": "module",
-  "main": "./index.mjs",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "exports": {
-    ".": "./index.mjs",
+    ".": { "types": "./lib/index.d.ts", "default": "./lib/index.js" },
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "pnpm run typecheck && pnpm run build && pnpm run test"
   },
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
@@ -67,7 +76,7 @@ server 是 stdio MCP server（stdin/stdout 上 JSON-RPC），逻辑在 `mcp/`。
 
 ## Node half——Cordis entry
 
-```js
+```ts
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'my-plugin'
@@ -99,7 +108,7 @@ export function apply(ctx) {
 
 ## 开发规范
 
-- **门禁**：机械检查 + 自证测试（每个门禁有非法样例测试证明会拒绝）；门禁清单在 `scripts/gates/run.mjs`，按改动面跑最窄证据
+- **门禁**：机械检查 + 自证测试（每个门禁有非法样例测试证明会拒绝）；清单权威在 vitest（`tests/*.spec.ts`），按改动面跑最窄证据
 - **决策记录**：每个非平凡改动随附决策记录（`decisions/implemented/...`）——problem → decision → alternatives → consequences
 - **生成物勿手改**：`client.js` 由构建生成（`--check` 守卫新鲜度）
 - **首次环境行为即沉淀**：宿主覆盖注入 CSS、严格注入等环境事实，第一次踩坑就写 bug-fix 决策记录标注「环境事实」

@@ -1,6 +1,7 @@
 ---
 name: openclash-troubleshoot
 description: "OpenClash Troubleshooting and User Guide. Most network issues are unrelated to OpenClash; Use ONLY when the user explicitly points out an OpenClash issue"
+disable-model-invocation: true
 ---
 
 # OpenClash Troubleshoot

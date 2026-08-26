@@ -1,6 +1,7 @@
 ---
 name: remote-chenpc
 description: Remote connect to user's PC WorkStation via SSH — WoL wake if asleep, unlock if locked.
+disable-model-invocation: true
 ---
 
 # Remote connect chenpc.lan

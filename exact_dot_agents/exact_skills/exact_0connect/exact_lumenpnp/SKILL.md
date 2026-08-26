@@ -1,6 +1,7 @@
 ---
 name: lumenpnp
 description: LumenPnP 开源贴片机中文知识库
+disable-model-invocation: true
 ---
 
 # LumenPnP 知识库

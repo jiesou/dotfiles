@@ -46,6 +46,14 @@ fi
 tmux_cmd=("tmux")
 [[ -n "$socket" ]] && tmux_cmd+=(-S "$socket")
 
+rc=0
+grep_warn=$(printf '' | grep -ioE -- "$pattern" 2>&1 >/dev/null) || rc=$?
+if (( rc >= 2 )); then
+  echo "invalid regex pattern: $pattern" >&2
+  exit 1
+fi
+[[ -n "$grep_warn" ]] && echo "note: $grep_warn (matching per line; \\n never matches a newline)" >&2
+
 sleep 0.1  # fix timing issue
 start_history_size=$("${tmux_cmd[@]}" display-message -p -t "$target" "#{history_size}")
 start_cursor=$("${tmux_cmd[@]}" display-message -p -t "$target" '#{cursor_y}')
@@ -58,7 +66,7 @@ while true; do
   pane_last_30line_content=$(printf '%s\n' "$pane_content" | tail -30)
   pane_lines=$(printf '%s\n' "$pane_content" | wc -l)
 
-  if matched=$(printf '%s\n' "$pane_new_content" | grep -ioE -- "$pattern" | head -1); then
+  if matched=$(printf '%s\n' "$pane_new_content" | grep -ioE -- "$pattern" 2>/dev/null | head -1); then
     elapsed_ns=$(( $(date +%s%N) - start_time ))
     elapsed_sec=$(awk -v ns="$elapsed_ns" 'BEGIN { printf "%.2f", ns/1000000000 }')
     if (( pane_lines > 30 )); then

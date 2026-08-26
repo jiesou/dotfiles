@@ -33,10 +33,10 @@ echo "$TARGET"
 grep -A 8 "^Host hostname" ~/.ssh/config        # get host password & context in `~/.ssh/config`
 tmux send-keys \
   -t "$TARGET" \
-  "ssh hostname" Enter                           # use plain `hostname`, no user or ports needed
+  "ssh hostname" Enter                          # use plain `hostname`, no user or ports needed
 
 # devcontainer
-devcontainer --help                               # get help
+devcontainer --help                             # get help
 tmux send-keys \
   -t "$TARGET" \
   "devcontainer exec --workspace-folder path/to/project bash" Enter
@@ -61,9 +61,9 @@ tmux capture-pane -p -t "$TARGET" | grep . | tail -4  # strip blank lines
 
 For any operation that require waiting longer than 5 seconds, don't use `sleep [large number]`; instead, use wait-for-text.sh and follow these guidelines:
 - Invoking two commands in one toolcall (avoid waiting timing issues)
-- Set caller timeout to 20s (not default 120s)
+- Set caller timeout to 15s (not default long timeout)
 
-Always set your shell tool caller's timeout to a reasonable upper bound (e.g. timeout=20000ms), instead of the default 120s.
+Always set your shell tool caller's timeout to a reasonable upper bound (e.g. timeout=15000ms).
 Let wait-for-text poll indefinitely; your caller's timeout is the source of truth that cuts it off.
 
 ```

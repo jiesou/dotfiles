@@ -59,7 +59,7 @@ bundle 插件的**启停覆盖写 profile 层**，不要写进 bundle 包内层�
 
 ## 2. 已挂载插件改源码需 web 重启（ESM 缓存）
 
-`index.mjs`/src 改动后，disable/enable/CLI 重装**都不生效**——ESM 模块缓存按 URL 永久缓存，`mount()` 的 `import(entryUrl)` 无 query bust，同 URL 二次 import 返回旧模块。**只能 web 重启**。
+`src/` 改动并重建 `lib/index.js` 后，disable/enable/CLI 重装**都不生效**——ESM 模块缓存按 URL 永久缓存，`mount()` 的 `import(entryUrl)` 无 query bust，同 URL 二次 import 返回旧模块。**只能 web 重启**。
 
 - 例外：进程内**从未 import 过**的插件（禁用态启动后首次面板 enable）首次 import 即新代码，无需重启。
 - 重启后日志须无 `plugin tree failed to load`。

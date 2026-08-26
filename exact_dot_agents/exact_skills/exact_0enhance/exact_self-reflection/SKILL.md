@@ -25,7 +25,7 @@ Skip vague or subjective statements.
 
 ### 2. Verify
 
-For each flagged claim, launch a `task()` subagent.
+For each flagged claim, launch a subagent.
 - Each subagent runs in an **isolated, independent context** —
   no access to chat history or prior tool results, context should be fair and unbiased.
 - Verify in parallel: Fire all subagents simultaneously **in a single message** !

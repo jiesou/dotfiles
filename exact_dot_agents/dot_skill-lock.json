@@ -270,6 +270,43 @@
       "skillFolderHash": "1b5d266ec0aa6b02e676fd3ea94f7078c0ca3217336111c8da584ebfc0dd8f56",
       "installedAt": "2026-08-01T16:46:40.588Z",
       "updatedAt": "2026-08-01T16:46:40.588Z"
+    },
+    "max-research": {
+      "source": "jiesou/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/jiesou/skills.git",
+      "skillPath": "skills/max-research/SKILL.md",
+      "skillFolderHash": "013862620a5f7652786fd29b3f309aee4e31dc93",
+      "installedAt": "2026-08-16T14:41:22.496Z",
+      "updatedAt": "2026-08-16T14:42:56.250Z"
+    },
+    "self-reflection": {
+      "source": "jiesou/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/jiesou/skills.git",
+      "skillPath": "skills/self-reflection/SKILL.md",
+      "skillFolderHash": "d4e5ca0b66d15c8795dfc2c5c5efe07ceb4fc661",
+      "installedAt": "2026-08-16T14:42:56.251Z",
+      "updatedAt": "2026-08-16T14:42:56.251Z"
+    },
+    "solution-research": {
+      "source": "jiesou/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/jiesou/skills.git",
+      "skillPath": "skills/solution-research/SKILL.md",
+      "skillFolderHash": "324ecd06d70de014f1c4de18e51ce9af84adf1d3",
+      "installedAt": "2026-08-16T14:42:56.252Z",
+      "updatedAt": "2026-08-16T14:42:56.252Z"
+    },
+    "find-code-simplifications": {
+      "source": "DCspirit-23/DSH-inspired-Code-Simplification-Skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/DCspirit-23/DSH-inspired-Code-Simplification-Skill.git",
+      "ref": "main",
+      "skillPath": "find-code-simplifications/SKILL.md",
+      "skillFolderHash": "ed3a4157901d0894c9e0eb69dc1930665452cde9",
+      "installedAt": "2026-08-18T08:48:23.532Z",
+      "updatedAt": "2026-08-18T08:48:23.532Z"
     }
   },
   "lastSelectedAgents": [

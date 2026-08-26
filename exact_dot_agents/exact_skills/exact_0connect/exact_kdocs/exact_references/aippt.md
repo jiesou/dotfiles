@@ -60,17 +60,18 @@ AI PPT 仅包含一个通用接口 `aippt.execute`，通过 `task_type` 参数�
 - 最后的 `*.done` 事件携带最终生成结果：从 `upload_cloud.done` 取 `link_url`
 
 
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：首次调用必须明确选择 task_type，并按该 skill 的交互事件继续恢复调用
-- **提示**：收到 need_interaction=true 时先收集用户答案，再发起下一次调用，避免空恢复请求
+
 
 **幂等性**：否 — 为流式生成任务，重复调用可能创建重复产物；重试前先确认是否已有进行中或已完成结果
+
 
 > `input` 与 `interaction_response` 互斥，不同时传
 > SSE 流中 `need_interaction: true` 出现时，记录 payload 后等待用户输入，再次调用
 > 最终结果从 `upload_cloud.done` payload 的 `link_url` 字段获取云文档链接
+> 收到 need_interaction=true 时先收集用户答案，再发起下一次调用，避免空恢复请求
 > `mode` 参数在首次和恢复调用中保持一致
 
 #### 调用示例

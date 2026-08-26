@@ -12,6 +12,7 @@ allowed-tools:
   - Grep
   - Glob
   - AskUserQuestion
+disable-model-invocation: true
 ---
 
 # 去 AI 味(qu-ai-wei):去除中文 AI 写作痕迹

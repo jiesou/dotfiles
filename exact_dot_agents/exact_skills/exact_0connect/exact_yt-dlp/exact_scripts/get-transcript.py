@@ -35,7 +35,6 @@ COOKIES = ("--cookies-from-browser", "brave:~/.var/app/com.brave.Browser/config/
 EJS = ("--remote-components", "ejs:github")
 
 X_ASR_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/x-asr-960ms-streaming-zipformer-transducer-zh-en-punct-int8")
-SILERO_VAD_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/silero-vad/silero_vad.onnx")
 
 
 def _yt_dlp_cmd() -> list[str]:
@@ -502,23 +501,19 @@ def _run_transcribe_wav(wav_path: str) -> int:
         sys.stderr.write(f"wav not found: {wav_path}\n")
         return 1
 
-    vad_config = sherpa_onnx.VadModelConfig()
-    vad_config.silero_vad.model = str(SILERO_VAD_MODEL)
-    vad_config.silero_vad.threshold = 0.2
-    vad_config.silero_vad.min_silence_duration = 0.25
-    vad_config.silero_vad.min_speech_duration = 0.25
-    vad_config.silero_vad.max_speech_duration = 5.0
-    vad_config.sample_rate = 16000
-    vad = sherpa_onnx.VoiceActivityDetector(vad_config, buffer_size_in_seconds=100)
-    window_size = vad_config.silero_vad.window_size
-
-    recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
+    recognizer = sherpa_onnx.OnlineRecognizer.from_transducer(
+        tokens=str(X_ASR_MODEL / "tokens.txt"),
         encoder=str(X_ASR_MODEL / "encoder.int8.onnx"),
         decoder=str(X_ASR_MODEL / "decoder.onnx"),
         joiner=str(X_ASR_MODEL / "joiner.int8.onnx"),
-        tokens=str(X_ASR_MODEL / "tokens.txt"),
         num_threads=max(1, multiprocessing.cpu_count() // 2),
+        sample_rate=16000,
+        feature_dim=80,
+        model_type="zipformer2",
+        modeling_unit="bpe",
+        bpe_vocab=str(X_ASR_MODEL / "bpe.vocab"),
     )
+    stream = recognizer.create_stream()
 
     proc = subprocess.Popen(
         ["ffmpeg", "-hide_banner", "-loglevel", "error",
@@ -527,26 +522,15 @@ def _run_transcribe_wav(wav_path: str) -> int:
          "-ac", "1", "-ar", "16000", "-"],
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
 
-    pieces: list[str] = []
+    total_samples = 0
     try:
-        seg_idx = 0
-        chunk = b""
-        eof = False
-        while not eof:
-            data = proc.stdout.read(window_size * 2) or b""
+        while True:
+            data = proc.stdout.read(16000 * 2) or b""
             if not data:
-                vad.flush()
-                eof = True
-            else:
-                samples = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
-                vad.accept_waveform(samples)
-            while not vad.empty():
-                seg_samples = np.copy(vad.front.samples)
-                seg_idx += 1
-                vad.pop()
-                text = self_transcribe(recognizer, seg_samples)
-                if text:
-                    pieces.append(text)
+                break
+            samples = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+            stream.accept_waveform(16000, samples)
+            total_samples += len(samples)
     finally:
         try:
             proc.stdout.close()
@@ -554,24 +538,23 @@ def _run_transcribe_wav(wav_path: str) -> int:
             pass
         proc.wait()
 
-    print("\n".join(pieces))
+    pad = np.zeros(16000 * 2, dtype=np.float32)
+    stream.accept_waveform(16000, pad)
+    total_samples += len(pad)
+    stream.input_finished()
+
+    num_frames = total_samples // 160
+    decode_chunk_len = 96
+    frame_size = 109
+    n_chunks = max(0, (num_frames - frame_size) // decode_chunk_len + 1)
+    for _ in range(n_chunks):
+        recognizer.decode_stream(stream)
+
+    text = recognizer.get_result(stream)
+    if hasattr(text, "text"):
+        text = text.text
+    print(text.strip())
     return 0
-
-
-def self_transcribe(recognizer, samples) -> str:
-    import numpy as np
-    stream = recognizer.create_stream()
-    stream.accept_waveform(16000, samples)
-    recognizer.decode_stream(stream)
-    text = stream.result.text.strip()
-    if text in ("", ".", "The."):
-        return ""
-    has_cjk = any("\u4e00" <= c <= "\u9fff" for c in text)
-    if not has_cjk and not any(c.isalpha() for c in text):
-        return ""
-    if len(text) < 2:
-        return ""
-    return text
 
 
 if __name__ == "__main__":

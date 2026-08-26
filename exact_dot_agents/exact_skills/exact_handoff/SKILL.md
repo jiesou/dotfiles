@@ -1,6 +1,7 @@
 ---
 name: handoff
 description: Generate a handoff document for another agent to pick up.
+disable-model-invocation: true
 ---
 
 停下手头的一切工作，生成交接文档，包含：

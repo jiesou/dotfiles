@@ -9,6 +9,10 @@
 | 查看状态 | `kdocs-cli auth status` |
 | 退出登录 | `kdocs-cli auth logout` |
 
+## 浏览器授权流程
+
+`kdocs-cli auth login` 只生成本次 `auth_code` 并打开授权引导页，WPS 登录地址由引导页生成。用户在引导页点击“取消”后，服务端会结束本次授权，CLI 在下一次轮询收到 `409` 后立即退出；如需继续授权，请重新执行 `kdocs-cli auth login`。
+
 ## 企业账号受控
 
 本 Skill 及配套的 `kdocs-cli` 仅支持 **WPS 个人账号**。出现以下情况时，按企业账号受控处理：
@@ -23,6 +27,6 @@
 当 `kdocs-cli auth login` 因环境问题执行失败时，引导用户手动获取：
 
 1. 用户在浏览器访问 https://www.kdocs.cn/latest（需已登录 WPS 个人账号）
-2. 点击页面右上角个人头像旁的主菜单 → 选择「金山文档Skill」入口→ 复制 Token
+2. 点击页面右上角个人头像旁的主菜单 → 选择「金山文档Skill」入口 → 复制 Token
 3. 用户将 Token 提供给 Agent
 4. Agent 保存到密钥链：`kdocs-cli auth set-token "<TOKEN>"`

@@ -6,6 +6,7 @@ metadata:
     github-repo: https://github.com/wy51ai/edulab
     github-tree-sha: b2d3ac111104032d37422bacad17cf56520898ee
 name: edu-analytic-geometry
+disable-model-invocation: true
 ---
 # 解析几何解题 → 交互网页
 

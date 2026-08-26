@@ -1,9 +1,10 @@
 ---
 name: kdocs
-description: "操作金山文档（WPS 云文档）的官方 Skill。"
+description: "操作金山云文档WPS的官方 Skill。"
 homepage: https://www.kdocs.cn/latest
-version: 2.5.27
+version: 2.6.3
 metadata: {"requires":{"bins":["kdocs-cli"],"cliHelp":"kdocs-cli --help"},"openclaw":{"category":"kdocs","tokenUrl":"https://www.kdocs.cn/latest","emoji":"📝","keywords":["金山文档","金山表格","金山收藏","WPS","WPS文档","云文档","在线文档","kdocs","WPS云文档","接龙转表格","接龙","群接龙","报名表","信息收集","收集表","登记表","网页剪藏","剪藏","保存网页","网页保存到文档","保存文章","收藏文章","总结","帮我总结","帮我整理","帮我写","帮我翻译","帮我做PPT","翻译文档 - 做PPT - 生成PPT - 培训课件 - 方案展示 - 项目展示","文档总结","内容生成","改写","仿写","翻译","文档翻译","PPT","演示文稿","幻灯片","PDF","拆分PDF","导出PDF","Word","Excel","表格","Markdown","碎片整理","笔记整理","表格优化","文档处理","文件处理","办公助手","文档助手","周报","日报","工作汇报","合同","发票"]},"file_types":["pdf","doc","docx","xlsx","xls","pptx","ppt","otl","ksheet","dbt","form","jpg","jpeg","png","bmp","gif","webp","url","md","txt","html"],"category":"productivity"}
+disable-model-invocation: true
 ---
 
 # 金山文档 CLI Skill 使用指南
@@ -17,13 +18,15 @@ metadata: {"requires":{"bins":["kdocs-cli"],"cliHelp":"kdocs-cli --help"},"openc
 
 - 禁止将 Token 明文出现在对话、日志、命令输出、代码注释或任何文件中；Token 仅允许通过 `kdocs-cli auth set-token` 或 `kdocs-cli auth login` 保存到系统密钥链
 - 上传写入等接口需传入的 `content_base64` 可能非常大（编码后 >1 MB），禁止在对话中逐 token 生成 Base64 字符串，用脚本完成文件读取、编码和传参
+- 权限不足时禁止重试或绕过，立即告知用户无权限
 
 ### 必须（MUST）
 
 - 不可逆操作（delete/close 类）执行前必须向用户确认
-- 写操作完成后必须用独立读取请求验证实际结果（不信任 `code: 0`）
 - 创建云文档文件并验证通过后，必须向用户展示可访问链接。若响应包含 `data.link_url` 则直接展示；若响应无链接时，调用 `get_file_link` 获取并展示。
-- 调用工具前必须先阅读对应的 `references/` 详细参考文档，禁止仅凭指南（guide）的概要说明直接拼装调用；参数细节（类型、可选值、约束）以工具参考文档为准
+- 除 SKILL.md 已给出最小可用示例的主路径工具外，其他工具调用前必须先阅读对应的 `references/` 详细参考文档；参数细节（类型、可选值、约束）以工具参考文档为准
+
+---
 
 ## 工具安装与认证
 
@@ -88,10 +91,59 @@ kdocs-cli <service> <action> [参数]
 
 > **找不到命令？** 浏览 `--help` 时若发现预期的 service 或 action 不存在，先运行 `kdocs-cli upgrade -y` 升级到最新版本再重试。CLI 能力随版本持续扩展，未升级是命令缺失的首要原因。详见上方「保持最新版本」章节。
 
+---
+
+## 读写主路径
+
+读用 `read_file`，写用 `create_file_with_content`。其他工具⚠️ **禁止跳过 reference 直接调用**（违反必导致参数错误），工具总览仅供路由选择，调用前必须读对应 `references/` 文档。
+
+### 读：`read_file`
+
+`read_file` 是正文读取主入口，定位参数 `url` / `link_id` / `file_id` 三选一：
+
+```bash
+kdocs-cli drive read-file url="https://www.kdocs.cn/l/xxx"
+```
+
+按已有定位信息选择一个参数即可：用户给完整链接传 `url`；已解析分享链接传 `link_id`；已拿到文件 ID 传 `file_id`。不要同时传多个定位参数。
+
+如返回 `data.status=pending`，下一次必须带原定位参数和 `task_id` 继续读：
+
+```bash
+kdocs-cli drive read-file file_id=file_xxx task_id=task_xxx
+```
+
+必须检查返回里的 `data.warnings`：表格可能只读默认工作表或首屏区域，warnings 会提示实际读取范围。
+
+### 写：`create_file_with_content`
+
+`create_file_with_content` 是“新建并写入内容”的主路径。目标目录明确时补 `drive_id` 和 `parent_id`；未指定目录时可省略。
+
+```bash
+kdocs-cli drive create-file-with-content --file payload.json
+```
+
+`payload.json`：
+
+```json
+{
+  "name": "周报.otl",
+  "content": "# 周报\n\n这里是正文"
+}
+```
+
+| 后缀 | 关键参数 |
+|------|----------|
+| `.otl` `.docx` `.pdf` | `name` + `content` |
+| `.xlsx` `.ksheet` | `name` + `sheet_name` + `rangeData` |
+| `.dbt` | `name` + `sheet_name` + `fields` + `records` |
+
+表格、多维表结构不确定时，先读 `create_file_with_content` reference。写入成功后优先展示返回里的 `data.link_url`。
+
 
 以下工具不可逆，调用前必须向用户确认（详细约束见各工具参考文档的「操作约束」区）：
 
-`otl.block_delete`、`dbsheet.delete_sheet`、`kwiki.close_knowledge_view`、`sheet.delete_sheets`、`sheet.delete_range_data`、`dbsheet.delete_view`、`dbsheet.delete_fields`、`cancel_share`、`kwiki.delete_item`、`sheet.delete_protection_ranges`、`dbsheet.delete_records`、`sheet.delete_data_validations`、`cancel_collaborator_permissions`、`sheet.delete_conditional_format_rules`、`sheet.delete_float_images`、`sheet.delete_filters`、`dbsheet.sheet_batch_delete`、`sheet.delete_pivot_table`、`dbsheet.permission_delete_roles_async`
+`otl.block_delete`、`dbsheet.delete_sheet`、`kwiki.close_knowledge_view`、`sheet.delete_sheets`、`sheet.delete_range_data`、`dbsheet.delete_view`、`dbsheet.delete_fields`、`cancel_share`、`kwiki.delete_item`、`sheet.delete_protection_ranges`、`dbsheet.delete_records`、`sheet.delete_data_validations`、`cancel_collaborator_permissions`、`sheet.delete_conditional_format_rules`、`sheet.delete_float_images`、`sheet.delete_filters`、`dbsheet.sheet_batch_delete`、`sheet.delete_pivot_table`、`dbsheet.permission_delete_roles_async`、`dbsheet.innerdoc_block_delete`、`dbsheet.innerdoc_block_batch_delete`
 
 ---
 
@@ -101,9 +153,11 @@ kdocs-cli <service> <action> [参数]
 
 Agent 首先判定用户请求的操作域：
 
+> 进入「局部更新」「类型专属能力」且后缀/类型未知时：先按 `references/file-locating-guide.md` 确认类型，再打开对应类型 reference；勿猜测调用。读取/创建/文件管理不必先调。
+
 | 操作域 | 触发场景 | 路由 |
 |--------|---------|------|
-| 创建/写入 | 新建并写入、上传本地文件、新建空白文档 | **见下方「创建/写入」** |
+| 创建/写入 | 新建并写入、上传本地文件、新建空白文档 | 主路径见上方「读写主路径」；上传本地文件、新建空白文档见 `references/drive.md` |
 | 局部更新 | 改块/改段/改单元格，已有目标文档上的修改 | 按「支持的文档类型」→ 对应 reference 中的写入/更新类工具 |
 | 类型专属能力 | 条件格式、导出转换、翻译、PDF 拆分、幻灯片主题、数据校验 | 按「支持的文档类型」→ 对应 reference 中的专属功能章节 |
 | 读取 | 读取/提取/导出文档内容 | `read_file`（有链接优先 `url`，亦可 `link_id` / `file_id`，详见 `references/drive/read_and_download.md`）；否则按「定位文件」 |
@@ -150,6 +204,7 @@ Agent 首先判定用户请求的操作域：
 
 | 流程 | 说明 | 详细参考 |
 |------|------|---------|
+| 读取多维表云文档元信息 | 从多维表记录中提取云文档字段的 file_id，再调用 get_file_info 获取元信息（文件名、大小、类型、修改时间等） | `references/workflows/read-cloud-doc-meta.md` |
 | AI 生成演示文稿（全文） | aippt.execute 单接口全文生成链路：支持 html（两次调用 + follow_up）和 basic（一次调用，经典简约模式）两种模式，覆盖主题/文档场景 | `references/workflows/aippt-full-text.md` |
 | AI 单页生成幻灯片 | aippt.execute 单接口单页生成幻灯片：HTML 布局模式，一次调用完成，可通过 wpp.import_slides 插入到已有演示文稿 | `references/workflows/aippt-single-page.md` |
 | 网页剪藏 | 抓取网页内容并自动保存为智能文档 | `references/workflows/web-scrape.md` |
@@ -159,7 +214,7 @@ Agent 首先判定用户请求的操作域：
 | 精准搜索与风险排查 | 在特定目录批量搜索文档，逐一读取分析，汇总到新文档 | `references/workflows/precise-search-analysis.md` |
 | 云文档导入幻灯片 | 将外部 PPTX 文件中的指定幻灯片导入到已有演示文稿中 | `references/workflows/import-slides.md` |
 | 接龙转表格 | 识别接龙文本内容，自动提取并转为在线表格 | `references/workflows/jielong-to-table.md` |
-| 信息收集表单生成 | 根据用户需求自动设计并创建信息收集表格 | `references/workflows/form-generator.md` |
+| 表单收集 | 根据用户需求设计并创建智能表单，发布后生成填写链接 | `references/workflows/form-collection.md` |
 | 知识智能整理 | 对知识库中的零散内容进行智能化整理和结构化重组 | `references/workflows/knowledge-format.md` |
 | 知识一键存入 | 将各类内容（网页、文件、文本）一键保存到知识库 | `references/workflows/knowledge-save.md` |
 | 表格美化与数据规范 | 读取表格数据，进行格式美化、数据规范化和样式调整，并通过条件格式、数据校验、区域权限固化规则 | `references/workflows/table-beautify.md` |
@@ -173,6 +228,7 @@ Agent 首先判定用户请求的操作域：
 | `400006` / 鉴权失败 | Token 过期或未配置 | 运行 `kdocs-cli auth login` 重新登录，或 `kdocs-cli auth set-token <token>` 重新设置 |
 | `429001` / 限频 | 请求过于频繁，响应含**限频恢复时间** | 立即停止命令调用，直到达到恢复时间；禁止立即重试、换参、换子命令连续请求 |
 | `429002` / 熔断 | 多因短时间内连续触发 `429001` ，响应含**熔断持续时间** | 熔断时长内零请求，期满再试；重新规划任务避免请求过频 |
+| `403` / 权限不足 / `无权访问` / `forbidden` | 当前凭据对目标文档、目录或资源无操作权限 | 停止操作，禁止重试或尝试其他接口绕过；告知用户当前账号无权限，并建议联系文档所有者开通权限、确认分享链接权限，或切换到有权限的账号 |
 | `unknown action` / `unknown service` | CLI 版本过旧或名称拼写错误 | 先运行 `kdocs-cli upgrade` 升级到最新版本；仍报错再运行 `kdocs-cli <service> --help` 确认可用命令 |
 | 搜索无结果 | 关键词过精确 / 索引延迟 | 缩短关键词 / 等待 3-5 秒重试 |
 | 读取内容为空 | 文件无内容或格式不支持 | 确认文件非空且后缀正确 |

@@ -47,7 +47,7 @@ PowerShell 下复杂 JSON（含中文、数组、大对象）优先用 `--file`�
 
 > ⚠️ `read_file` 对智能文档存在**内容遗漏风险**——部分组件类型（如嵌入表格、附件、特殊块）可能在转换过程中丢失。**仅在需要将文档导出为 Markdown 格式时使用**，日常读取和编辑前的内容确认应优先使用 `otl.block_query`。
 
-**图片导出**：默认导出的 Markdown 不含图片链接。需要图片时传 `enable_upload_medias: true`（仅 `format=markdown` 或 `kdc` 时生效），图片 URL **有效期约 10 分钟**——导出完成后须立即告知用户链接有时效限制，并询问是否需要下载。
+**图片导出**：默认导出的 Markdown 不含图片链接，仅显示占位符。需要图片时传 `enable_upload_medias: true`（仅 `format=markdown` 或 `kdc` 时生效），图片 URL **有效期约 10 分钟**——导出完成后须立即告知用户链接有时效限制，并询问是否需要下载。
 
 ### 写入/更新已有智能文档
 
@@ -84,6 +84,8 @@ PowerShell 下复杂 JSON（含中文、数组、大对象）优先用 `--file`�
 | 读取现有文档内容 | `otl.block_query`（`params: { blockIds: ["doc"] }` 获取全文） |
 | 导出文档为 Markdown | `read_file`（可能遗漏部分组件内容；需要图片时传 `enable_upload_medias: true`，URL 有效期约 10 分钟） |
 | 精确修改文档块 | `otl.block_query` → `otl.block_delete` / `otl.block_insert` |
+| 修改文档标题 | `otl.block_query`（`blockIds: ["doc"]`）获取 title 块 ID → `otl.block_update`（`update_content`，`content` 传 text 节点） |
+| 向文档插入图片 | `upload_attachment`（获取 `object_id`）→ `otl.block_insert`（`type: "picture"`，`sourceKey` 设为 `object_id`，其余属性见 otl/node.md） |
 | 下载文档中的图片/附件 | `otl.block_query` → 找到目标块的 `sourceKey` → `download_attachment`（`attachment_id` 为 `sourceKey`） |
 | 获取文档封面图 | `otl.block_query`（`params: { blockIds: ["doc"] }`）→ 查看返回的 `cover.sourceKey`；可通过 `download_attachment` 下载封面图资源 |
 | 设置文档封面图 | `upload_attachment`（获取 `object_id`）→ `otl.block_update`（`update_attrs`，`blockId: "doc"`，`attrs.cover.sourceKey` 设为 `object_id`） |

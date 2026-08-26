@@ -1,6 +1,7 @@
 ---
 name: memclean-chenpc
 description: Clean user's PC memory usage.
+disable-model-invocation: true
 ---
 
 # memclean-chenpc

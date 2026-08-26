@@ -1,6 +1,7 @@
 ---
 name: openclash-multi-host
 description: "Manage OpenClash persistent config across 3 routers (inno11/wy100/wsc13). Use when: syncing subscription URLs, filters, config across routers. Do NOT use when: perform live operations such as changing nodes (you need clash api operation skill). The 3 routers have DIFFERENT configs — do NOT blindly apply the same change to all."
+disable-model-invocation: true
 ---
 
 # OpenClash Multi-Host

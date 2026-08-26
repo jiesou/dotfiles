@@ -6,13 +6,11 @@
 
 列出「我的云文档」根目录的直接子项。
 
-| 用户意图 | 工具 |
-| --- | --- |
-| 浏览我的云文档根目录 | **本工具** |
-| 浏览指定文件夹（有 `drive_id` + `parent_id`） | `list_files` |
-| 按关键词/类型找文件 | `search_files` |
+#### 工具选择
 
-
+- **适用**：浏览我的云文档根目录时
+- **勿用**（改用 `list_files`）：浏览指定文件夹（已有 drive_id 与 parent_id）
+- **勿用**（改用 `search_files`）：按关键词/类型找文件
 
 > 无法解析默认云盘时返回 code 400001，data.next_actions 列出可接续工具（search_files / read_file / get_share_info）；按 next_actions 选择下一步，勿重复调用本工具
 
@@ -33,7 +31,6 @@
   "order_by": "mtime"
 }
 ```
-
 
 #### 参数说明
 
@@ -89,14 +86,12 @@
 
 获取指定文件夹下的子文件列表，通过 `filter_type` 可筛选仅返回文件夹。
 
-| 用户意图 | 工具 |
-| --- | --- |
-| 浏览我的云文档根目录 | `list_my_files` |
-| 浏览指定文件夹（有 `drive_id` + `parent_id`） | **本工具** |
-| 按关键词/类型找文件 | `search_files` |
-| 团队文档库 | `list_doclibs` → 本工具 |
+#### 工具选择
 
-
+- **适用**：已有 drive_id 与 parent_id，浏览指定文件夹子项时
+- **适用**：团队文档库：先 list_doclibs 取 drive_id，再调本工具
+- **勿用**（改用 `list_my_files`）：浏览我的云文档根目录
+- **勿用**（改用 `search_files`）：按关键词/类型找文件
 
 > 缺参或误用时返回 code 400001，data.next_actions 列出可接续工具（list_my_files / search_files / get_file_info / list_doclibs 等）；按 next_actions 选择下一步，勿重复调用本工具
 > 团队文档库浏览须先 `list_doclibs` 取 `drive_id`，再调本工具
@@ -121,7 +116,6 @@
 }
 ```
 
-
 #### 参数说明
 
 - `drive_id` (string, 必填): 云盘 ID
@@ -143,7 +137,6 @@
 | 要列「测试目录」等子文件夹 | 先 `list_my_files` → 取文件夹 `items[].id` 作 `parent_id`（示例 id 见 list_my_files 返回值示例） |
 | 已在某文件夹列过表 | 沿用当前 `drive_id`；子文件夹用 `items[].id` 作 `parent_id` |
 | 仅缺 `drive_id`，有非根 `parent_id` | 只传 `parent_id`，服务端以其反查 `drive_id` |
-
 
 #### 返回值说明
 
@@ -210,9 +203,7 @@
 - **有明确的 drive_id** 必传。
 - **没有**：不传。
 
-
-
-> 不支持在线文档类型的下载，仅支持上传的二进制文件（.docx / .xlsx / .pdf / .pptx 等）。读取在线文档内容请使用 `read_file` 工具
+> 不支持在线文档类型的下载，仅支持上传的二进制文件（.docx / .xlsx / .pdf / .pptx / .jpg / .png 等）。读取在线文档内容请使用 `read_file` 工具
 
 #### 调用示例
 
@@ -234,7 +225,6 @@ file_id：
   "with_hash": true
 }
 ```
-
 
 #### 参数说明
 
@@ -281,8 +271,6 @@ file_id：
 
 查询文档附件的下载信息。根据文件 ID 与附件 ID 获取附件下载链接、名称与大小；链接为有效期内可直接下载的 URL。
 
-
-
 > 返回的 url 有时效限制，应在获取后尽快使用
 > attachment_id 来源：`upload_attachment` 返回的 `object_id`
 
@@ -296,7 +284,6 @@ file_id：
   "attachment_id": "1234567890"
 }
 ```
-
 
 #### 参数说明
 
@@ -336,16 +323,21 @@ file_id：
 读取云文档正文，按文件类型自动返回 Markdown 或结构化数据。
 覆盖文字、PDF、演示、智能文档、表格与多维表。
 
+#### 工具选择
 
+- **适用**：读取云文档正文内容（Markdown/结构化摘要）时
+- **勿用**：整表精细读取或海量表格/多维表/智能文档块级数据 — 表格用 sheet.*，多维表用 dbsheet.*，智能文档块级读取用 otl.*，不要用本工具代替
+- **勿用**（改用 `pdf.split`）：PDF 拆页、合并、转格式等页级操作 — 页级操作用 pdf.*（如 split/merge/convert），不要用本工具代替
+- **勿用**：WPS 文字文档导出为其他格式（如导出 PDF/图片） — 导出用 wps.*，本工具仅读取正文内容
+- **勿用**（改用 `wpp.write_slide`）：增删/移动/复制幻灯片 — 幻灯片页级操作用 wpp.write_slide / wpp.read_slide，不要用本工具代替
+- **勿用**（改用 `wpp.set_font_presentation`）：改演示文稿主题字体或配色 — 主题用 wpp.set_font_* / wpp.set_color_*（页级或整稿），不要用本工具代替
+- **勿用**（改用 `wpp.export_pdf`）：演示文稿导出 PDF 或图片 — 导出用 wpp.export_pdf / wpp.export_image，不要用本工具代替
 
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：用户提供 URL/分享链时可直接传入 url 参数；否则通过 search_files 获取 file_id
 - **禁止**：禁止对 .csv 调用本工具；CSV 不支持在线读取。若需获取其中表格数据，须先将 CSV 转为在线表格（.xlsx/.ksheet），再对新文件调用本工具；若只需原始 CSV 文件，通过当前渠道支持的下载方式获取。
-- **提示**：整表精细读取或海量数据：表格用 sheet.*，多维表用 dbsheet.*，智能文档块级读取用 otl.*
-- **提示**：PDF 拆页、合并、转格式等页级操作用 pdf.*，不要用本工具代替
-- **提示**：WPS 文字文档导出为其他格式（如导出 PDF/图片）用 wps.*，本工具仅读取正文内容
-- **提示**：增删幻灯片、改主题、导出 PDF/图片用 wpp.*，不要用本工具代替
+- **禁止**：图片文件（.jpg/.jpeg/.png/.gif/.bmp/.svg/.webp 等）不支持读取正文
 
 **幂等性**：是
 
@@ -404,15 +396,14 @@ pptx 异步轮询：
 }
 ```
 
-
 #### 参数说明
 
 - `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 金山文档 URL
 - `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享链接 ID
 - `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件 ID
 - `task_id` (string, 可选): 轮询任务 ID；上次返回 data.status=pending 时，与首次调用时传入的 url/link_id/file_id 一并传入
-- `format` (string, 可选): 【文档类 docx/doc/pdf/wps/otl；ppt/pptx 忽略本参数，固定 kdc】文档内容目标格式。可选值：`markdown` / `plain`（纯文本）/ `kdc`（结构化表示）；默认不传，服务端自动匹配。
-- `enable_upload_medias` (boolean, 可选): 【文档类 docx/pdf/wps/doc/ppt/pptx】是否将正文内图片等附件转为可下载 URL，默认 false；仅 format=markdown 或 kdc 时生效
+- `format` (string, 可选): 文档内容目标格式。可选值：`markdown` / `plain`（纯文本）/ `kdc`（结构化表示）；默认不传。docx/doc/pdf/wps/otl（markdown|plain|kdc）；ppt/pptx（markdown|kdc）；xlsx/xls 仅 format=markdown 走整文件抽取，其它值或不传则读取表格选区
+- `enable_upload_medias` (boolean, 可选): 【文档类 docx/pdf/wps/doc/ppt/pptx/otl】是否将正文内图片等附件转为可下载 URL，默认 false；仅 format=markdown 或 kdc 时生效
 - `sheet_name` (string, 可选): 【表格类 xlsx/ksheet 等、多维表 dbt】工作表或数据表名称
 - `sheet_id` (number, 可选): 【表格类、多维表】工作表或数据表 ID；与 sheet_name 同传时优先使用
 - `sheet_range` (object, 可选): 【表格类】读取区域，0-based，起止均含；不传则读默认首屏区域
@@ -434,6 +425,7 @@ pptx 异步轮询：
     "name": "报告.docx",
     "suffix": ".docx",
     "content_format": "markdown",
+    "size": 982782,
     "content": "# 标题\n\n正文内容…"
   },
   "msg": "ok"
@@ -459,6 +451,7 @@ pptx 异步轮询：
     "name": "数据.xlsx",
     "suffix": ".xlsx",
     "content_format": "sheet_range",
+    "size": 982782,
     "content": {
       "sheets_info": { "detail": { "sheetsInfo": [{"sheetId": 1, "sheetIdx": 0, "sheetName": "Sheet1", "rowFrom": 0, "rowTo": 4, "colFrom": 0, "colTo": 2}] }, "result": "ok" },
       "range_data": { "detail": { "rangeData": [{"cellText": "姓名", "originRow": 0, "originCol": 0, "understandableType": {"type": "string", "value": "姓名"}}, {"cellText": "100", "originRow": 1, "originCol": 1, "understandableType": {"type": "double", "value": 100}}] }, "result": "ok" }
@@ -478,6 +471,7 @@ pptx 异步轮询：
     "name": "汇报.pptx",
     "suffix": ".pptx",
     "content_format": "kdc",
+    "size": 982782,
     "content": {
       "slide_containers": [
         {
@@ -527,8 +521,6 @@ pptx 异步轮询：
 
 获取文件（夹）信息。通过 `file_id` 获取单个文件或文件夹的详细信息，包含 `drive_id` 等关键字段，可用于获取其他接口所需的 `drive_id`。
 
-
-
 #### 调用示例
 
 获取文件信息：
@@ -541,10 +533,11 @@ pptx 异步轮询：
 }
 ```
 
-
 #### 参数说明
 
-- `file_id` (string, 必填): 文件（夹）ID
+- `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL
+- `link_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 分享链接 ID
+- `file_id` (string, 三选一必填: `url` / `link_id` / `file_id`): 文件（夹）ID
 - `with_permission` (boolean, 可选): 是否返回文件操作权限
 - `with_ext_attrs` (boolean, 可选): 是否返回文件扩展属性
 - `with_drive` (boolean, 可选): 是否返回文件所在 drive 信息
@@ -639,7 +632,3 @@ pptx 异步轮询：
 ```
 
 返回通用文件信息结构，详见附录 A。当 `with_drive=true` 时额外返回 `drive` 对象（含盘的 id、name、quota 等信息）。
-
-
----
-

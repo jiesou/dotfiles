@@ -4,9 +4,9 @@
 
 ## 门禁
 
-- 机械检查 + 自证测试：每个门禁有用非法样例证明会拒绝的测试。
-- 门禁清单权威在 `scripts/gates/run.mjs`；按改动面跑**最窄**证据，不默认跑全套。
-- 常见门禁：md-links / decisions / assets / spec-states / config-sync / generated-freshness / unit-tests / gate-self-tests。
+- 测试即门禁：vitest specs（`tests/*.spec.ts`），每个非平凡行为有非法样例拒绝证明的用例。
+- 清单权威在 `pnpm test`；按改动面跑**最窄**证据（`pnpm test <spec>`），全套走 `pnpm check`（typecheck + test + build）。
+- 常见 spec：md-links / decisions / assets / spec-states / config-sync / generated-freshness / unit。
 
 ## 决策记录
 
@@ -17,8 +17,8 @@
 
 ## 生成物纪律
 
-- `client.js` 由构建生成（`build-client.mjs --check` 守卫新鲜度），勿手改。
-- 生成物不手改——改源码，重新构建。
+- `lib/` 由 tsdown 生成（`pnpm build`），勿手改。
+- 产物入库是 git 源一行安装的前提（见 gotchas.md 1c）——改完源码重建后随改动一起提交。
 
 ## 环境行为沉淀
 

@@ -8,7 +8,11 @@
 支持按文件名、内容全文或全局检索（type 默认 all），并可按时间、创建者、后缀等条件过滤。
 若只要文件夹或只要文件，请用 file_type；勿将 folder/file 填入 type。
 
+#### 工具选择
 
+- **适用**：按关键词/类型跨目录找文件时
+- **勿用**（改用 `list_files`）：已知目录、只需浏览子项时，不要用搜索代替目录遍历
+- **勿用**（改用 `list_my_files`）：浏览我的云文档根目录
 
 > 新建文件后搜索可能无法立即命中，需等待索引更新
 
@@ -41,7 +45,6 @@
 }
 ```
 
-
 #### 参数说明
 
 - `keyword` (string, 可选): 搜索关键字
@@ -52,7 +55,7 @@ file_name 仅搜文件名，content 仅搜文件内容，all 文件名+内容。
 - `page_size` (integer, 必填): 每页条数；建议 100；范围 0–500（含 0），传 0 表示按 50
 - `page_token` (string, 可选): 翻页 token
 - `file_type` (string, 可选): 文件类型筛选。可选值：`folder` / `file`
-- `file_exts` (array, 可选): 文件后缀过滤
+- `file_exts` (array, 可选): 按文件后缀筛选结果。搜索特定类型文件时使用此参数
 - `drive_ids` (array, 可选): 搜索云盘 ID列表
 - `parent_ids` (array, 可选): 搜索目录列表
 - `creator_ids` (array, 可选): 创建者 ID 列表。公网只支持选择是否自己创建的文件
@@ -147,7 +150,3 @@ file_name 仅搜文件名，content 仅搜文件内容，all 文件名+内容。
 | `data.items[].otime` | integer | 文件打开时间 |
 | `data.next_page_token` | string | 下一页 token |
 | `data.total` | integer | 资源集合总数（仅 `with_total=true` 时返回） |
-
-
----
-

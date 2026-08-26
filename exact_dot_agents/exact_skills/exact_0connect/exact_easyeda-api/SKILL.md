@@ -13,6 +13,7 @@ metadata:
         - node
       env:
         - CLAUDE_SKILL_DIR
+disable-model-invocation: true
 ---
 
 # EasyEDA Pro API Skill

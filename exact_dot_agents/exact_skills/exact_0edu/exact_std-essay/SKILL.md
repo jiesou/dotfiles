@@ -1,6 +1,7 @@
 ---
 description: 标准语文八股作文撰写
 name: std-essay
+disable-model-invocation: true
 ---
 
 ## 参考文章集：

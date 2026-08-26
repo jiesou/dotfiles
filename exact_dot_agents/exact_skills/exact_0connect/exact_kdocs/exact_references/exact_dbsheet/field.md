@@ -28,9 +28,7 @@
 
 在指定数据表中批量创建字段。请求体为 JSON：`fields[]` 每项含 `name`、`type` 及类型特有属性（直接平铺在字段根级，**无 `data` 包装层**）；详见 param_detail 中各字段类型定义。创建成功后由服务端分配字段 `id`。
 
-
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：使用该工具前必须先调用 get_schema 确认要操作的数据表 id，不得自行捏造数据表 id。
 - **禁止**：禁止凭直觉猜测 `type` 值。`Text`、`DateTime`、`MultiSelect`、`single_select`、`Percent`、`Reference`、`User`、`Rollup` 等均为非法枚举，正确值见 description.detail 对照表。传入非法 type 会直接报 Unknown enum。
@@ -103,7 +101,6 @@
 }
 ```
 
-
 #### 参数说明
 
 - `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL
@@ -118,7 +115,6 @@
   - 类型专属属性直接平铺（如 `items`、`numberFormat`、`max` 等），**无 `data` 包装层**
   - **禁止**在创建请求中传入 `id`：`id` 仅创建成功后由服务端返回
 - `prefer_id` (boolean, 可选): 默认 `false`（以字段**名称**解析关联）。为 `true` 时，**Lookup** 的 `linkField`/`lookupField`、**LastModifiedBy**/**LastModifiedTime** 的 `watchedField` 等须传**字段 id**
-
 
 **请求体根级**
 
@@ -470,7 +466,6 @@
 }
 ```
 
-
 #### 返回值说明
 
 ```json
@@ -533,9 +528,7 @@
 
 批量更新数据表中已有字段的名称、选项等属性。请求体中 `fields[]` 每项必须包含 `id`（通过 `dbsheet.get_schema` 获取，禁止凭空捏造），类型专属属性直接平铺在字段对象根级（无 `data` 包装层）。
 
-
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：阅读 param_detail 的字段类型章节，获取所有合法的 type 枚举值及各类型专属属性；不得自行推断或捏造字段类型值
 - **前置检查**：get_schema 确认目标字段存在及当前属性
@@ -572,7 +565,6 @@
 }
 ```
 
-
 #### 参数说明
 
 - `url` (string, 三选一必填: `url` / `link_id` / `file_id`): 文档 URL
@@ -588,7 +580,6 @@
   - 类型专属属性直接平铺（如 `items`、`numberFormat`、`max` 等），**无 `data` 包装层**
 - `prefer_id` (boolean, 可选): 是否使用字段 ID 标识字段和选项，默认 `false`。为 `true` 时，Lookup 的 `linkField`/`lookupField`、LastModifiedBy/LastModifiedTime 的 `watchedField` 等须传字段 id；默认值：`false`
 - `omit_failure` (boolean, 可选): 是否忽略单个字段写入错误并继续后续字段，默认 `false`；默认值：`false`
-
 
 **请求体根级**
 
@@ -881,7 +872,6 @@
 }
 ```
 
-
 #### 返回值说明
 
 ```json
@@ -921,9 +911,7 @@
 批量删除数据表中的指定字段。
 该工具的 fields 参数为对象数组，每个对象包含 id 字段（如 {"id": "C"}），不得自行捏造 id 字段，不得直接传入 ["C", "D"] 等字符串数组。
 
-
-
-#### 操作约束
+#### 调用约束
 
 - **前置检查**：get_schema 核对拟删字段的名称和类型；使用该工具前必须先调用 get_schema 确认要操作的数据表 id，不得自行捏造数据表 id。
 - **用户确认**：删除字段不可恢复，字段数据将永久丢失，必须向用户确认字段列表
@@ -948,7 +936,6 @@
   ]
 }
 ```
-
 
 #### 参数说明
 
@@ -977,7 +964,3 @@
 |------|------|------|
 | `detail.fields` | array | 删除结果列表，每项包含 `id` 和 `deleted` |
 | `result` | string | ok 表示成功 |
-
-
----
-
