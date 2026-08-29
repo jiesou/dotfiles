@@ -2,7 +2,7 @@
   "name": "dsh-profile-dsh-tui",
   "private": true,
   "dependencies": {
-    "@deepseek-harness-tui/dsh-tui": "0.8.6",
+    "@deepseek-harness-tui/dsh-tui": "0.9.3",
     "@jiesou/dsh-cline-free-provider": "^0.1.9",
     "@jiesou/dsh-commandcode-go-provider": "^0.1.5",
     "@jiesou/dsh-opencode-zen-free-provider": "^0.1.9",

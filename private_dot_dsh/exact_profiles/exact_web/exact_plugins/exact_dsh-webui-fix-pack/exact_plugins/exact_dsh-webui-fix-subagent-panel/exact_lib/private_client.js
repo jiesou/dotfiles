@@ -1,19 +1,10 @@
 /**
- * WORKAROUND for the subagent catalog panel on mobile:
- *
- *   - SubagentCatalogAction (`dsh-client-ui-subagent`): the title-bar subagent
- *     session tree opens at `left: 0` and spills off-screen on narrow/touch
- *     layouts. This plugin clamps any open instance to the viewport on
- *     coarse-pointer (touch) UIs.
- *   - The catalog trigger (the "N subagents" chip / sibling switcher chevron)
- *     only opens on a 150ms hover timer, and the portaled menu sits 5px below
- *     the trigger behind a 120ms hover-close race, so quick taps often do
- *     nothing. This plugin makes clicking the trigger toggle the catalog by
- *     reusing the component's own keyboard paths (ArrowDown opens, Escape
- *     closes). Ancestor switchers keep their click-to-navigate semantics.
- *
- * Remove once upstream makes the subagent catalog responsive and
- * tap-toggleable on touch.
+ * WORKAROUND for the subagent catalog panel on mobile/touch, until upstream
+ * makes it responsive and tap-toggleable:
+ *   - The session tree opens at `left: 0` and spills off-screen on narrow
+ *     layouts; clamp any open instance to the viewport.
+ *   - The trigger only opens via a hover timer with a hover-close race, so
+ *     taps do nothing; click toggles it via ArrowDown/Escape.
  */
 window.__ModuleLoader__.load({
   id: '@jiesou/dsh-webui-fix-subagent-panel',
@@ -26,16 +17,16 @@ window.__ModuleLoader__.load({
 
     // --- display: clamp the catalog tree to the viewport ---
     function isCatalogPanel(el) {
-      if (!(el instanceof Element) || el.getAttribute('role') !== 'tree') return false
+      if (!(el instanceof Element)) return false
       var parent = el.parentElement
       return parent !== null && parent.querySelector('button[aria-haspopup="tree"]') !== null
     }
 
     function panels() {
       var result = []
-      document.querySelectorAll('[role="tree"]').forEach(function (el) {
+      for (var el of document.querySelectorAll('[role="tree"]')) {
         if (isCatalogPanel(el)) result.push({ root: el.parentElement, panel: el })
-      })
+      }
       return result
     }
 
@@ -49,9 +40,7 @@ window.__ModuleLoader__.load({
 
     function fitAll() {
       if (!isTouchUi()) return
-      panels().forEach(function (item) {
-        fitPanel(item.root, item.panel)
-      })
+      for (var item of panels()) fitPanel(item.root, item.panel)
     }
 
     // --- click: toggle the catalog trigger ---

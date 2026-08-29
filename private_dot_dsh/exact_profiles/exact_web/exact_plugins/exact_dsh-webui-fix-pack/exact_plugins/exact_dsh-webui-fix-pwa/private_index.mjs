@@ -67,7 +67,24 @@ function serveManifest(ctx, tokens, base, icon) {
     const icons = icon === null
       ? base.icons
       : [{ src: ICON_PATH, sizes: 'any', type: 'image/svg+xml', purpose: 'any' }]
-    const body = JSON.stringify({ ...base, display: 'standalone', theme_color: color, background_color: color, icons }, null, 2)
+    // Only embed the token for authenticated requests. `connection` exists only
+    // on dsh >= 0.1.2-alpha.1; it is read defensively (not injected) so that
+    // 0.1.1-rc2, where the service is absent, still loads and serves the plain
+    // start_url.
+    let startUrl = base.start_url
+    const conn = connectionOf(ctx)
+    if (conn && conn.requestRejection?.(req) === undefined) {
+      const token = new URL(conn.authenticatedUrl('http://localhost')).searchParams.get('token')
+      if (typeof token === 'string') startUrl = `/?token=${token}`
+    }
+    const body = JSON.stringify({
+      ...base,
+      display: 'standalone',
+      theme_color: color,
+      background_color: color,
+      start_url: startUrl,
+      icons,
+    }, null, 2)
     res.writeHead(200, {
       'content-type': 'application/manifest+json; charset=utf-8',
       'cache-control': 'no-cache',
@@ -91,8 +108,23 @@ function serveIcon(svg) {
   }
 }
 
+// `connection` (and its one-time launch token) only exists on dsh >= 0.1.2-alpha.1.
+// It is intentionally not injected: a required inject would stop this plugin from
+// loading on 0.1.1-rc2, where the service is absent. Read it defensively so an
+// absent service degrades to "no token" instead of throwing.
+function connectionOf(ctx) {
+  try { return ctx.connection } catch { return null }
+}
+
 export const name = '@jiesou/dsh-webui-fix-pwa'
 export const inject = ['settings', 'webServer']
+
+// DSH only mints the session cookie via the one-time token URL (`GET /?token=…`),
+// so the token gate stays. A desktop PWA launching straight at that URL loses
+// the cookie and hangs, so we only embed the token in `start_url` for
+// authenticated requests; unauthenticated LAN clients fetching the manifest
+// see no token. On 0.1.1-rc2 `connection` is absent, so the plain `start_url`
+// is served and the PWA relies on the older auth flow.
 
 export function apply(ctx) {
   const tokens = designTokens()

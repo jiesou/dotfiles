@@ -2,8 +2,9 @@
  * Node half: host-side notification driver. Listens to the session/event
  * audit stream for the blocking cases (approval, question) and expensive or
  * failed turns, and delivers each as a Web Push to every subscribed device
- * (mobile PWA included). Also serves the PWA resources (manifest / icons /
- * service worker) and the push subscription endpoints.
+ * (mobile PWA included). Also serves the service worker and the push
+ * subscription endpoints. PWA manifest and icons are handled by the upstream
+ * DSH framework / dsh-webui-fix-pwa.
  *
  * The browser half (src/client) drives permission + push registration and
  * falls back to the in-page Notification API when Web Push is unavailable.
@@ -54,11 +55,6 @@ export function apply(ctx: any, config?: Config): void {
         if (typeof callId !== 'string' || callId === '') return
         notify.pushQuestion({ sessionId: session?.id ?? '', callId })
       } else if (event?.type === 'tool/call') {
-        if (data?.name === 'ask_user_question') {
-          const callId: unknown = data?.callId
-          if (typeof callId !== 'string' || callId === '') return
-          notify.pushQuestion({ sessionId: session?.id ?? '', callId })
-        }
         const current = turnCalls.get(session?.id ?? '')
         if (current !== undefined && (data?.turn === undefined || data.turn === current.turn)) {
           current.calls += 1
@@ -125,18 +121,6 @@ export function apply(ctx: any, config?: Config): void {
     const hostOf = (req: unknown): string | undefined =>
       (req as { headers?: Record<string, string | undefined> })?.headers?.['host']
 
-    register<Res>('/plugins/web-ui-notify/manifest.json', (_req, res) => {
-      res.writeHead(200, { 'content-type': 'application/manifest+json; charset=utf-8', 'cache-control': 'no-store' })
-      res.end(notify.manifest)
-    })
-    register<Res>('/plugins/web-ui-notify/icon-180.png', (_req, res) => {
-      res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' })
-      res.end(notify.icons['icon-180.png'])
-    })
-    register<Res>('/plugins/web-ui-notify/icon-512.png', (_req, res) => {
-      res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' })
-      res.end(notify.icons['icon-512.png'])
-    })
     register<Res>('/plugins/web-ui-notify/sw.js', (_req, res) => {
       res.writeHead(200, {
         'content-type': 'application/javascript; charset=utf-8',
@@ -183,15 +167,5 @@ export function apply(ctx: any, config?: Config): void {
       })
     })
 
-    // Inject the PWA manifest + apple-touch-icon into the boot HTML. iOS needs
-    // PNG icons and an installed PWA before it will deliver Web Push.
-    if (typeof webServer.tapIndex === 'function' && typeof ctx.effect === 'function') {
-      ctx.effect(() => webServer.tapIndex((html: string) => {
-        const links = '<link rel="manifest" href="/plugins/web-ui-notify/manifest.json">'
-          + '<link rel="apple-touch-icon" href="/plugins/web-ui-notify/icon-180.png">'
-        if (html.includes('/plugins/web-ui-notify/manifest.json')) return html
-        return html.replace('<head>', `<head>${links}`)
-      }), 'web-ui-notify: pwa manifest tap')
-    }
   }
 }

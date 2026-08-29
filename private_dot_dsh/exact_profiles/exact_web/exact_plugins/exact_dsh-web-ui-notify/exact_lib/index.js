@@ -1,20 +1,18 @@
-import { crc32, deflateSync } from "node:zlib";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-//#region lib/types/notify-host.js
+//#region src/notify-host.ts
 /**
-* Host notification machinery: Web Push fan-out to subscribed devices plus the
-* PWA resources (manifest / icons / service worker) that make mobile system
-* notifications work. Detection of *what* to notify lives in src/index.ts,
-* which calls the handle methods below from the session/event audit stream and
-* registers the HTTP routes with the webServer service.
+* Host notification machinery: Web Push fan-out to subscribed devices so the
+* browser can surface system notifications on mobile even when the page is
+* closed. Detection of *what* to notify lives in src/index.ts, which calls the
+* handle methods below from the session/event audit stream and registers the
+* HTTP routes with the webServer service.
 *
-* Model (learned from dsh-meow-smooth):
+* Model:
 *  - The browser `Notification` API only works while a page is open and, on
-*    mobile (iOS Safari, backgrounded Android), is absent or stops firing. Web
-*    Push + an installed PWA + a service worker gives real system
-*    notifications on the phone even with its browser closed.
+*    mobile, is absent or stops firing when backgrounded. Web Push + a service
+*    worker gives real system notifications on the phone.
 *  - The host holds VAPID keys and subscriptions; pushes are encrypted and
 *    sent through Mozilla's autopush to the OS push services. `web-push` is a
 *    real runtime dependency (production section below), resolved from this
@@ -30,10 +28,10 @@ const SUBSCRIPTIONS_CAP = 64;
 const TITLE_MAX = 20;
 const FOCUS_WINDOW_MS = 3e3;
 const PUSH_DEDUP_KEY = "__dsh_web_ui_notify_push_dedup__";
-const PLUGIN_PREFIX = "/plugins/web-ui-notify";
 /** Data dir: $DSH_HOME/.web-ui-notify/ (fallback ~/.dsh/.web-ui-notify). */
 function dataDir() {
-	return join(process.env.DSH_HOME ?? join(homedir(), ".dsh"), ".web-ui-notify");
+	const home = process.env.DSH_HOME ?? join(homedir(), ".dsh");
+	return join(home, ".web-ui-notify");
 }
 /** Last-wins session title from an audit event list; empty when untitled. */
 function sessionTitleFromEvents(events) {
@@ -49,87 +47,6 @@ function sessionTitleFromEvents(events) {
 		if (text !== void 0 && text !== "") return text.length > TITLE_MAX ? `${text.slice(0, TITLE_MAX)}…` : text;
 	}
 	return "";
-}
-/** Runtime-generated vertical-gradient PNG icon (indigo -> deep indigo). */
-function pngIcon(size) {
-	const top = [
-		79,
-		70,
-		229
-	];
-	const bottom = [
-		49,
-		46,
-		129
-	];
-	const raw = Buffer.alloc(size * (size * 4 + 1));
-	for (let y = 0; y < size; y += 1) {
-		const t = y / (size - 1);
-		const r = Math.round(top[0] + (bottom[0] - top[0]) * t);
-		const g = Math.round(top[1] + (bottom[1] - top[1]) * t);
-		const b = Math.round(top[2] + (bottom[2] - top[2]) * t);
-		const row = y * (size * 4 + 1);
-		raw[row] = 0;
-		for (let x = 0; x < size; x += 1) {
-			const off = row + 1 + x * 4;
-			raw[off] = r;
-			raw[off + 1] = g;
-			raw[off + 2] = b;
-			raw[off + 3] = 255;
-		}
-	}
-	const chunk = (type, data) => {
-		const len = Buffer.alloc(4);
-		len.writeUInt32BE(data.length);
-		const typeBuf = Buffer.from(type, "ascii");
-		const crc = Buffer.alloc(4);
-		crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])) >>> 0);
-		return Buffer.concat([
-			len,
-			typeBuf,
-			data,
-			crc
-		]);
-	};
-	const ihdr = Buffer.alloc(13);
-	ihdr.writeUInt32BE(size, 0);
-	ihdr.writeUInt32BE(size, 4);
-	ihdr[8] = 8;
-	ihdr[9] = 6;
-	return Buffer.concat([
-		Buffer.from([
-			137,
-			80,
-			78,
-			71,
-			13,
-			10,
-			26,
-			10
-		]),
-		chunk("IHDR", ihdr),
-		chunk("IDAT", deflateSync(raw)),
-		chunk("IEND", Buffer.alloc(0))
-	]);
-}
-/** PWA manifest source (PNG icons + standalone; iOS needs PNG, not SVG). */
-function manifestSource() {
-	return JSON.stringify({
-		name: "dsh",
-		short_name: "dsh",
-		display: "standalone",
-		start_url: "/",
-		scope: "/",
-		icons: [{
-			src: `${PLUGIN_PREFIX}/icon-180.png`,
-			sizes: "180x180",
-			type: "image/png"
-		}, {
-			src: `${PLUGIN_PREFIX}/icon-512.png`,
-			sizes: "512x512",
-			type: "image/png"
-		}]
-	});
 }
 /** Service Worker source: push -> system notification (skips when a
 * same-origin window is focused), notification click -> focus/open + postMessage. */
@@ -150,13 +67,13 @@ function swSource() {
 		"    await self.registration.showNotification(title, {",
 		"      body: data.body || '',",
 		"      tag: data.tag || 'web-ui-' + Date.now(),",
-		`      icon: '${PLUGIN_PREFIX}/icon-180.png',`,
 		"      data: { sessionId: data.sessionId || null },",
 		"      requireInteraction: data.kind === 'approval' || data.kind === 'question',",
 		"    })",
 		"  })())",
 		"})",
 		"self.addEventListener('notificationclick', (event) => {",
+		"  event.notification.close();",
 		"  event.waitUntil((async () => {",
 		"    const data = event.notification.data || {}",
 		"    const sessionId = typeof data.sessionId === 'string' ? data.sessionId : ''",
@@ -324,12 +241,7 @@ function installNotifyHost(ctx, config) {
 			if (focused) focusedByHost.set(host, Date.now());
 			else focusedByHost.delete(host);
 		},
-		manifest: manifestSource(),
 		sw: swSource(),
-		icons: {
-			"icon-180.png": pngIcon(180),
-			"icon-512.png": pngIcon(512)
-		},
 		pushConfig: async () => await ensurePush() ? {
 			enabled: true,
 			publicKey: vapidPublicKey ?? ""
@@ -338,18 +250,18 @@ function installNotifyHost(ctx, config) {
 			subscriptions = subscriptions.filter((item) => item.endpoint !== sub.endpoint);
 			subscriptions.push(sub);
 			saveSubscriptions();
-		},
-		subscriptionCount: () => subscriptions.length
+		}
 	};
 }
 //#endregion
-//#region lib/types/index.js
+//#region src/index.ts
 /**
 * Node half: host-side notification driver. Listens to the session/event
 * audit stream for the blocking cases (approval, question) and expensive or
 * failed turns, and delivers each as a Web Push to every subscribed device
-* (mobile PWA included). Also serves the PWA resources (manifest / icons /
-* service worker) and the push subscription endpoints.
+* (mobile PWA included). Also serves the service worker and the push
+* subscription endpoints. PWA manifest and icons are handled by the upstream
+* DSH framework / dsh-webui-fix-pwa.
 *
 * The browser half (src/client) drives permission + push registration and
 * falls back to the in-page Notification API when Web Push is unavailable.
@@ -390,14 +302,6 @@ function apply(ctx, config) {
 					callId
 				});
 			} else if (event?.type === "tool/call") {
-				if (data?.name === "ask_user_question") {
-					const callId = data?.callId;
-					if (typeof callId !== "string" || callId === "") return;
-					notify.pushQuestion({
-						sessionId: session?.id ?? "",
-						callId
-					});
-				}
 				const current = turnCalls.get(session?.id ?? "");
 				if (current !== void 0 && (data?.turn === void 0 || data.turn === current.turn)) current.calls += 1;
 			} else if (event?.type === "turn/end") {
@@ -460,27 +364,6 @@ function apply(ctx, config) {
 			});
 		};
 		const hostOf = (req) => req?.headers?.["host"];
-		register("/plugins/web-ui-notify/manifest.json", (_req, res) => {
-			res.writeHead(200, {
-				"content-type": "application/manifest+json; charset=utf-8",
-				"cache-control": "no-store"
-			});
-			res.end(notify.manifest);
-		});
-		register("/plugins/web-ui-notify/icon-180.png", (_req, res) => {
-			res.writeHead(200, {
-				"content-type": "image/png",
-				"cache-control": "public, max-age=86400"
-			});
-			res.end(notify.icons["icon-180.png"]);
-		});
-		register("/plugins/web-ui-notify/icon-512.png", (_req, res) => {
-			res.writeHead(200, {
-				"content-type": "image/png",
-				"cache-control": "public, max-age=86400"
-			});
-			res.end(notify.icons["icon-512.png"]);
-		});
 		register("/plugins/web-ui-notify/sw.js", (_req, res) => {
 			res.writeHead(200, {
 				"content-type": "application/javascript; charset=utf-8",
@@ -528,11 +411,6 @@ function apply(ctx, config) {
 				res.end("{\"ok\":true}");
 			});
 		});
-		if (typeof webServer.tapIndex === "function" && typeof ctx.effect === "function") ctx.effect(() => webServer.tapIndex((html) => {
-			const links = "<link rel=\"manifest\" href=\"/plugins/web-ui-notify/manifest.json\"><link rel=\"apple-touch-icon\" href=\"/plugins/web-ui-notify/icon-180.png\">";
-			if (html.includes("/plugins/web-ui-notify/manifest.json")) return html;
-			return html.replace("<head>", `<head>${links}`);
-		}), "web-ui-notify: pwa manifest tap");
 	}
 }
 //#endregion

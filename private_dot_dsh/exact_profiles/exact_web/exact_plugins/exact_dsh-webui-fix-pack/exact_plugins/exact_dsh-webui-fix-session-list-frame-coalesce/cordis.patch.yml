@@ -1,4 +1,0 @@
-# dsh bundle patch: inserts this plugin into a profile's layer stack.
-- insert:
-    - id: session-list-frame-coalesce
-      name: '@jiesou/dsh-webui-fix-session-list-frame-coalesce'

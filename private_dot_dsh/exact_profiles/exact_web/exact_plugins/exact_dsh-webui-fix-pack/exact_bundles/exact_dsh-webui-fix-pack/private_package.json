@@ -21,8 +21,7 @@
     "@jiesou/dsh-webui-fix-subagent-panel": "latest",
     "@jiesou/dsh-webui-fix-mobile-stats-line": "latest",
     "@jiesou/dsh-webui-fix-pwa": "latest",
-    "@jiesou/dsh-webui-fix-session-row-context-menu": "latest",
-    "@jiesou/dsh-webui-fix-session-list-frame-coalesce": "latest"
+    "@jiesou/dsh-webui-fix-session-row-context-menu": "latest"
   },
   "repository": {
     "type": "git",

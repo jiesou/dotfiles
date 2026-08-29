@@ -18,7 +18,6 @@
     "dsh-lan": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-lan",
     "dsh-rewind-plugin": "^0.4.1",
     "dsh-sandbox-landlock": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-sandbox-landlock",
-    "dsh-session-title-cold": "github:fengs2021/dsh-session-title-cold",
     "dsh-tool-deny": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-tool-deny",
     "dsh-ya-simple-shortcuts": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-ya-simple-shortcuts",
     "dshmarket": "^1.18.1"
@@ -29,7 +28,6 @@
         "@deepseek-ai/dsh-base",
         "@deepseek-ai/dsh-web-app",
         "dsh-lan",
-        "@bill9109/dsh-web-ui-notify",
         "@dsh-external/dsh-mobile",
         "@jiesou/dsh-commandcode-go-provider",
         "@jiesou/dsh-stream-rules",
@@ -45,8 +43,8 @@
         "@js2hou/dsh-mcp-manager",
         "dsh-rewind-plugin",
         "@bill9109/dsh-conversation-share",
-        "dsh-session-title-cold",
-        "@linxin666/dsh-chat-recovery"
+        "@linxin666/dsh-chat-recovery",
+        "@bill9109/dsh-web-ui-notify"
       ]
     }
   },

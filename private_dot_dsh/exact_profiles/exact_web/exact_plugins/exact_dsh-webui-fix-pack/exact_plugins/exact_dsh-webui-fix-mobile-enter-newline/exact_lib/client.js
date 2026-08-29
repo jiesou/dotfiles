@@ -1,3 +1,9 @@
+/**
+ * WORKAROUND for the DSH Web UI composer on touch UIs: mobile soft keyboards
+ * have no easy Shift, so plain Enter is remapped to a newline and the running
+ * primary button is "sendified" for tap-to-queue. Compatible with both
+ * <textarea data-phase> and <div contenteditable data-phase> composer variants.
+ */
 window.__ModuleLoader__.load({
   id: '@jiesou/dsh-webui-fix-mobile-enter-newline',
   factory: () => {
@@ -24,8 +30,19 @@ window.__ModuleLoader__.load({
       return Array.prototype.slice.call(document.querySelectorAll('[data-composer-card]'))
     }
 
-    function textareaOf(card) {
-      return card.querySelector('textarea[data-phase]')
+    // Composer editable: <textarea data-phase> or <div contenteditable data-phase>.
+    function editableOf(card) {
+      return card.querySelector('textarea[data-phase]') || card.querySelector('[contenteditable][data-phase]')
+    }
+
+    function editableText(el) {
+      return el instanceof HTMLTextAreaElement ? el.value : (el.textContent || '')
+    }
+
+    function isEditableTarget(el) {
+      return el instanceof HTMLElement &&
+        (el instanceof HTMLTextAreaElement || el.isContentEditable) &&
+        el.closest('[data-composer-card]') !== null
     }
 
     function primaryOf(card) {
@@ -49,11 +66,11 @@ window.__ModuleLoader__.load({
     function onSendifiedClick(e) {
       var button = e.currentTarget
       var card = button.closest('[data-composer-card]')
-      var textarea = card && textareaOf(card)
-      if (!textarea) return
+      var editable = card && editableOf(card)
+      if (!editable) return
       e.preventDefault()
       e.stopImmediatePropagation()
-      textarea.dispatchEvent(new KeyboardEvent('keydown', {
+      editable.dispatchEvent(new KeyboardEvent('keydown', {
         key: 'Enter',
         code: 'Enter',
         keyCode: 13,
@@ -122,8 +139,8 @@ window.__ModuleLoader__.load({
           templateHtml = button.innerHTML
           templateLabel = button.getAttribute('aria-label')
         }
-        var textarea = textareaOf(card)
-        var hasText = textarea !== null && textarea.value.trim() !== ''
+        var editable = editableOf(card)
+        var hasText = editable !== null && editableText(editable).trim() !== ''
         if (isStopMode(scope) && hasText && templateHtml !== null) sendify(button)
         else clearSendified(button)
       }
@@ -137,7 +154,7 @@ window.__ModuleLoader__.load({
       }
 
       var onKeyDown = function (e) {
-        if (!(e.target instanceof HTMLTextAreaElement)) return
+        if (!isEditableTarget(e.target)) return
         if (e.key !== 'Enter') return
         if (e.isComposing || e.keyCode === 229) return
         if (!e.isTrusted) return

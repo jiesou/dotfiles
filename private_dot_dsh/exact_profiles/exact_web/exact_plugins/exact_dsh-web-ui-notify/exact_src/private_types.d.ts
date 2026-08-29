@@ -1,0 +1,6 @@
+declare module 'web-push'
+declare module '@deepseek-ai/dsh-client-runtime'
+declare module '@deepseek-ai/dsh-client-runtime/client'
+declare module '@deepseek-ai/dsh-client-ui-slots'
+declare module '@deepseek-ai/dsh-client-locale'
+declare module '@deepseek-ai/dsh-client-ui-settings'

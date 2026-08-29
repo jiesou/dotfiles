@@ -18,10 +18,8 @@
   ],
   "type": "module",
   "main": "./lib/index.js",
-  "types": "./lib/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
     "./client": "./lib/client.js",
@@ -70,13 +68,17 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.1.0",
+    "@tsdown/css": "^0.22.14",
     "@types/node": "^24.10.0",
     "@types/web-push": "^3.6.4",
-    "vitest": "^4.1.8",
     "jsdom": "^26.0.0",
-    "@testing-library/react": "^16.1.0",
-    "@testing-library/dom": "^10.4.0",
+    "lightningcss": "^1.33.0",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.8"
   }
 }

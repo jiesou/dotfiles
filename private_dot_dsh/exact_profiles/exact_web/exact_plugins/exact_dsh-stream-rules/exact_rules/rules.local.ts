@@ -42,9 +42,9 @@ export default [
   {
     match: (v: string) =>
       (wildcard("rm *")(v) || wildcard("\"rm *")(v) || wildcard("* rm *")(v)) &&
-      !isTmpSubPath(v),
+      !wildcard("rm */tmp/*"),
     reject: true,
-    prompt: "Use mv instead of rm except in tmpdir",
+    prompt: "Use `gio trash` or `mv` instead of rm except in tmpdir",
   },
   {
     match: (v: string) => /\bgh\s+(?:issue|pr)\s+create\b|mcp__gh__create_(?:issue|pull_request)\b/.test(v),

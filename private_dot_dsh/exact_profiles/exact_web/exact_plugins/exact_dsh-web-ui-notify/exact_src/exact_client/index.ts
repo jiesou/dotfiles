@@ -42,7 +42,6 @@ import {
   fireNotification, fireSessionDoneNotification, fireTurnNotification, hiddenNow, notificationUsable,
 } from './notify.ts'
 import { installPushBridge, isPushActive } from './push.ts'
-
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** The web-ui-notify surfaces' copy (settings row + notification titles). */
@@ -96,7 +95,7 @@ export function apply(ctx: ClientContext): void {
   // focus, and receive notification-click jumps. When a push subscription is
   // active it becomes the sole system-notification channel, so the legacy
   // per-tab Notification path below is gated on isPushActive().
-  installPushBridge({ openSession: (sid) => {
+  void installPushBridge({ openSession: (sid) => {
     const id = sid as SessionId
     if (sessions.list.getSnapshot().byId[id] !== undefined) sessions.open(id)
   } })

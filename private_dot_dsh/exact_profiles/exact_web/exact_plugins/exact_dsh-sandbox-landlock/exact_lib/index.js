@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
 import { argv } from "node:process";
@@ -25,7 +25,20 @@ function normalizeDirs(dirs = []) {
 const SEAM_RELATIVE = join("node_modules", "@deepseek-ai", "node-addon-landlock-run", "lib", "index.js");
 async function importSeam() {
 	const candidates = [];
-	if (argv[1]) candidates.push(join(dirname(dirname(argv[1])), SEAM_RELATIVE));
+	if (argv[1]) {
+		candidates.push(join(dirname(dirname(argv[1])), SEAM_RELATIVE));
+		let dir = dirname(argv[1]);
+		try {
+			dir = dirname(realpathSync(argv[1]));
+		} catch {
+		}
+		while (dir && dir !== dirname(dir)) {
+			candidates.push(join(dir, SEAM_RELATIVE));
+			candidates.push(join(dir, "node_modules", ".pnpm", "node_modules", "@deepseek-ai", "node-addon-landlock-run", "lib", "index.js"));
+			candidates.push(join(dir, "native", "landlock-run", "packages", "entry", "lib", "index.js"));
+			dir = dirname(dir);
+		}
+	}
 	const globalRoot = spawnSync("npm", ["root", "-g"], { encoding: "utf8" }).stdout?.trim();
 	if (globalRoot) candidates.push(join(globalRoot, "@deepseek-ai", "dsh", SEAM_RELATIVE));
 	const found = candidates.find((path) => existsSync(path));
@@ -47,10 +60,19 @@ function grantFlags(seam, policy, writeDirs) {
 const name = "dsh-sandbox-landlock";
 async function apply(ctx, config = {}) {
 	if (platform() !== "linux") return;
-	const seam = await importSeam();
+	let seam;
+	try {
+		seam = await importSeam();
+	} catch (error) {
+		console.warn(`dsh-sandbox-landlock: ${error instanceof Error ? error.message : String(error)}; sandbox disabled`);
+		return;
+	}
 	const launcher = config.launcherPath ? expandHome(config.launcherPath) : seam.launcherPath();
 	const verdict = seam.probe(launcher);
-	if (verdict === "unusable") throw new Error(`dsh-sandbox-landlock: landlock-run functional probe unusable (${launcher})`);
+	if (verdict === "unusable") {
+		console.warn(`dsh-sandbox-landlock: landlock-run functional probe unusable (${launcher}); sandbox disabled`);
+		return;
+	}
 	const writeDirs = normalizeDirs(config.writeDirs ?? []);
 	ctx.provide("sandbox", { confine(commandArgv, policy) {
 		return {

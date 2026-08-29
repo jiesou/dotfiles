@@ -2,7 +2,7 @@
   "name": "@jiesou/dsh-webui-fix-subagent-panel",
   "version": "0.3.0",
   "type": "module",
-  "description": "Keep mobile popovers (subagent catalog and context meter) inside the viewport: clamp to screen width and restore the context meter's natural 264px width and content height.",
+  "description": "Keep the DSH Web UI subagent catalog panel on-screen and tap-toggleable on mobile/touch: clamp the title-bar session tree to the viewport and toggle it on click (client-only plugin).",
   "license": "MIT",
   "exports": {
     ".": "./index.mjs",

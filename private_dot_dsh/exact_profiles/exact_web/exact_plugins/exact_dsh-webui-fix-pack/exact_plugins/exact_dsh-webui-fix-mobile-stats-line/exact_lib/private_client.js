@@ -1,21 +1,14 @@
 /**
  * Fix StatsLine tooltip on mobile.
  *
- * Visibility root cause: @dsh-external/dsh-mobile hides every `[data-side]`
- * element (`[data-dsh-mobile] [data-side] { display:none !important }`), and
- * the upstream Tooltip bubble uses `role="tooltip"` + `data-side="top"`.
- * This plugin re-enables that bubble for the StatsLine slot and allows it to
- * use up to 80vw (wider than upstream's 50vw, while still leaving comfortable
- * viewport margins).
+ * dsh-mobile hides `[data-side]` elements, including the upstream Tooltip
+ * bubble (`role="tooltip"` + `data-side="top"`); this plugin re-displays it
+ * via CSS and widens it to 80vw.
  *
- * Reachability root cause: the stats line is a plain non-focusable div, so on
- * touch its only reveal path is an emulated mouseenter behind the upstream
- * 500ms hover delay -- and any subsequent tap fires an emulated mouseleave
- * that instantly hides the bubble (a sloppy tap that turns into a micro-scroll
- * never triggers anything at all). On coarse pointers this plugin intercepts
- * taps instead: focusing the line rides upstream's immediate-show focus path,
- * and a second tap dispatches mouseout + blur to dismiss. Desktop hover stays
- * untouched.
+ * On touch the stats line is a non-focusable div that can only reveal via an
+ * emulated mouseenter behind a 500ms hover delay, so on coarse pointers this
+ * plugin toggles it by tapping to focus and tapping again to dismiss. Desktop
+ * hover is untouched.
  */
 window.__ModuleLoader__.load({
   id: '@jiesou/dsh-webui-fix-mobile-stats-line',
@@ -34,7 +27,7 @@ window.__ModuleLoader__.load({
       function statsAnchor(target) {
         var dock = target.closest(DOCK)
         if (dock === null) return null
-        for (var el = dock.firstElementChild; el !== null; el = el.nextElementSibling) {
+        for (var el of dock.children) {
           if (el.getAttribute('role') === 'tooltip') continue
           if (el instanceof HTMLElement && el.scrollWidth > el.clientWidth) return el
         }

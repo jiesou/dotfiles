@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
 import { dirname, join } from 'node:path'
 import { argv as processArgv } from 'node:process'
@@ -62,7 +62,21 @@ const SEAM_RELATIVE = join('node_modules', '@deepseek-ai', 'node-addon-landlock-
 
 async function importSeam(): Promise<Seam> {
   const candidates = []
-  if (processArgv[1]) candidates.push(join(dirname(dirname(processArgv[1])), SEAM_RELATIVE))
+  if (processArgv[1]) {
+    candidates.push(join(dirname(dirname(processArgv[1])), SEAM_RELATIVE))
+    // 覆盖源码检出 + pnpm 布局：从 dsh 入口的真实路径向上回溯查找 seam。
+    let dir = dirname(processArgv[1])
+    try {
+      dir = dirname(realpathSync(processArgv[1]))
+    } catch {
+    }
+    while (dir && dir !== dirname(dir)) {
+      candidates.push(join(dir, SEAM_RELATIVE))
+      candidates.push(join(dir, 'node_modules', '.pnpm', 'node_modules', '@deepseek-ai', 'node-addon-landlock-run', 'lib', 'index.js'))
+      candidates.push(join(dir, 'native', 'landlock-run', 'packages', 'entry', 'lib', 'index.js'))
+      dir = dirname(dir)
+    }
+  }
   const globalRoot = spawnSync('npm', ['root', '-g'], { encoding: 'utf8' }).stdout?.trim()
   if (globalRoot) candidates.push(join(globalRoot, '@deepseek-ai', 'dsh', SEAM_RELATIVE))
   const found = candidates.find((path) => existsSync(path))
@@ -81,10 +95,19 @@ export const name = 'dsh-sandbox-landlock'
 
 export async function apply(ctx: PluginCtx, config: Config = {}): Promise<void> {
   if (platform() !== 'linux') return
-  const seam = await importSeam()
+  let seam: Seam
+  try {
+    seam = await importSeam()
+  } catch (error) {
+    console.warn(`dsh-sandbox-landlock: ${error instanceof Error ? error.message : String(error)}; sandbox disabled`)
+    return
+  }
   const launcher = config.launcherPath ? expandHome(config.launcherPath) : seam.launcherPath()
   const verdict = seam.probe(launcher)
-  if (verdict === 'unusable') throw new Error(`dsh-sandbox-landlock: landlock-run functional probe unusable (${launcher})`)
+  if (verdict === 'unusable') {
+    console.warn(`dsh-sandbox-landlock: landlock-run functional probe unusable (${launcher}); sandbox disabled`)
+    return
+  }
   const writeDirs = normalizeDirs(config.writeDirs ?? [])
   ctx.provide('sandbox', {
     // 生产消费方在 danger-full-access 时不会调用 confine；此处只接收受限模式。

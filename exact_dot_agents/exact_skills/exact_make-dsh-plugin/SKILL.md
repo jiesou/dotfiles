@@ -23,6 +23,15 @@ repository-plugin、`__ModuleLoader__` 之外的旧协议、`dsh registry` CLI�
 规范在 `dev-conventions.md`、坑在 `gotchas.md`）——开发不需要任何仓库文档。
 到达对应阶段时读对应 reference。
 
+---
+
+着重参考 dsh 实现：
+- https://github.com/deepseek-ai/deepseek-harness
+- CLI: /var/home/linuxbrew/.linuxbrew/lib/node_modules/@deepseek-ai/dsh/
+- WebUI: /var/home/linuxbrew/.linuxbrew/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-web-frontend/dist/
+- 所有“我们自己做的” dsh plugin: ~/.dsh/profiles/web/plugins/
+- 然后通过 link 形式安装
+
 ## 何时使用
 
 - 用户想为 dsh 开发新插件（工具、skill 包、MCP server、事件监听、服务、

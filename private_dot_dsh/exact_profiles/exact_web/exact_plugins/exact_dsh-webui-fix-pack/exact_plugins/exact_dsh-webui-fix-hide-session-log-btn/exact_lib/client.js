@@ -1,13 +1,12 @@
 window.__ModuleLoader__.load({
   id: '@jiesou/dsh-webui-fix-hide-session-log-btn',
   factory: () => {
-    var LABEL = 'session log'
     var CRUMB_CSS = 'nav[aria-label] button{max-width:none;min-width:0}'
 
     function match(el) {
       if (!(el instanceof HTMLElement)) return false
       var t = (el.textContent || '').trim().toLowerCase()
-      return t.indexOf(LABEL) === 0
+      return t.startsWith('session') && (t.includes('log') || t.includes('日志'))
     }
 
     function hide(btn) {

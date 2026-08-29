@@ -1,7 +1,7 @@
-/** Pure-host helper sanity: PWA manifest/SW source and session-title folding. */
+/** Pure-host helper sanity: SW source and session-title folding. */
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { manifestSource, sessionTitleFromEvents, swSource } from '../src/notify-host.ts'
+import { sessionTitleFromEvents, swSource } from '../src/notify-host.ts'
 import { urlBase64ToUint8Array } from '../src/client/push.ts'
 
 describe('notify-host helpers', () => {
@@ -21,20 +21,11 @@ describe('notify-host helpers', () => {
     expect(sessionTitleFromEvents(undefined)).toBe('')
   })
 
-  it('manifestSource advertises PNG icons and standalone display', () => {
-    const manifest = JSON.parse(manifestSource()) as {
-      display: string
-      icons: Array<{ src: string; sizes: string }>
-    }
-    expect(manifest.display).toBe('standalone')
-    expect(manifest.icons.some(icon => icon.src.includes('icon-512.png') && icon.sizes === '512x512')).toBe(true)
-  })
-
-  it('swSource registers push + notificationclick and the plugin icon', () => {
+  it('swSource registers push + notificationclick without a hardcoded icon', () => {
     const sw = swSource()
     expect(sw).toContain("self.addEventListener('push'")
     expect(sw).toContain("self.addEventListener('notificationclick'")
-    expect(sw).toContain('/plugins/web-ui-notify/icon-180.png')
+    expect(sw).not.toContain('/plugins/web-ui-notify/icon-180.png')
   })
 })
 

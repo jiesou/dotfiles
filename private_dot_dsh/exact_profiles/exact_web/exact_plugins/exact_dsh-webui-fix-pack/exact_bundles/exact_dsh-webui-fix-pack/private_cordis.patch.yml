@@ -23,5 +23,3 @@
       name: '@jiesou/dsh-webui-fix-pwa'
     - id: session-row-context-menu
       name: '@jiesou/dsh-webui-fix-session-row-context-menu'
-    - id: session-list-frame-coalesce
-      name: '@jiesou/dsh-webui-fix-session-list-frame-coalesce'

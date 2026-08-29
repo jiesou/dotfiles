@@ -8,7 +8,7 @@ All notable user-facing changes to dsh-web-ui-notify are documented in this file
 
 ### Added
 
-- Mobile notifications via Web Push / PWA: the host now serves a manifest, PNG icons, a service worker, and push subscription endpoints, and pushes approval / question / failed-turn / long-task-completion notifications to every subscribed device, so phones receive system notifications even when the page is closed.
+- Mobile notifications via Web Push: the host serves a service worker and push subscription endpoints, and pushes approval / question / failed-turn / long-task-completion notifications to every subscribed device, so phones receive system notifications even when the page is closed. PWA manifest and icons are provided by the upstream DSH framework / dsh-webui-fix-pwa.
 - Host-side VAPID key + subscription persistence under `$DSH_HOME/.web-ui-notify/` and focus-aware push suppression (`/plugins/web-ui-notify/focus`).
 - Settings row now shows the mobile push state; the client registers the service worker, subscribes, reports focus, and forwards notification clicks to the target session.
 - `web-push` runtime dependency; dev test dependencies (`vitest`, `jsdom`, `@testing-library/react`, React 18) to run the suite from the checkout.

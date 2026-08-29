@@ -40,25 +40,22 @@ importers:
         version: link:plugins/dsh-webui-fix-pack/bundles/dsh-webui-fix-pack
       '@js2hou/dsh-mcp-manager':
         specifier: github:Js2Hou/dsh-mcp-manager
-        version: https://codeload.github.com/Js2Hou/dsh-mcp-manager/tar.gz/222a9db39d6d820fe44ec52e21a9887d70c3f2f1(zod@4.4.3)
+        version: https://codeload.github.com/Js2Hou/dsh-mcp-manager/tar.gz/3a770487bdba44e953f97e378b5d6aa27620eba8(zod@4.4.3)
       '@linxin666/dsh-chat-recovery':
         specifier: ^0.3.3
-        version: 0.3.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 0.3.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       dsh-context:
         specifier: ^0.31.0
-        version: 0.31.0(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-session@0.1.0-rc.8(fbdb1d988541b64ff002d18c4ded7293))(@deepseek-ai/dsh-settings@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1))(@deepseek-ai/schemastery@3.18.1)(react@18.3.1)(zod@4.4.3)
+        version: 0.31.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-session@0.1.0-rc.8(fbdb1d988541b64ff002d18c4ded7293))(@deepseek-ai/dsh-settings@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1))(@deepseek-ai/schemastery@3.18.1)(react@18.3.1)(zod@4.4.3)
       dsh-lan:
         specifier: link:/var/home/chen/.dsh/profiles/web/plugins/dsh-lan
         version: link:plugins/dsh-lan
       dsh-rewind-plugin:
         specifier: ^0.4.1
-        version: 0.4.1(2793cc83ec940293c1ba784e197b4ec5)
+        version: 0.4.2(2793cc83ec940293c1ba784e197b4ec5)
       dsh-sandbox-landlock:
         specifier: link:/var/home/chen/.dsh/profiles/web/plugins/dsh-sandbox-landlock
         version: link:plugins/dsh-sandbox-landlock
-      dsh-session-title-cold:
-        specifier: github:fengs2021/dsh-session-title-cold
-        version: https://codeload.github.com/fengs2021/dsh-session-title-cold/tar.gz/e844ca7bfd886f5a569150c6766759fddbd57c07(@deepseek-ai/cordis@4.0.1)
       dsh-tool-deny:
         specifier: link:/var/home/chen/.dsh/profiles/web/plugins/dsh-tool-deny
         version: link:plugins/dsh-tool-deny
@@ -197,12 +194,12 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@js2hou/dsh-mcp-manager@https://codeload.github.com/Js2Hou/dsh-mcp-manager/tar.gz/222a9db39d6d820fe44ec52e21a9887d70c3f2f1':
-    resolution: {gitHosted: true, integrity: sha512-Fbbge38Kdt3haEH1qf1Xp7sCIHaNnIu7xFcMT/FBOdEl5Y9FL3mJMihJu++HMjIEuHUNMUd3AWmnfUO9jIeo6Q==, tarball: https://codeload.github.com/Js2Hou/dsh-mcp-manager/tar.gz/222a9db39d6d820fe44ec52e21a9887d70c3f2f1}
+  '@js2hou/dsh-mcp-manager@https://codeload.github.com/Js2Hou/dsh-mcp-manager/tar.gz/3a770487bdba44e953f97e378b5d6aa27620eba8':
+    resolution: {gitHosted: true, integrity: sha512-md4Gi0xHj4kRfjqrnALgh/Ri+6263tk0/sgWjfnSHA8JMxsHcRtAaywdUTHEz5pbQtRgCu+5Vc65f7I81wI0VQ==, tarball: https://codeload.github.com/Js2Hou/dsh-mcp-manager/tar.gz/3a770487bdba44e953f97e378b5d6aa27620eba8}
     version: 0.1.5
 
-  '@linxin666/dsh-chat-recovery@0.3.3':
-    resolution: {integrity: sha512-5SlcrcMJPeoRmR4TCAi+vE/enxLdHyn+Byr56tzWgY0y4WUPEo5kUTZdymBiWFSqCTuAIJZsQPVzK5cTjxPIzw==}
+  '@linxin666/dsh-chat-recovery@0.3.5':
+    resolution: {integrity: sha512-6DuyhIUG9rHHod0ElpnDhtYGlJl3lmWr9DQPDW7psOCRC2sat1TV8Rs22tKxIBwEv03TTCK3jTOpNygm25M80w==}
     engines: {node: ^22.19.0 || >=24.0.0}
     peerDependencies:
       react: ^18.2.0
@@ -296,8 +293,8 @@ packages:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
     engines: {node: '>= 0.8'}
 
-  dsh-context@0.31.0:
-    resolution: {integrity: sha512-X7Nyse1I53zYglAKdQTD7hOh6c4xOq8QbUhuSTcnoCGEPSC7vEHovvvz9jjK0jxbacJ0r90DhrU4g9+Z9ovFLg==}
+  dsh-context@0.31.1:
+    resolution: {integrity: sha512-AJMWAtYWMWj7ondprNWbLutXX9VpONEP2Vk6t1Gh5ZdzuHTc1u0pGGI2qRRKdjZBjVy3x9TgF5jgW2Mx1T89pg==}
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.1
       '@deepseek-ai/dsh-client-ui-primitives': ^0.1.0-rc.7
@@ -312,8 +309,8 @@ packages:
       react:
         optional: true
 
-  dsh-rewind-plugin@0.4.1:
-    resolution: {integrity: sha512-5y3a0YhysabLnsn4C4GJF24X4L7jR63wV5sKuWeBQlUffBsxOzAEbog0ITgD7N8i56hzkgjBoC+OwiV5VVokSQ==}
+  dsh-rewind-plugin@0.4.2:
+    resolution: {integrity: sha512-yHK1rybQHkucOULYxjSPWWv1YnxZzp8soixwBc34XE84/TqaoPj2iZu8EV/PBheYX09EGL1MLbmkDGxi7PQfbg==}
     engines: {node: ^22.19.0 || >=24.0.0}
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.1
@@ -353,13 +350,6 @@ packages:
         optional: true
       '@deepseek-ai/dsh-tools':
         optional: true
-
-  dsh-session-title-cold@https://codeload.github.com/fengs2021/dsh-session-title-cold/tar.gz/e844ca7bfd886f5a569150c6766759fddbd57c07:
-    resolution: {gitHosted: true, integrity: sha512-lInppLG27TAg1N7VU+SWdMSAVINfQhTYNBBTK57WzsAfhAgWohQD5XKdLzAIoyHFzJhpqfP2Hjr/M0U3hACubg==, tarball: https://codeload.github.com/fengs2021/dsh-session-title-cold/tar.gz/e844ca7bfd886f5a569150c6766759fddbd57c07}
-    version: 1.0.0
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@deepseek-ai/cordis': ^4.0.1
 
   dshmarket@1.18.1:
     resolution: {integrity: sha512-N7Z9Ylevf7zRJBkwuoapA/Hw5Ps7MYuQ9dDSRM9EiSo3vIU9GQluPyP5NrHiVEdJYy6sh28ATjAmriMCLgesqg==}
@@ -755,7 +745,7 @@ snapshots:
     dependencies:
       hono: 4.13.3
 
-  '@js2hou/dsh-mcp-manager@https://codeload.github.com/Js2Hou/dsh-mcp-manager/tar.gz/222a9db39d6d820fe44ec52e21a9887d70c3f2f1(zod@4.4.3)':
+  '@js2hou/dsh-mcp-manager@https://codeload.github.com/Js2Hou/dsh-mcp-manager/tar.gz/3a770487bdba44e953f97e378b5d6aa27620eba8(zod@4.4.3)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
       js-yaml: 4.3.1
@@ -764,7 +754,7 @@ snapshots:
       - supports-color
       - zod
 
-  '@linxin666/dsh-chat-recovery@0.3.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@linxin666/dsh-chat-recovery@0.3.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -864,7 +854,7 @@ snapshots:
 
   depd@2.0.0: {}
 
-  dsh-context@0.31.0(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-session@0.1.0-rc.8(fbdb1d988541b64ff002d18c4ded7293))(@deepseek-ai/dsh-settings@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1))(@deepseek-ai/schemastery@3.18.1)(react@18.3.1)(zod@4.4.3):
+  dsh-context@0.31.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-session@0.1.0-rc.8(fbdb1d988541b64ff002d18c4ded7293))(@deepseek-ai/dsh-settings@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1))(@deepseek-ai/schemastery@3.18.1)(react@18.3.1)(zod@4.4.3):
     dependencies:
       '@deepseek-ai/cordis': 4.0.1
       '@deepseek-ai/dsh-session': 0.1.0-rc.8(fbdb1d988541b64ff002d18c4ded7293)
@@ -874,16 +864,12 @@ snapshots:
     optionalDependencies:
       react: 18.3.1
 
-  dsh-rewind-plugin@0.4.1(2793cc83ec940293c1ba784e197b4ec5):
+  dsh-rewind-plugin@0.4.2(2793cc83ec940293c1ba784e197b4ec5):
     optionalDependencies:
       '@deepseek-ai/cordis': 4.0.1
       '@deepseek-ai/dsh-llm': 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-attachment@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-timeout@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))
       '@deepseek-ai/dsh-session': 0.1.0-rc.8(fbdb1d988541b64ff002d18c4ded7293)
       '@deepseek-ai/dsh-settings': 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1)
-
-  dsh-session-title-cold@https://codeload.github.com/fengs2021/dsh-session-title-cold/tar.gz/e844ca7bfd886f5a569150c6766759fddbd57c07(@deepseek-ai/cordis@4.0.1):
-    dependencies:
-      '@deepseek-ai/cordis': 4.0.1
 
   dshmarket@1.18.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-settings@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1)):
     dependencies:

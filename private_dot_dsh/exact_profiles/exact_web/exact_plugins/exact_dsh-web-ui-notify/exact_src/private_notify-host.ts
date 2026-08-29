@@ -1,15 +1,14 @@
 /**
- * Host notification machinery: Web Push fan-out to subscribed devices plus the
- * PWA resources (manifest / icons / service worker) that make mobile system
- * notifications work. Detection of *what* to notify lives in src/index.ts,
- * which calls the handle methods below from the session/event audit stream and
- * registers the HTTP routes with the webServer service.
+ * Host notification machinery: Web Push fan-out to subscribed devices so the
+ * browser can surface system notifications on mobile even when the page is
+ * closed. Detection of *what* to notify lives in src/index.ts, which calls the
+ * handle methods below from the session/event audit stream and registers the
+ * HTTP routes with the webServer service.
  *
- * Model (learned from dsh-meow-smooth):
+ * Model:
  *  - The browser `Notification` API only works while a page is open and, on
- *    mobile (iOS Safari, backgrounded Android), is absent or stops firing. Web
- *    Push + an installed PWA + a service worker gives real system
- *    notifications on the phone even with its browser closed.
+ *    mobile, is absent or stops firing when backgrounded. Web Push + a service
+ *    worker gives real system notifications on the phone.
  *  - The host holds VAPID keys and subscriptions; pushes are encrypted and
  *    sent through Mozilla's autopush to the OS push services. `web-push` is a
  *    real runtime dependency (production section below), resolved from this
@@ -21,7 +20,6 @@
  * Persistence: everything lives under $DSH_HOME/.web-ui-notify/ (JSON files),
  * so VAPID keys survive restarts and subscriptions stay valid.
  */
-import { crc32, deflateSync } from 'node:zlib'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -56,7 +54,6 @@ const SUBSCRIPTIONS_CAP = 64
 const TITLE_MAX = 20
 const FOCUS_WINDOW_MS = 3000
 const PUSH_DEDUP_KEY = '__dsh_web_ui_notify_push_dedup__'
-export const PLUGIN_PREFIX = '/plugins/web-ui-notify'
 
 /** Data dir: $DSH_HOME/.web-ui-notify/ (fallback ~/.dsh/.web-ui-notify). */
 function dataDir(): string {
@@ -92,62 +89,6 @@ export function sessionTitleFromEvents(events: unknown[] | undefined): string {
   return ''
 }
 
-/** Runtime-generated vertical-gradient PNG icon (indigo -> deep indigo). */
-export function pngIcon(size: number): Buffer {
-  const top = [79, 70, 229] // #4F46E5
-  const bottom = [49, 46, 129] // #312E81
-  const raw = Buffer.alloc(size * (size * 4 + 1))
-  for (let y = 0; y < size; y += 1) {
-    const t = y / (size - 1)
-    const r = Math.round(top[0] + (bottom[0] - top[0]) * t)
-    const g = Math.round(top[1] + (bottom[1] - top[1]) * t)
-    const b = Math.round(top[2] + (bottom[2] - top[2]) * t)
-    const row = y * (size * 4 + 1)
-    raw[row] = 0 // filter: none
-    for (let x = 0; x < size; x += 1) {
-      const off = row + 1 + x * 4
-      raw[off] = r
-      raw[off + 1] = g
-      raw[off + 2] = b
-      raw[off + 3] = 255
-    }
-  }
-  const chunk = (type: string, data: Buffer): Buffer => {
-    const len = Buffer.alloc(4)
-    len.writeUInt32BE(data.length)
-    const typeBuf = Buffer.from(type, 'ascii')
-    const crc = Buffer.alloc(4)
-    crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])) >>> 0)
-    return Buffer.concat([len, typeBuf, data, crc])
-  }
-  const ihdr = Buffer.alloc(13)
-  ihdr.writeUInt32BE(size, 0)
-  ihdr.writeUInt32BE(size, 4)
-  ihdr[8] = 8 // bit depth
-  ihdr[9] = 6 // color type RGBA
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw)),
-    chunk('IEND', Buffer.alloc(0)),
-  ])
-}
-
-/** PWA manifest source (PNG icons + standalone; iOS needs PNG, not SVG). */
-export function manifestSource(): string {
-  return JSON.stringify({
-    name: 'dsh',
-    short_name: 'dsh',
-    display: 'standalone',
-    start_url: '/',
-    scope: '/',
-    icons: [
-      { src: `${PLUGIN_PREFIX}/icon-180.png`, sizes: '180x180', type: 'image/png' },
-      { src: `${PLUGIN_PREFIX}/icon-512.png`, sizes: '512x512', type: 'image/png' },
-    ],
-  })
-}
-
 /** Service Worker source: push -> system notification (skips when a
  * same-origin window is focused), notification click -> focus/open + postMessage. */
 export function swSource(): string {
@@ -167,13 +108,13 @@ export function swSource(): string {
     '    await self.registration.showNotification(title, {',
     "      body: data.body || '',",
     "      tag: data.tag || 'web-ui-' + Date.now(),",
-    `      icon: '${PLUGIN_PREFIX}/icon-180.png',`,
     '      data: { sessionId: data.sessionId || null },',
     "      requireInteraction: data.kind === 'approval' || data.kind === 'question',",
     '    })',
     '  })())',
     '})',
     "self.addEventListener('notificationclick', (event) => {",
+    "  event.notification.close();",
     '  event.waitUntil((async () => {',
     '    const data = event.notification.data || {}',
     "    const sessionId = typeof data.sessionId === 'string' ? data.sessionId : ''",
@@ -206,18 +147,12 @@ export interface NotifyHostHandle {
   pushFailed(info: { sessionId: string; message?: string; code?: string }): void
   pushCompleted(info: { sessionId: string; toolCalls: number }): void
   noteFocus(host: string | undefined, focused: boolean): void
-  /** Serialized manifest (for the manifest.json route). */
-  manifest: string
   /** Service-worker source (for the sw.js route). */
   sw: string
-  /** The two PNG icons (for the icon routes). */
-  icons: { 'icon-180.png': Buffer; 'icon-512.png': Buffer }
   /** Resolve push configuration (generates VAPID keys on first use). */
   pushConfig(): Promise<{ enabled: boolean; publicKey?: string }>
   /** Register one device subscription (dedupes by endpoint, persisted). */
   addSubscription(sub: PushSubscriptionView): void
-  /** Number of live push subscriptions (diag). */
-  subscriptionCount(): number
 }
 
 /** Build the host notification handle. */
@@ -396,15 +331,12 @@ export function installNotifyHost(ctx: any, config?: NotifyHostConfig): NotifyHo
       if (focused) focusedByHost.set(host, Date.now())
       else focusedByHost.delete(host)
     },
-    manifest: manifestSource(),
     sw: swSource(),
-    icons: { 'icon-180.png': pngIcon(180), 'icon-512.png': pngIcon(512) },
     pushConfig: async () => (await ensurePush()) ? { enabled: true, publicKey: vapidPublicKey ?? '' } : { enabled: false },
     addSubscription(sub) {
       subscriptions = subscriptions.filter(item => item.endpoint !== sub.endpoint)
       subscriptions.push(sub)
       saveSubscriptions()
     },
-    subscriptionCount: () => subscriptions.length,
   }
 }
