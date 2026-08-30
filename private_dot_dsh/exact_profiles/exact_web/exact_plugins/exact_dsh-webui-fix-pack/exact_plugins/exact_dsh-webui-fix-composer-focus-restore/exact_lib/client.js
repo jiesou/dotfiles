@@ -2,7 +2,8 @@
  * WORKAROUND for deepseek-ai/deepseek-harness (ui-commands): popupSelect shells
  * (e.g. /models) never return focus to the composer — settle/Escape call
  * deps.focusComposer(), but nothing ever binds the per-session hook, so it is a
- * silent no-op. This plugin binds the hook for the current session.
+ * silent no-op. This plugin binds the hook for the current session (textarea or
+ * the Lexical contenteditable composer).
  *
  * https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/packages/client/ui-commands/src/client/popup.ts
  * https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/packages/client/ui-commands/src/client/service.ts
@@ -18,8 +19,8 @@ window.__ModuleLoader__.load({
         const commandUi = scope.get('commandUi')
         const list = scope.sessions.list
         const focus = function () {
-          const textarea = document.querySelector('[data-composer-card] textarea')
-          if (textarea !== null && document.activeElement !== textarea) textarea.focus({ preventScroll: true })
+          const el = document.querySelector('[data-composer-card] textarea, [data-composer-card] [contenteditable]')
+          if (el !== null && document.activeElement !== el) el.focus({ preventScroll: true })
         }
         scope.effect(function () {
           let current = null

@@ -1,8 +1,8 @@
 {
   "name": "@jiesou/dsh-webui-fix-mobile-keyboard-blur",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
-  "description": "Blur the chat composer when dsh-mobile parks on the sidebar page; stops Android WebView from popping the IME back up after the keyboard was dismissed with the input still focused.",
+  "description": "On soft-keyboard (touch) devices, block dsh-webui's programmatic composer auto-focus at the source when a session is entered, so the soft keyboard stays down until the user taps the input. Hard-keyboard devices are untouched.",
   "license": "MIT",
   "exports": {
     ".": "./index.mjs",

@@ -115,10 +115,12 @@ const normalizeReasoningContext = (model, context) => {
 };
 /**
  * Translate preserved reasoning metadata into pi-ai's thinkingLevelMap:
- * every harness level declared explicitly (supported efforts by name,
- * `none` as the `off` wire value), everything else null. Returns undefined
- * for non-controllable models — the seam then offers no effort control,
- * which is exactly the truth for endpoints that think but take no argument.
+ * every harness level the endpoint lists is declared on its same-named key,
+ * everything else pinned to null. The endpoint's `default_effort` rides on
+ * the `off` key so an empty selection replays the endpoint default (see the
+ * body). Returns undefined for non-controllable models — the seam then
+ * offers no effort control, which is exactly the truth for endpoints that
+ * think but take no argument.
  */
 function buildThinkingLevelMap(reasoning) {
     if (reasoning === undefined || !reasoning.controllable)
@@ -134,15 +136,22 @@ function buildThinkingLevelMap(reasoning) {
         return map;
     }
     for (const effort of supported) {
-        if (effort === 'none') {
-            map.off = 'none';
-            continue;
-        }
         if (PI_THINKING_LEVELS.includes(effort))
             map[effort] = effort;
         // An upstream id outside pi-ai's ladder has no key to land on; the raw
         // id survives in NousPortalReasoning.supportedEfforts for diagnostics.
     }
+    // pi-ai has no separate "default" key: the value the harness sends when the
+    // user selects nothing is exactly `off`. So `off` must carry the endpoint's
+    // own `default_effort` — that is what the no-selection path has to replay.
+    // When the endpoint's default IS `none`, `off` carries 'none' and the Off
+    // control genuinely disables thinking; for any other default we leave `off`
+    // unset (null) so the selector offers no misleading "off" and an empty
+    // selection lets the endpoint apply its real default instead of forcing
+    // 'none'. The upstream `none` effort itself has no pi-ai key to land on, so
+    // it is not surfaced as a separate control.
+    if (reasoning.defaultEffort === 'none')
+        map.off = 'none';
     return map;
 }
 /**
@@ -162,11 +171,10 @@ function buildModels(scanned) {
         headers: {},
         reasoning: entry.reasoning?.controllable === true,
         // Every level is declared explicitly: supported efforts map onto their
-        // same-named pi-ai key (`none` onto `off`, wire value kept), and anything
-        // the endpoint does not list is pinned to null so the selector never
-        // offers it. With no effort selected the transport omits reasoning_effort
-        // and the endpoint applies its own default (defaultEffort is a per-endpoint
-        // fact pi-ai's Model shape cannot carry — documented in the README).
+        // same-named pi-ai key, and anything the endpoint does not list is pinned
+        // to null so the selector never offers it. The endpoint's default effort
+        // is carried on the `off` key (buildThinkingLevelMap), so an empty
+        // selection replays the endpoint's own default rather than forcing 'none'.
         thinkingLevelMap: buildThinkingLevelMap(entry.reasoning),
         input: entry.input ?? ['text'],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },

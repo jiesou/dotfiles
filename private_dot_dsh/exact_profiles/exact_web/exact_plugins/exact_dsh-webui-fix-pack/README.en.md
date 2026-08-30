@@ -156,9 +156,7 @@ Requires [lehhair/dsh-mobile](https://github.com/lehhair/dsh-mobile).
 
 https://github.com/user-attachments/assets/55f1ab47-6b16-4946-842c-fcd3ff97143f
 
-When focus stays in the message box and you open the sidebar to switch sessions, the WebView pops the keyboard back up after dismissing it, making the UI janky.
-
-This issue is fixed.
+On touch (soft-keyboard) devices only: entering a session makes the webui programmatically focus the composer and pop the soft keyboard; this plugin blocks that focus at the source (programmatic `focus()` calls on the composer are dropped outright — focus never lands), keeping the keyboard down until you tap the composer. It also retracts the keyboard when the pager flips to the sidebar page. Programmatic refocus triggered from inside the composer card (+ button, model menu, send button) is left alone; hard-keyboard (fine-pointer) devices are entirely unaffected.
 
 ### mobile-hide-h-scroll
 

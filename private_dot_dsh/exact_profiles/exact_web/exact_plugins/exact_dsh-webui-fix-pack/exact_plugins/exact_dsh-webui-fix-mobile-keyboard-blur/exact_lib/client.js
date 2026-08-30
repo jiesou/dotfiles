@@ -1,79 +1,76 @@
 /**
- * WORKAROUND for the dsh-mobile pager + Android WebView IME quirk:
- * the composer editable keeps DOM focus after the user dismisses the soft
- * keyboard (Android keeps focus when the back button hides the IME). When
- * the pager then leaves the chat page, the WebView re-opens the keyboard
- * ("pops up for a moment").
+ * WORKAROUND (soft-keyboard / touch devices only): the composer must not grab
+ * focus on its own.
  *
- * dsh-mobile (f494097) already releases chat editables on the page flip,
- * but only matches `textarea, input, [contenteditable="true"]` — so the
- * Lexical composer (<div contenteditable data-phase>) slips through and its
- * IME re-pops. We mirror dsh-mobile's trigger on the pager scroll instead of
- * the coalesced data-dshm-page attribute (a sidebar→chat flip collapses into
- * one delivery whose final value is "chat" and skips the blur). Sidebar-owned
- * editables (search, rename) are never touched.
+ * 1. Session entry: dsh-webui auto-focuses the composer whenever a session is
+ *    entered — InputBar's `[locked, sessionId, editor]` unlock effect calls
+ *    `editor.getRootElement()?.focus()`, and Lexical's selection commit
+ *    refocuses the root the same way — popping the IME. All of those paths
+ *    are programmatic `HTMLElement.prototype.focus` calls on the composer, so
+ *    this plugin drops them at the source: focus never lands, the keyboard
+ *    never pops, and there is nothing to retract afterwards. The gate is
+ *    pointer engagement: a programmatic focus on the composer card goes
+ *    through only if the most recent pointerdown landed inside the card.
+ *    Session entry always follows a pointerdown elsewhere (session row, pager
+ *    swipe, app boot), so its auto-focus is dropped; every legitimate
+ *    programmatic refocus (popup restore, toolbar keep-focus, send) is
+ *    preceded by a pointerdown inside the card and passes. Trusted taps reach
+ *    the element without calling the patched method and always focus.
+ *
+ * 2. Sidebar flip: dsh-mobile already blurs the chat editable when the pager
+ *    rests on the sidebar page; this mirrors that behaviour so the pack also
+ *    works without dsh-mobile (and across its matcher changes).
+ *
+ * Hard-keyboard devices are untouched (the whole plugin is coarse-pointer
+ * gated; auto-focus is harmless there).
  */
 window.__ModuleLoader__.load({
   id: '@jiesou/dsh-webui-fix-mobile-keyboard-blur',
   factory: () => {
-    const FRAME_SELECTOR = 'div[data-sidebar-collapsed], div[data-details-collapsed]'
+    const CARD = '[data-composer-card]'
 
-    function isEditable(el) {
-      return el instanceof HTMLTextAreaElement ||
-        el instanceof HTMLInputElement ||
-        el.isContentEditable
-    }
+    const isEditable = (el) =>
+      el instanceof HTMLTextAreaElement ||
+      el instanceof HTMLInputElement ||
+      el.isContentEditable
 
-    function chatPageLeft(frame) {
-      const sidebar = frame.firstElementChild
-      if (sidebar instanceof HTMLElement && sidebar.offsetWidth > 0) return sidebar.offsetWidth
-      return frame.clientWidth
-    }
-
-    function blurChatEditable() {
-      const frame = document.querySelector(FRAME_SELECTOR)
+    const blurChatEditable = () => {
+      const html = document.documentElement
+      if (html.getAttribute('data-dshm-page') !== 'sidebar') return
       const active = document.activeElement
-      if (frame === null || !(active instanceof HTMLElement) || !isEditable(active)) return
-      const chatCard = frame.children[1]
+      if (!(active instanceof HTMLElement) || !isEditable(active)) return
+      const frame = document.querySelector('div[data-sidebar-collapsed], div[data-details-collapsed]')
+      const chatCard = frame?.children[1]
       if (!(chatCard instanceof Element) || !chatCard.contains(active)) return
       active.blur()
-    }
-
-    function onPagerScroll() {
-      const frame = document.querySelector(FRAME_SELECTOR)
-      if (frame === null) return
-      const left = chatPageLeft(frame)
-      if (left > 0 && frame.scrollLeft < left - 2) blurChatEditable()
     }
 
     return {
       name: '@jiesou/dsh-webui-fix-mobile-keyboard-blur',
       apply(ctx) {
+        if (!window.matchMedia('(pointer: coarse)').matches) return
         ctx.effect(() => {
-          const html = document.documentElement
-          const root = document.getElementById('root')
-          const attrObserver = new MutationObserver(() => {
-            if (document.documentElement.getAttribute('data-dshm-page') === 'sidebar') blurChatEditable()
-          })
-          attrObserver.observe(html, { attributes: true, attributeFilter: ['data-dshm-page'] })
-
-          let frame = document.querySelector(FRAME_SELECTOR)
-          const bindScroll = () => {
-            frame?.removeEventListener('scroll', onPagerScroll)
-            frame = document.querySelector(FRAME_SELECTOR)
-            frame?.addEventListener('scroll', onPagerScroll, { passive: true })
-          }
-          bindScroll()
-          const rootObserver = root !== null ? new MutationObserver(bindScroll) : null
-          rootObserver?.observe(root, { childList: true })
-
+          const observer = new MutationObserver(blurChatEditable)
+          observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-dshm-page'] })
           blurChatEditable()
-          return () => {
-            attrObserver.disconnect()
-            rootObserver?.disconnect()
-            frame?.removeEventListener('scroll', onPagerScroll)
+          return () => observer.disconnect()
+        }, '@jiesou/dsh-webui-fix-mobile-keyboard-blur: retract keyboard on the sidebar page')
+        ctx.effect(() => {
+          const focus = HTMLElement.prototype.focus
+          let engaged = false
+          const onPointerDown = (e) => {
+            engaged = e.target instanceof Element && e.target.closest(CARD) !== null
           }
-        }, '@jiesou/dsh-webui-fix-mobile-keyboard-blur: blur chat editable when leaving the chat page')
+          document.addEventListener('pointerdown', onPointerDown, true)
+          HTMLElement.prototype.focus = function (options) {
+            if (!engaged && this instanceof Element && this.closest(CARD) !== null) return
+            return focus.call(this, options)
+          }
+          return () => {
+            HTMLElement.prototype.focus = focus
+            document.removeEventListener('pointerdown', onPointerDown, true)
+          }
+        }, '@jiesou/dsh-webui-fix-mobile-keyboard-blur: drop programmatic composer focus while the pointer is not engaged with the card')
       },
     }
   },

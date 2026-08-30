@@ -1,8 +1,8 @@
 ui-onboarding:
   welcomeNoticeVersion: 2026-08-13.1
 agent-default-model:
-  provider: opencode-zen-free-provider
-  model: hy3-free
+  provider: nous-portal
+  model: tencent/hy3:free
 llm-pi-ai:
   providers:
     sui-xiang-claude-kiro:

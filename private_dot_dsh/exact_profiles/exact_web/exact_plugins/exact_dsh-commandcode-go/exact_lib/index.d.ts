@@ -26,7 +26,8 @@ import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm';
 import type { CommandCodeGoConnectionOptions, CommandCodeGoModel } from './adapter.js';
 export { CommandCodeGoAdapter, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, } from './adapter.js';
 export type { CommandCodeGoAdapterOptions, CommandCodeGoConnectionOptions, CommandCodeGoModel } from './adapter.js';
-export { fetchCatalogEfforts, fetchGoModels, isGoModel, parseCatalogEfforts } from './models.js';
+export { fetchCatalog, fetchGoModels, isGoPlan, parseCatalog } from './models.js';
+export type { CatalogEntry, GoModel } from './models.js';
 export declare const name = "commandcode-go";
 export declare const inject: string[];
 /**
@@ -46,6 +47,9 @@ export interface Config {
     retryPolicy?: RetryPolicyConfig;
 }
 export declare const Config: z<Config>;
-/** The one explicit resolve step from raw config to validated connection facts. */
+/**
+ * The one explicit resolve step from raw config to connection facts. Bounds
+ * are the schema's job (`Config` pins every numeric floor), so this only maps.
+ */
 export declare function resolveAdapterOptions(config: Config, scanned: readonly CommandCodeGoModel[]): CommandCodeGoConnectionOptions;
 export declare function apply(ctx: Context, config: Config): void;

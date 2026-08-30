@@ -19,7 +19,27 @@
     - id: tool-deny
       name: dsh-tool-deny
       config:
-        denyTools: []
+        denyTools:
+          - mcp__linkup__linkup-research
+          - mcp__linkup__linkup-get-research
+          - mcp__firecrawl__firecrawl_parse
+          - mcp__firecrawl__firecrawl_map
+          - mcp__firecrawl__firecrawl_crawl
+          - mcp__tavily__tavily_map
+          - mcp__tavily__tavily_crawl
+          - mcp__tavily__tavily_research
+          - mcp__tinyfish__get_search_usage
+          - mcp__tinyfish__get_fetch_usage
+          - mcp__tinyfish__get_wallet
+          - mcp__tinyfish__list_fetch_usage
+          - mcp__tinyfish__list_search_usage
+          - mcp__tinyfish__list_runs
+          - mcp__tinyfish__get_run
+          - mcp__tinyfish__list_browser_sessions
+          - mcp__tinyfish__create_browser_session
+          - mcp__tinyfish__close_browser_session
+          - mcp__tinyfish__run_web_automation
+          - mcp__tinyfish__guide_next_step
 - id: ui-chat-recovery
   disabled: true
 

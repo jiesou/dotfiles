@@ -166,7 +166,7 @@ https://github.com/user-attachments/assets/f322ad94-5ba2-4cda-a10e-51902a9331db
 
 https://github.com/user-attachments/assets/55f1ab47-6b16-4946-842c-fcd3ff97143f
 
-焦点停留在消息框时打开侧边栏切换 session， 会导致 WebView 把键盘收起后又弹回来，界面鬼畜
+仅在触摸（软键盘）设备上生效：进入会话时 webui 会程序化聚焦 composer 并弹出软键盘，此插件在源头拦截这次聚焦（composer 上的程序化 `focus()` 调用直接丢弃，焦点根本不落地），软键盘保持收起，直到你主动点输入框；翻到侧滑栏页时也会收起键盘。点击 composer 卡片内的控件（+ 号、模型菜单、发送按钮等）引发的程序化回焦不受影响；硬键盘（精细指针）设备完全不受影响。
 
 修复了这个问题
 
