@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --dsh-composer-side-clearance: 12px; }
+  body { margin: 0; font-family: sans-serif; background: #1a1a1a; }
+  .wrap { width: 390px; margin: 0 auto; position: relative; }
+  .wrap i { position: absolute; top: 0; bottom: 0; width: 2px; background: red; z-index: 10; }
+  .stats {
+    text-align: center;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 4px calc(var(--dsh-composer-side-clearance) + 16px) 6px;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 20px;
+    display: block;
+    color: #aaa;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-overflow: clip;
+    scrollbar-width: none;
+    border-bottom: 1px solid #333;
+    -webkit-mask-image: linear-gradient(to right,
+      transparent 0,
+      transparent calc(var(--dsh-composer-side-clearance, 0px) + 16px),
+      #000 calc(var(--dsh-composer-side-clearance, 0px) + 16px),
+      #000 calc(100% - var(--dsh-composer-side-clearance, 0px) - 16px),
+      transparent calc(100% - var(--dsh-composer-side-clearance, 0px) - 16px),
+      transparent 100%);
+    mask-image: linear-gradient(to right,
+      transparent 0,
+      transparent calc(var(--dsh-composer-side-clearance, 0px) + 16px),
+      #000 calc(var(--dsh-composer-side-clearance, 0px) + 16px),
+      #000 calc(100% - var(--dsh-composer-side-clearance, 0px) - 16px),
+      transparent calc(100% - var(--dsh-composer-side-clearance, 0px) - 16px),
+      transparent 100%);
+  }
+  .sep { margin: 0 10px; color: #666; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <i style="left:28px"></i><i style="right:28px"></i>
+  <div class="stats" id="s0"><span>18 轮 · 261 步</span><span class="sep">|</span> <span>LLM 62m29s · 工具调用 20m6s</span><span class="sep">|</span> <span>首 token 平均 3.6s · 117 tok/s</span><span class="sep">|</span> <span>缓存命中 84%</span><span class="sep">|</span> <span>输入 33.2M tok · 输出 205K tok</span></div>
+  <div class="stats" id="s1"><span>18 轮 · 261 步</span><span class="sep">|</span> <span>LLM 62m29s · 工具调用 20m6s</span><span class="sep">|</span> <span>首 token 平均 3.6s · 117 tok/s</span><span class="sep">|</span> <span>缓存命中 84%</span><span class="sep">|</span> <span>输入 33.2M tok · 输出 205K tok</span></div>
+  <div class="stats" id="s2"><span>18 轮 · 261 步</span><span class="sep">|</span> <span>LLM 62m29s · 工具调用 20m6s</span><span class="sep">|</span> <span>首 token 平均 3.6s · 117 tok/s</span><span class="sep">|</span> <span>缓存命中 84%</span><span class="sep">|</span> <span>输入 33.2M tok · 输出 205K tok</span></div>
+</div>
+<script>
+  const m = document.getElementById('s1');
+  const e = document.getElementById('s2');
+  m.scrollLeft = (m.scrollWidth - m.clientWidth) / 2;
+  e.scrollLeft = 1e6;
+</script>
+</body>
+</html>

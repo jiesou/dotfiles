@@ -1,6 +1,6 @@
 ---
 name: notepad
-description: "User's blog knowledge base/journal management. Use when: user says 写下来"
+description: "User's blog knowledge base/journal management. ONLY Use when: user says 写下来"
 ---
 
 # Blog Notepad

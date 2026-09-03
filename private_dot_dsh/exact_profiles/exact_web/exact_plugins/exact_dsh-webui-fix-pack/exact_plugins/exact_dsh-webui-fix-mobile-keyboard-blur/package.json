@@ -1,6 +1,6 @@
 {
   "name": "@jiesou/dsh-webui-fix-mobile-keyboard-blur",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "description": "On soft-keyboard (touch) devices, block dsh-webui's programmatic composer auto-focus at the source when a session is entered, so the soft keyboard stays down until the user taps the input. Hard-keyboard devices are untouched.",
   "license": "MIT",

@@ -8,9 +8,9 @@ description: "Get any video transcripts, such as youtube, bilibili."
 通过 `python3 "scripts/get-transcript.py`（基于 `uvx yt-dlp`）下载视频字幕文稿，缓存到本地 tmp 路径，并对每个视频并发生成结构化摘要。
 
 get-transcript.py 支持平台：
-- **YouTube** — 附带评论，CC 自动字幕 / SenseVoice fallback
-- **Bilibili** — 附带评论，AI 中文字幕 / SenseVoice fallback
-- 所有 yt-dlp 支持的其他平台 — 不带评论，只通过 SenseVoice 转录
+- **YouTube** — 附带评论，CC 自动字幕 / ASR fallback
+- **Bilibili** — 附带评论，AI 中文字幕 / ASR fallback
+- 所有 yt-dlp 支持的其他平台 — 不带评论，只通过 ASR 转录
 
 ## 工作流
 

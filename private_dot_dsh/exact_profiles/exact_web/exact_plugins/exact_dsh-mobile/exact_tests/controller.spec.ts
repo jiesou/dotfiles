@@ -3,6 +3,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MobileController, PAGE_ATTR, type MobileControllerOptions } from '../src/client/controller.ts'
 
+// jsdom has no PointerEvent; the controller's pointerdown listener only
+// reads event.target, so MouseEvent is a sufficient stand-in.
+if (typeof (globalThis as { PointerEvent?: unknown }).PointerEvent === 'undefined') {
+  ;(globalThis as { PointerEvent: unknown }).PointerEvent = MouseEvent
+}
+
 /** A MediaQueryList stub (jsdom has none) that records its change listener.
  *  The prefers-reduced-motion query always reports false (marquee enabled);
  *  every other query reports the given `matches`. */
@@ -213,6 +219,157 @@ describe('MobileController always-open sidebar + pager', () => {
     frame.scrollLeft = 0
     controller.returnToChat()
     expect(frame.scrollLeft).toBe(300)
+  })
+
+  it('re-issues the return when the smooth scroll is cancelled (focus hit the composer)', async () => {
+    stubMatchMedia(true)
+    const frame = makeFrame()
+    // Mount runs its rAF re-sync synchronously against the DEFAULT scrollTo
+    // (the stub below is installed AFTER mount, so it only observes the
+    // return scroll, not mount's own auto positioning).
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { cb(0); return 0 })
+    const controller = makeController({ toggleSidebar: toggleSidebarSpy() })
+    controller.mount()
+    // Picking a session can cancel the first smooth scroll (focus
+    // scroll-into-view). The return smoother must RE-ISSUE it — still
+    // smoothly, never an instant jump — so the pager always lands on the
+    // chat page but never snaps.
+    let smoothed = 0
+    let instant = 0
+    frame.scrollTo = ((opts: ScrollToOptions): void => {
+      if (opts.behavior === 'smooth') {
+        smoothed += 1
+        if (smoothed === 1) return // first smooth cancelled: nothing moves
+        frame.scrollLeft = opts.left ?? 0 // the re-issued smooth lands
+      } else {
+        instant += 1
+        frame.scrollLeft = opts.left ?? 0
+      }
+    }) as never
+    frame.scrollLeft = 0
+    controller.returnToChat()
+    await flushTimers(500) // initial poll (160ms) + one retry
+    expect(smoothed).toBeGreaterThanOrEqual(2) // re-issued smoothly
+    expect(instant).toBe(0) // never a snap
+    expect(frame.scrollLeft).toBe(300)
+  })
+
+  it('a height-only (keyboard) window resize never re-anchors the pager', async () => {
+    stubMatchMedia(true)
+    const frame = makeFrame()
+    // Same as above: keep the mount-time rAF re-sync against the default
+    // scrollTo, out of the stub window below.
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { cb(0); return 0 })
+    const controller = makeController({ toggleSidebar: toggleSidebarSpy() })
+    controller.mount()
+    // A smooth that crawls (as if the keyboard's height-only resize keeps
+    // interrupting layout mid-flight): the smoother re-issues it when it
+    // stalls, and the resize handler refuses to re-anchor on an unchanged
+    // width — so the pager still converges on the chat page, all smooth.
+    let smoothed = 0
+    let instant = 0
+    frame.scrollTo = ((opts: ScrollToOptions): void => {
+      if (opts.behavior === 'smooth') {
+        smoothed += 1
+        frame.scrollLeft = Math.min(frame.scrollLeft + 120, opts.left ?? 0)
+      } else {
+        instant += 1
+        frame.scrollLeft = opts.left ?? 0
+      }
+    }) as never
+    frame.scrollLeft = 0
+    controller.returnToChat() // smooth: 0 → 120
+    // The keyboard pops: innerHeight changed, innerWidth did not.
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 500 })
+    window.dispatchEvent(new Event('resize'))
+    await flushTimers(800)
+    expect(frame.scrollLeft).toBe(300) // the smoother converged
+    expect(instant).toBe(0) // no re-anchor, no snap — all smooth
+  })
+
+  it('still re-anchors on a real width change (rotation / split-screen)', async () => {
+    stubMatchMedia(true)
+    const frame = makeFrame()
+    const controller = makeController({ toggleSidebar: toggleSidebarSpy() })
+    controller.mount()
+    // The pager sits mid-track (as during a rotation) — a WIDTH change
+    // re-anchors to the nearest page, unchanged behavior.
+    frame.scrollLeft = 200 // chatLeft 300, midpoint 150 → chat
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 900 })
+    window.dispatchEvent(new Event('resize'))
+    await flushTimers(200)
+    expect(frame.scrollLeft).toBe(300)
+  })
+})
+
+describe('MobileController focus suppression after a session pick', () => {
+  /** A composer textarea inside a [data-composer-card]. */
+  function makeComposerTextarea(): HTMLTextAreaElement {
+    const card = document.createElement('div')
+    card.setAttribute('data-composer-card', '')
+    const textarea = document.createElement('textarea')
+    card.append(textarea)
+    document.getElementById('root')?.append(card)
+    return textarea
+  }
+
+  it('bounces the auto-focus off the composer: returnToChat blurs it (no keyboard pop)', () => {
+    stubMatchMedia(true)
+    makeFrame()
+    const textarea = makeComposerTextarea()
+    const controller = makeController({ toggleSidebar: toggleSidebarSpy() })
+    controller.mount()
+    // The user picked a session in the sidebar: the pager returns to chat.
+    controller.returnToChat()
+    // The app auto-focuses the composer (the browser's focus lands on the
+    // textarea) — that would pop the OS keyboard over the return scroll.
+    textarea.focus()
+    document.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    expect(document.activeElement).not.toBe(textarea)
+  })
+
+  it('lets the user OWN tap on the composer focus through', () => {
+    stubMatchMedia(true)
+    makeFrame()
+    const textarea = makeComposerTextarea()
+    const controller = makeController({ toggleSidebar: toggleSidebarSpy() })
+    controller.mount()
+    controller.returnToChat()
+    // The user taps the input themselves (pointerdown lands on it first):
+    // this is a real intent to type, so the focus is allowed.
+    textarea.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    textarea.focus()
+    document.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    expect(document.activeElement).toBe(textarea)
+  })
+
+  it('lets focus through once the suppression window has passed', async () => {
+    stubMatchMedia(true)
+    makeFrame()
+    const textarea = makeComposerTextarea()
+    const controller = makeController({ toggleSidebar: toggleSidebarSpy() })
+    controller.mount()
+    controller.returnToChat()
+    // Late automatic focus (layout settle, model-name re-render) after the
+    // window must not be bounced anymore.
+    await flushTimers(700)
+    textarea.focus()
+    document.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    expect(document.activeElement).toBe(textarea)
+  })
+
+  it('does not suppress on desktop (wide viewport)', () => {
+    stubMatchMedia(false)
+    makeFrame()
+    const textarea = makeComposerTextarea()
+    const controller = makeController({ toggleSidebar: toggleSidebarSpy() })
+    controller.mount()
+    controller.returnToChat()
+    // Desktop keeps the stock behavior: pick a session, focus lands in the
+    // input ready to type, never bounced.
+    textarea.focus()
+    document.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    expect(document.activeElement).toBe(textarea)
   })
 })
 

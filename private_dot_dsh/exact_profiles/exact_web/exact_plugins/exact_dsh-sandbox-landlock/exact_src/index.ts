@@ -1,12 +1,23 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, realpathSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { argv as processArgv } from 'node:process'
+import type { Context } from '@deepseek-ai/cordis'
+import { FsError } from '@deepseek-ai/dsh-fs'
+import type { FsEditRequest, FsTarget, FsVersion, FsWriteIntent, FsWriteOutcome, FsEditOutcome } from '@deepseek-ai/dsh-fs'
+import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local'
+import type {} from '@deepseek-ai/dsh-sandbox-policy'
+import z from '@deepseek-ai/schemastery'
 
 interface SandboxPolicy {
-  mode: string
+  mode: 'read-only' | 'workspace-write' | 'danger-full-access'
   workspaceRoot: string
+}
+
+interface SandboxPolicyService {
+  defaultMode: SandboxPolicy['mode']
+  resolve(request?: { session?: unknown; mode?: SandboxPolicy['mode'] }): SandboxPolicy
 }
 
 interface ConfinedArgv {
@@ -28,13 +39,85 @@ interface Seam {
   grantArgs(grants: { readOnly?: string[]; readWrite?: string[] }): string[]
 }
 
-interface PluginCtx {
-  provide(id: string, service: unknown): void
-}
-
 interface Config {
   writeDirs?: string[]
   launcherPath?: string
+  cwd?: string
+  diffBasisMaxBytes?: number
+}
+
+interface PluginCtx {
+  provide(id: string, service: unknown): void
+  plugin?: (plugin: unknown, config?: unknown) => unknown
+}
+
+const sandboxPolicyInject = ['sandboxPolicy']
+
+function canonicalRoot(path: string): string {
+  try {
+    return realpathSync(path)
+  } catch {
+    return resolvePath(path)
+  }
+}
+
+function contains(root: string, target: string): boolean {
+  const child = relative(root, target)
+  return child === '' || (child !== '..' && !child.startsWith(`..${sep}`) && !isAbsolute(child))
+}
+
+class LandlockFileSystem extends LocalFileSystem {
+  static inject = sandboxPolicyInject
+  static Config: z<Config> = z.object({
+    cwd: z.string().default(process.cwd()),
+    diffBasisMaxBytes: z.number().default(10 * 1024 * 1024),
+    writeDirs: z.array(z.string()).default([]),
+  })
+
+  private readonly writeDirs: string[]
+  private readonly sandboxPolicy: SandboxPolicyService
+
+  constructor(ctx: Context, config: Config) {
+    super(ctx, config)
+    this.writeDirs = normalizeDirs(config.writeDirs).map(canonicalRoot)
+    this.sandboxPolicy = ctx.sandboxPolicy
+  }
+
+  override get sandboxMode(): SandboxPolicy['mode'] {
+    return this.sandboxPolicy.defaultMode
+  }
+
+  override async writeText(
+    target: FsTarget,
+    content: string,
+    expected?: FsWriteIntent,
+    signal?: AbortSignal,
+    sandboxPolicy?: SandboxPolicy,
+  ): Promise<FsWriteOutcome> {
+    return super.writeText(await this.checkedTarget(target, sandboxPolicy), content, expected, signal)
+  }
+
+  override async editText(
+    target: FsTarget,
+    edit: FsEditRequest,
+    expected?: { version: FsVersion },
+    signal?: AbortSignal,
+    sandboxPolicy?: SandboxPolicy,
+  ): Promise<FsEditOutcome> {
+    return super.editText(await this.checkedTarget(target, sandboxPolicy), edit, expected, signal)
+  }
+
+  private async checkedTarget(target: FsTarget, sandboxPolicy?: SandboxPolicy): Promise<FsTarget> {
+    const policy = sandboxPolicy ?? this.sandboxPolicy.resolve()
+    if (policy.mode === 'danger-full-access') return target
+    if (policy.mode === 'read-only') {
+      throw new FsError(`cannot write "${target.displayPath}": file access denied under read-only mode`, 'FS_SANDBOX_DENIED')
+    }
+    const fresh = await this.resolve(target.displayPath)
+    const roots = [canonicalRoot(policy.workspaceRoot), '/tmp', ...this.writeDirs]
+    if (roots.some(root => contains(root, fresh.targetKey))) return fresh
+    throw new FsError(`cannot write "${target.displayPath}": file access denied under workspace-write mode`, 'FS_SANDBOX_DENIED')
+  }
 }
 
 function expandHome(dir: string): string {
@@ -93,7 +176,8 @@ function grantFlags(seam: Seam, policy: SandboxPolicy, writeDirs: readonly strin
 
 export const name = 'dsh-sandbox-landlock'
 
-export async function apply(ctx: PluginCtx, config: Config = {}): Promise<void> {
+export async function apply(ctx: Context | PluginCtx, config: Config = {}): Promise<void> {
+  const writeDirs = normalizeDirs(config.writeDirs ?? [])
   if (platform() !== 'linux') return
   let seam: Seam
   try {
@@ -108,7 +192,7 @@ export async function apply(ctx: PluginCtx, config: Config = {}): Promise<void> 
     console.warn(`dsh-sandbox-landlock: landlock-run functional probe unusable (${launcher}); sandbox disabled`)
     return
   }
-  const writeDirs = normalizeDirs(config.writeDirs ?? [])
+  if (ctx.plugin) ctx.plugin(LandlockFileSystem, { cwd: config.cwd, writeDirs })
   ctx.provide('sandbox', {
     // 生产消费方在 danger-full-access 时不会调用 confine；此处只接收受限模式。
     confine(commandArgv: readonly string[], policy: SandboxPolicy): ConfinedArgv {

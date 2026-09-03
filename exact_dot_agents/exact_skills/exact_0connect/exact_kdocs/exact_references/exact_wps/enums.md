@@ -1,12 +1,16 @@
 # WPS 文字枚举值参考
 
-本文件集中定义所有 Core Execute 命令共享的枚举常量。
+本文件集中定义在线文字（`wps.*`）结构化工具常用的 Word 枚举常量。
 
 ---
 
 ## WdParagraphAlignment — 对齐方式
 
-用于 `modifyParagraphAlignment` / `modifyRangeAlignment` 的 `algMode` 参数。
+| 工具 | action | 参数 |
+|------|--------|------|
+| `wps.format_text` | `alignment` | `alignment` |
+| `wps.write_header_footer` | `set_header_alignment` / `set_footer_alignment` / `insert_page_number_in_header` / `insert_page_number_in_footer` | `alignment` |
+| `wps.format_table` | `cell_alignment` / `row_alignment` / `column_alignment` | `alignment` |
 
 | 名称 | 值 | 说明 |
 |------|-----|------|
@@ -24,7 +28,9 @@
 
 ## WdLineSpacing — 行间距
 
-用于 `modifyParagraphLineSpacing` / `modifyRangeLineSpacing` 的 `spacingRule` 参数。
+| 工具 | action | 参数 |
+|------|--------|------|
+| `wps.format_text` | `line_spacing` | `spacing_rule`（`spacing_value` 为配套数值，见枚举说明） |
 
 | 名称 | 值 | 说明 |
 |------|-----|------|
@@ -39,10 +45,20 @@
 
 ## WdColorIndex — 颜色
 
-用于 `modifyParagraphFontStyle` / `modifyRangeFontStyle` 的 `ColorIndex` 值，以及 `modifyParagraphHighlight` / `modifyRangeHighlight` 的 `highColor` 参数。
+| 工具 | action | 参数 |
+|------|--------|------|
+| `wps.format_text` | `highlight` | `highlight_color` |
+| `wps.format_text` | `font_style` | `font_style.color_index` |
+| `wps.format_text` | `font` | `font_key=ColorIndex` + `font_value` |
+| `wps.format_text` | `font_batch` | `font_items[].key=ColorIndex` |
+| `wps.write_header_footer` | `set_header_font_style` / `set_footer_font_style` | `font_style.color_index` / `color_index` |
+| `wps.format_table` | `cell_background` / `row_background` / `column_background` | `color_index` |
+| `wps.format_table` | `borders` / `cell_border` | `border_color` / `border_key=ColorIndex` |
+| `wps.write_text` | `set_shading` | `shading_key=BackgroundPatternColorIndex` + `shading_value` |
 
 | 名称 | 值 | 说明 |
 |------|-----|------|
+| wdByAuthor | -1 | 由文档作者定义 |
 | wdAuto | 0 | 自动（默认黑色） |
 | wdBlack | 1 | 黑色 |
 | wdBlue | 2 | 蓝色 |
@@ -61,13 +77,18 @@
 | wdGray50 | 15 | 50%灰色 |
 | wdGray25 | 16 | 25%灰色 |
 
-高亮色专用：`wdNoHighlight`(0) 清除高亮，`wdByAuthor`(-1) 由作者定义。
+高亮色专用：`wdNoHighlight`(0) 清除高亮。
 
 ---
 
 ## WdUnderline — 下划线样式
 
-用于 `modifyParagraphFontStyle` / `modifyRangeFontStyle` 的 `Underline` 值。
+| 工具 | action | 参数 |
+|------|--------|------|
+| `wps.format_text` | `font_style` | `font_style.underline` |
+| `wps.format_text` | `font` | `font_key=Underline` + `font_value` |
+| `wps.format_text` | `font_batch` | `font_items[].key=Underline` |
+| `wps.write_header_footer` | `set_header_font_style` / `set_footer_font_style` | `font_style.underline` / `underline` |
 
 | 名称 | 值 | 说明 |
 |------|-----|------|
@@ -89,3 +110,125 @@
 | wdUnderlineDashLong | 39 | 长划线 |
 | wdUnderlineWavyDouble | 43 | 双波浪线 |
 | wdUnderlineDashLongHeavy | 55 | 长粗划线 |
+
+---
+
+## WdBorderIndex — 边框位置
+
+| 工具 | action | 参数 |
+|------|--------|------|
+| `wps.write_text` | `set_borders` | `border_type` |
+
+| 名称 | 值 | 说明 |
+|------|-----|------|
+| wdBorderTop | -1 | 上框线 |
+| wdBorderLeft | -2 | 左侧框线 |
+| wdBorderBottom | -3 | 底边框线 |
+| wdBorderRight | -4 | 右侧框线 |
+| wdBorderHorizontal | -5 | 横向框线 |
+| wdBorderVertical | -6 | 纵向框线 |
+| wdBorderDiagonalDown | -7 | 斜下（左上→右下） |
+| wdBorderDiagonalUp | -8 | 斜上（左下→右上） |
+
+---
+
+## WdLineStyle — 边框线型
+
+| 工具 | action | 参数 |
+|------|--------|------|
+| `wps.write_text` | `set_borders` | `border_key=LineStyle` |
+| `wps.format_table` | `borders` | `line_style` |
+| `wps.format_table` | `cell_border` | `border_key=LineStyle` |
+| `wps.write_info` | `section_border` | `line_style` / `key=LineStyle` |
+
+| 名称 | 值 | 说明 |
+|------|-----|------|
+| wdLineStyleNone | 0 | 无边框 |
+| wdLineStyleSingle | 1 | 单实线 |
+| wdLineStyleDot | 2 | 点 |
+| wdLineStyleDashSmallGap | 3 | 划线后跟小间隙 |
+| wdLineStyleDashLargeGap | 4 | 划线后跟大间隙 |
+| wdLineStyleDashDot | 5 | 划线后跟点 |
+| wdLineStyleDashDotDot | 6 | 划线后跟两个点 |
+| wdLineStyleDouble | 7 | 双实线 |
+| wdLineStyleTriple | 8 | 三条细实线 |
+| wdLineStyleThinThickSmallGap | 9 | 细内粗外，间隙较小 |
+| wdLineStyleThickThinSmallGap | 10 | 粗内细外，间隙较小 |
+| wdLineStyleThinThickThinSmallGap | 11 | 细-粗-细，间隙较小 |
+| wdLineStyleThinThickMedGap | 12 | 细内粗外，间隙中等 |
+| wdLineStyleThickThinMedGap | 13 | 粗内细外，间隙中等 |
+| wdLineStyleThinThickThinMedGap | 14 | 细-粗-细，间隙中等 |
+| wdLineStyleThinThickLargeGap | 15 | 细内粗外，间隙较大 |
+| wdLineStyleThickThinLargeGap | 16 | 粗内细外，间隙较大 |
+| wdLineStyleThinThickThinLargeGap | 17 | 细-粗-细，间隙较大 |
+| wdLineStyleSingleWavy | 18 | 波浪型单实线 |
+| wdLineStyleDoubleWavy | 19 | 波浪型双实线 |
+| wdLineStyleDashDotStroked | 20 | 划线后跟粗点 |
+| wdLineStyleEmboss3D | 21 | 三维阳文 |
+| wdLineStyleEngrave3D | 22 | 三维阴文 |
+| wdLineStyleOutset | 23 | 凸起 |
+| wdLineStyleInset | 24 | 凹进 |
+
+---
+
+## WdLineWidth — 边框线宽
+
+禁止传磅值小数；与 `wps.format_table` `borders` 的 `line_width`（磅值浮点）不是同一类型。
+
+| 工具 | action | 参数 |
+|------|--------|------|
+| `wps.write_text` | `set_borders` | `border_key=LineWidth` |
+| `wps.format_table` | `cell_border` | `border_key=LineWidth` |
+| `wps.write_info` | `section_border` | `key=LineWidth` |
+
+| 名称 | 值 | 说明 |
+|------|-----|------|
+| wdLineWidth025pt | 2 | 0.25 磅 |
+| wdLineWidth050pt | 4 | 0.50 磅 |
+| wdLineWidth075pt | 6 | 0.75 磅 |
+| wdLineWidth100pt | 8 | 1.00 磅（默认） |
+| wdLineWidth150pt | 12 | 1.50 磅 |
+| wdLineWidth225pt | 18 | 2.25 磅 |
+| wdLineWidth300pt | 24 | 3.00 磅 |
+| wdLineWidth450pt | 36 | 4.50 磅 |
+| wdLineWidth600pt | 48 | 6.00 磅 |
+
+---
+
+## WdBuiltinStyle — 内置样式（标题子集）
+
+推荐传 1–9 级别数字；负整数为 WdBuiltinStyle 备选。
+
+| 工具 | action | 参数 |
+|------|--------|------|
+| `wps.format_text` | `heading` | `heading_level` |
+| `wps.write_text` | `append_heading` / `paragraph_heading_insert` | `heading_level` |
+
+| 名称 | 值 | 说明 |
+|------|-----|------|
+| wdStyleNormal | -1 | 正文 |
+| wdStyleHeading1 | -2 | 标题 1 |
+| wdStyleHeading2 | -3 | 标题 2 |
+| wdStyleHeading3 | -4 | 标题 3 |
+| wdStyleHeading4 | -5 | 标题 4 |
+| wdStyleHeading5 | -6 | 标题 5 |
+| wdStyleHeading6 | -7 | 标题 6 |
+| wdStyleHeading7 | -8 | 标题 7 |
+| wdStyleHeading8 | -9 | 标题 8 |
+| wdStyleHeading9 | -10 | 标题 9 |
+
+---
+
+## WdRowHeightRule — 行高规则
+
+与 `wps.format_table` `row_height` 的 `height`（磅值）配合使用。
+
+| 工具 | action | 参数 |
+|------|--------|------|
+| `wps.format_table` | `row_height_rule` | `height_rule` |
+
+| 名称 | 值 | 说明 |
+|------|-----|------|
+| wdRowHeightAuto | 0 | 自动调整行高（适应该行最大高度） |
+| wdRowHeightAtLeast | 1 | 行高至少为指定最小值 |
+| wdRowHeightExactly | 2 | 固定行高 |

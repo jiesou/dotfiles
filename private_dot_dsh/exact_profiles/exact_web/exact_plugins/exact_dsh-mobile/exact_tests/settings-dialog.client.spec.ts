@@ -81,8 +81,11 @@ describe('mobile.css settings-dialog contract', () => {
 
   it('scopes every rule under the mobile attribute', () => {
     // Pull the rule bodies and ensure each starts with a [data-dsh-mobile]
-    // scoped selector chain. At-rules (@media/@supports/@keyframes) are
-    // skipped — their nested declarations carry their own selectors.
+    // scoped selector chain. At-rules (@media/@supports/@keyframes/@container)
+    // are skipped — their nested declarations carry their own selectors.
+    // The composer row is the plugin's @container target (its container-type
+    // is the stock InputBar row), and every rule nested under it is still
+    // [data-dsh-mobile]-scoped.
     const bodies = css
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .split(/\n\s*}/)
@@ -90,7 +93,7 @@ describe('mobile.css settings-dialog contract', () => {
       .filter(part => part.length > 0)
     for (const body of bodies) {
       const selector = body.split(/\{/)[0]?.trim() ?? ''
-      if (selector === '' || /^@(media|supports|keyframes|font-face)/.test(selector)) continue
+      if (selector === '' || /^@(media|supports|keyframes|font-face|container)/.test(selector)) continue
       expect(selector, `unscoped selector: ${selector}`).toContain(`[data-dsh-mobile]`)
     }
   })

@@ -1,6 +1,6 @@
 {
   "name": "@jiesou/dsh-webui-fix-mobile-hide-h-scroll",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Hide the horizontal scrollbar that @dsh-external/dsh-mobile can still show on mobile web views while swiping the sidebar/chat pager (client-only plugin).",
   "license": "MIT",

@@ -18,14 +18,11 @@
  *    OpenAI-completions transport. A plain `sk-` API key (funded accounts)
  *    stored under NOUS_PORTAL_API_KEY wins when present.
  *
- * Free-tier refusals arrive as HTTP 401/403 JSON that the harness would
- * classify as AUTH and mask as "API key is invalid" — non-auth envelopes are
- * rewritten to `[nous-portal <type>] <message>` before that classification,
- * mirroring the opencode-zen provider's treatment of Zen refusals.
- *
  * @module nous-portal-free-provider
  */
 import type { Context } from '@deepseek-ai/cordis';
+import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm';
+import z from '@deepseek-ai/schemastery';
 export { DEFAULT_CLIENT_ID, DEFAULT_INFERENCE_URL, DEFAULT_PORTAL_URL, DEFAULT_SCOPE } from './oauth.js';
 export { deviceCodeLogin, NousTokenManager, pollForToken, requestDeviceCode } from './oauth.js';
 export type { DeviceCodeChallenge, InferenceCredential, NousPortalGrant } from './oauth.js';
@@ -33,4 +30,10 @@ export { fetchFreeModels, parseFreeModels } from './models.js';
 export type { NousPortalModel } from './models.js';
 export declare const name = "nous-portal-free-provider";
 export declare const inject: string[];
-export declare function apply(ctx: Context): Promise<void>;
+/** Plugin configuration, validated by the same-named schemastery schema. */
+export interface Config {
+    /** Provider-owned model-request retry policy; omission retries every failure. */
+    retryPolicy?: RetryPolicyConfig;
+}
+export declare const Config: z<Config>;
+export declare function apply(ctx: Context, config: Config): Promise<void>;

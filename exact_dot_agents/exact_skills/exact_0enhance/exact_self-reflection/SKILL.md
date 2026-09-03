@@ -1,6 +1,7 @@
 ---
 name: self-reflection
 description: Use when you need to determine the accuracy of the answer.
+disable-model-invocation: true
 ---
 
 # Self-Reflection

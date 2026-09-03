@@ -13,10 +13,10 @@
 | 工具 | 功能 | 必填参数 |
 |------|------|----------|
 | [`create_empty_file`](drive/create_and_upload.md) | 新建空白在线文档 | `name`, `file_extension` |
-| [`create_folder`](drive/create_and_upload.md) | 在云盘下新建文件夹 | `drive_id`, `parent_id`, `name` |
 | [`create_file_with_content`](drive/create_and_upload.md) | 新建并写入内容 | `name`, `file_extension` |
-| [`scrape_url`](drive/create_and_upload.md) | 网页剪藏，抓取网页内容并自动保存为智能文档 | `url` |
+| [`create_folder`](drive/create_and_upload.md) | 在云盘下新建文件夹 | `drive_id`, `parent_id`, `name` |
 | [`scrape_progress`](drive/create_and_upload.md) | 查询网页剪藏任务进度 | `job_id` |
+| [`scrape_url`](drive/create_and_upload.md) | 网页剪藏，抓取网页内容并自动保存为智能文档 | `url` |
 | [`upload_new_file`](drive/create_and_upload.md) | 上传本地文件新建云文档 | `name`, `content_base64` |
 | [`upload_replace_file`](drive/create_and_upload.md) | 通过上传本地文件全量覆盖已有云文档 | `file_id`, `content_base64` |
 | [`upload_attachment`](drive/create_and_upload.md) | 向已有文档上传附件，支持 URL 或 Base64 | `file_id`, `filename`, `url`\|`content_base64` |
@@ -31,8 +31,8 @@
 | [`list_files`](drive/read_and_download.md) | 获取指定文件夹下的子文件列表 | `drive_id`, `parent_id` |
 | [`download_file`](drive/read_and_download.md) | 获取文件下载信息 | `url`\|`link_id`\|`file_id` |
 | [`download_attachment`](drive/read_and_download.md) | 获取文档附件的下载信息 | `url`\|`link_id`\|`file_id`, `attachment_id` |
-| [`read_file`](drive/read_and_download.md) | 读取文档内容为 Markdown/结构化数据 | `url`\|`link_id`\|`file_id` |
 | [`get_file_info`](drive/read_and_download.md) | 获取文件（夹）详细信息 | `url`\|`link_id`\|`file_id` |
+| [`read_file`](drive/read_and_download.md) | 读取文档内容为 Markdown/纯文本/结构化数据 | `url`\|`link_id`\|`file_id` |
 
 ## 三、文件组织
 

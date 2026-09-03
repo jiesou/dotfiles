@@ -18,22 +18,16 @@
  *    OpenAI-completions transport. A plain `sk-` API key (funded accounts)
  *    stored under NOUS_PORTAL_API_KEY wins when present.
  *
- * Free-tier refusals arrive as HTTP 401/403 JSON that the harness would
- * classify as AUTH and mask as "API key is invalid" — non-auth envelopes are
- * rewritten to `[nous-portal <type>] <message>` before that classification,
- * mirroring the opencode-zen provider's treatment of Zen refusals.
- *
  * @module nous-portal-free-provider
  */
-import { assertUsableApiKey, resolveRetryPolicy } from '@deepseek-ai/dsh-llm';
+import { assertUsableApiKey, errorChain, resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm';
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai';
 import { credentialKey, credentialRef } from '@deepseek-ai/dsh-credentials';
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment';
-import { access } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { createProvider, } from '@earendil-works/pi-ai';
 import { stream as openAiStream, streamSimple as openAiStreamSimple } from '@earendil-works/pi-ai/api/openai-completions';
-import { deepEqualJson } from '@deepseek-ai/dsh-settings';
+import z from '@deepseek-ai/schemastery';
+import { deepEqualJson, installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings';
 import { DEFAULT_INFERENCE_URL, DEFAULT_MODELS_URL, DEFAULT_PORTAL_URL, deviceCodeLogin, NousTokenManager, refreshAccessToken } from './oauth.js';
 import { fetchFreeModels } from './models.js';
 export { DEFAULT_CLIENT_ID, DEFAULT_INFERENCE_URL, DEFAULT_PORTAL_URL, DEFAULT_SCOPE } from './oauth.js';
@@ -46,22 +40,20 @@ const DISPLAY_NAME = 'Nous Portal Free';
 /** The one credential record this plugin owns: `<scope>/portal`. */
 const RECORD_KEY = credentialKey(name, 'portal');
 const DEFAULT_API_KEY_ENV = 'NOUS_PORTAL_API_KEY';
-/** Catalog scan cadence; the free set rotates slowly. */
-const REFRESH_MS = 15 * 60 * 1000;
-/**
- * pi-ai's thinking-level keys, in its own ladder order. Upstream effort ids
- * map onto these keys by name; the one special case is upstream `none`,
- * which lands on the `off` key with the wire value preserved — the standard
- * OpenAI-completions branch sends a string `off` value as `reasoning_effort`,
- * so selecting Off genuinely disables thinking where the endpoint allows it.
- */
-const PI_THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+/** Settings section this plugin owns; its only key is the retry policy. */
+const NS = settingsNamespace(name);
+export const Config = z.object({
+    retryPolicy: RetryPolicySchema.default({ mode: 'always' }),
+});
+/** pi-ai's standard ladder keys (off = explicit close; the rest are depths). */
+const PI_LEVEL_KEYS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 const isRecord = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 // Free-tier refusals ("OpenRouter free models are not supported", ended
-// promotions) surface over HTTP 401/403 whose text the harness classifies as
-// AUTH and replaces with "API key is invalid". Rewrite the JSON envelope in
-// the terminal error event to `[nous-portal <type>] <message>` first;
-// genuine auth failures keep surfacing as AUTH.
+// promotions) arrive as HTTP 401/403, which the harness classifies as AUTH and
+// masks as "API key is invalid". Rewriting the envelope to
+// `[nous-portal <type>] <message>` gets the real reason past that
+// classification; genuine auth envelopes and unparseable text pass through.
+const AUTH_ERROR_TYPES = new Set(['AuthError', 'authentication_error', 'invalid_api_key', 'unauthorized']);
 const rewriteRefusalMessage = (errorMessage) => {
     const start = errorMessage.indexOf('{');
     const end = errorMessage.lastIndexOf('}');
@@ -76,15 +68,30 @@ const rewriteRefusalMessage = (errorMessage) => {
     }
     if (!isRecord(parsed))
         return errorMessage;
+    // Accept both the raw envelope (`{"type":"error","error":{…}}`) and the
+    // SDK-unwrapped inner object (`{"type":"ModelError","message":"…"}`).
     const detail = parsed.type === 'error' && isRecord(parsed.error) ? parsed.error : parsed;
     const message = [detail.message, isRecord(detail.error) ? detail.error.message : undefined, detail.detail]
-        .find(value => typeof value === 'string');
+        .find((value) => typeof value === 'string');
     if (message === undefined)
         return errorMessage;
-    if (detail.type === 'authentication_error' || detail.code === 'invalid_api_key')
-        return errorMessage;
     const type = typeof detail.type === 'string' ? detail.type : 'Error';
+    const code = typeof detail.code === 'string' ? detail.code : '';
+    if (AUTH_ERROR_TYPES.has(type) || AUTH_ERROR_TYPES.has(code))
+        return errorMessage;
+    // Dropping the status prefix is what defeats the AUTH classifier.
     return `[nous-portal ${type}] ${message}`;
+};
+// Required by the adapter, unused by this route: the credential comes from
+// `resolveApiKey`, so pi-ai never stores one nor asks an ambient question.
+const PI_AUTH = {
+    credentials: {
+        read: async () => undefined,
+        list: async () => [],
+        modify: async (_providerId, mutate) => mutate(undefined),
+        delete: async () => { },
+    },
+    authContext: { env: async () => undefined, fileExists: async () => false },
 };
 const sanitizeStream = (stream) => {
     const originalPush = stream.push.bind(stream);
@@ -96,91 +103,70 @@ const sanitizeStream = (stream) => {
     };
     return stream;
 };
-// DeepSeek-style reasoners replay assistant thinking blocks without a wire
-// signature; marking them `reasoning_content` keeps the OpenAI-completions
-// transport from mangling history on follow-up turns (same insurance the
-// opencode-zen provider ships for mimo-v2.5-free).
-const normalizeReasoningContext = (model, context) => {
-    if (!model.reasoning)
-        return context;
-    const messages = context.messages.map(message => {
-        if (message.role !== 'assistant')
-            return message;
-        const content = message.content.map(block => block.type === 'thinking' && block.thinking.trim().length > 0 && block.thinkingSignature === undefined
+// Replayed thinking blocks carry no wire signature; marking them
+// `reasoning_content` keeps the transport from mangling history. Never gated on
+// `model.reasoning`: a model with no effort control still streams thinking.
+const normalizeReasoningContext = (context) => ({
+    ...context,
+    messages: context.messages.map(message => message.role !== 'assistant' ? message : {
+        ...message,
+        content: message.content.map(block => block.type === 'thinking' && block.thinking.trim().length > 0 && block.thinkingSignature === undefined
             ? { ...block, thinkingSignature: 'reasoning_content' }
-            : block);
-        return content === message.content ? message : { ...message, content };
-    });
-    return messages.some((message, index) => message !== context.messages[index]) ? { ...context, messages } : context;
-};
-/**
- * Translate preserved reasoning metadata into pi-ai's thinkingLevelMap:
- * every harness level the endpoint lists is declared on its same-named key,
- * everything else pinned to null. The endpoint's `default_effort` rides on
- * the `off` key so an empty selection replays the endpoint default (see the
- * body). Returns undefined for non-controllable models — the seam then
- * offers no effort control, which is exactly the truth for endpoints that
- * think but take no argument.
- */
-function buildThinkingLevelMap(reasoning) {
+            : block),
+    }),
+});
+// Only the endpoint's own effort parameter makes a ladder real: a model that
+// thinks unconditionally, or names no ladder effort, declares no level here —
+// an honest "no effort control" rather than a fabricated ladder.
+function reasoningLevelsFor(reasoning) {
     if (reasoning === undefined || !reasoning.controllable)
-        return undefined;
+        return [];
+    return reasoning.supportedEfforts ?? [];
+}
+// `Default` (the harness's "no selection" path) is the *absent key* — leaving
+// `reasoning_effort` off the wire and letting the upstream choose. Each ladder
+// level the endpoint accepts lands at its own key with its own wire value; the
+// `off` key carries the upstream's literal close value when the feed names one
+// (e.g. `none`), so the selector's "Off" entry is a real switch rather than a
+// no-op. Mandatory models omit the `off` key entirely — the harness then has
+// no way to disable thinking.
+function reasoningMapFor(levels, mandatory) {
     const map = {};
-    for (const level of PI_THINKING_LEVELS)
-        map[level] = null;
-    const supported = reasoning.supportedEfforts ?? [];
-    if (supported.length === 0) {
-        // Controllable endpoint that names no ladder: expose the standard four.
-        for (const level of ['minimal', 'low', 'medium', 'high'])
-            map[level] = level;
-        return map;
+    for (const key of PI_LEVEL_KEYS) {
+        if (levels.includes(key))
+            map[key] = key;
     }
-    for (const effort of supported) {
-        if (PI_THINKING_LEVELS.includes(effort))
-            map[effort] = effort;
-        // An upstream id outside pi-ai's ladder has no key to land on; the raw
-        // id survives in NousPortalReasoning.supportedEfforts for diagnostics.
+    if (!mandatory) {
+        const closeValue = levels.includes('none') ? 'none' : 'off';
+        map.off = closeValue;
     }
-    // pi-ai has no separate "default" key: the value the harness sends when the
-    // user selects nothing is exactly `off`. So `off` must carry the endpoint's
-    // own `default_effort` — that is what the no-selection path has to replay.
-    // When the endpoint's default IS `none`, `off` carries 'none' and the Off
-    // control genuinely disables thinking; for any other default we leave `off`
-    // unset (null) so the selector offers no misleading "off" and an empty
-    // selection lets the endpoint apply its real default instead of forcing
-    // 'none'. The upstream `none` effort itself has no pi-ai key to land on, so
-    // it is not surfaced as a separate control.
-    if (reasoning.defaultEffort === 'none')
-        map.off = 'none';
     return map;
 }
-/**
- * Turn the live-scanned free listing into pi-ai model descriptors.
- */
+/** Turn the live-scanned free listing into pi-ai model descriptors. */
 function buildModels(scanned) {
-    return scanned.map(entry => ({
-        id: entry.id,
-        name: entry.name ?? entry.id,
-        api: 'openai-completions',
-        // pi-ai resolves auth per model by `model.provider === Provider.id`; the
-        // route key this plugin registers is PROVIDER, so descriptors must say
-        // PROVIDER too — a mismatch surfaces as pi-ai's "Unknown provider" on the
-        // first stream call.
-        provider: PROVIDER,
-        baseUrl: DEFAULT_INFERENCE_URL,
-        headers: {},
-        reasoning: entry.reasoning?.controllable === true,
-        // Every level is declared explicitly: supported efforts map onto their
-        // same-named pi-ai key, and anything the endpoint does not list is pinned
-        // to null so the selector never offers it. The endpoint's default effort
-        // is carried on the `off` key (buildThinkingLevelMap), so an empty
-        // selection replays the endpoint's own default rather than forcing 'none'.
-        thinkingLevelMap: buildThinkingLevelMap(entry.reasoning),
-        input: entry.input ?? ['text'],
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        contextWindow: entry.contextWindow ?? 262_144,
-        maxTokens: entry.maxTokens ?? 32_768,
-    }));
+    return scanned.map(entry => {
+        const levels = reasoningLevelsFor(entry.reasoning);
+        const mandatory = entry.reasoning?.mandatory;
+        const controllable = levels.length > 0;
+        return {
+            id: entry.id,
+            name: entry.name ?? entry.id,
+            api: 'openai-completions',
+            // pi-ai resolves auth per model by `model.provider === Provider.id`; the
+            // route key this plugin registers is PROVIDER, so descriptors must say
+            // PROVIDER too — a mismatch surfaces as pi-ai's "Unknown provider" on the
+            // first stream call.
+            provider: PROVIDER,
+            baseUrl: DEFAULT_INFERENCE_URL,
+            headers: {},
+            reasoning: controllable || mandatory === true,
+            ...(controllable ? { thinkingLevelMap: reasoningMapFor(levels, mandatory) } : {}),
+            input: entry.input ?? ['text'],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            contextWindow: entry.contextWindow ?? 262_144,
+            maxTokens: entry.maxTokens ?? 32_768,
+        };
+    });
 }
 /** Narrow a stored record to this plugin's grant payload. */
 function grantOf(record) {
@@ -191,7 +177,7 @@ function grantOf(record) {
         return undefined;
     return payload;
 }
-export async function apply(ctx) {
+export async function apply(ctx, config) {
     const apiKeyRefName = DEFAULT_API_KEY_ENV;
     /** Resolve one named secret through the credentials service, then ambient env. */
     const resolveSecretValue = async (envName) => {
@@ -272,62 +258,52 @@ export async function apply(ctx) {
     // ambient auth through. Our route authenticates via apiKey resolution alone,
     // so a minimal no-store implementation suffices; env/file answers mirror the
     // official llm-pi-ai plugin's wiring over the harness credential plane.
-    const piAuth = () => ({
-        credentials: {
-            async read() {
-                return undefined;
-            },
-            async list() {
-                return [];
-            },
-            async modify(_providerId, mutate) {
-                return mutate(undefined);
-            },
-            async delete() { },
-        },
-        authContext: {
-            async env(envName) {
-                return await resolveSecretValue(envName);
-            },
-            async fileExists(path) {
-                const expanded = path === '~' || path.startsWith('~/')
-                    ? `${homedir()}/${path.slice(1).replace(/^\//, '')}`
-                    : path;
-                try {
-                    await access(expanded);
-                    return true;
-                }
-                catch {
-                    return false;
-                }
-            },
-        },
-    });
-    // --- Live free-catalog scan ---
-    // The listing is public and rotates; scan on mount and refresh slowly. The
-    // scanned catalog lives outside the settings-backed config so a scan cannot
-    // be clobbered by a settings snapshot; profiles() reads the merged view.
+    // The listing is public and rotates, so the scanned catalog lives outside the
+    // settings-backed config; profiles() reads the merged view. Mount succeeds with
+    // an empty catalog and the first refresh fills it, so an unreachable upstream
+    // never throws and kills the plugin.
     let scanned = [];
-    let refreshTimer;
-    ctx.effect(() => () => {
-        if (refreshTimer !== undefined)
-            clearInterval(refreshTimer);
-        refreshTimer = undefined;
-    });
-    async function sync() {
-        const entries = await fetchFreeModels(DEFAULT_MODELS_URL);
-        if (entries.length === 0) {
-            throw new Error('no $0 models found in the live listing; keeping the previous catalog');
-        }
-        if (deepEqualJson(entries, scanned))
-            return;
-        scanned = entries;
-        ctx.logger.info('[%s] synced %d free model(s): %s', name, entries.length, entries.map(entry => entry.id).join(', '));
-    }
-    const adapter = new PiAiAdapter({
-        resolveAttachments: () => ctx.get('attachments'),
-        auth: piAuth(),
-        profiles: () => new Map([[PROVIDER, {
+    let current = () => config;
+    // PiAiAdapter.current() memoizes its snapshot by the identity of the Map this
+    // returns, rebuilding the whole pi-ai collection on every change — so hand
+    // back the same instance until the config or the scanned catalog actually
+    // changes .
+    const buildProfiles = () => {
+        const opts = current();
+        const piProvider = createProvider({
+            id: PROVIDER,
+            name: DISPLAY_NAME,
+            baseUrl: DEFAULT_INFERENCE_URL,
+            auth: {
+                apiKey: {
+                    name: 'NousPortalFree',
+                    resolve: async ({ credential }) => {
+                        // A stored plain sk- key wins (funded / pay-as-you-go accounts).
+                        if (credential?.key !== undefined && credential.key.length > 0) {
+                            return { auth: { apiKey: credential.key }, source: 'NousPortalFree' };
+                        }
+                        const plainKey = await resolveSecretValue(apiKeyRefName);
+                        if (plainKey !== undefined) {
+                            return { auth: { apiKey: plainKey }, source: 'NousPortalFree' };
+                        }
+                        const { apiKey, inferenceBaseUrl } = await tokenManager.getInferenceCredential();
+                        return {
+                            auth: {
+                                apiKey,
+                                ...(inferenceBaseUrl !== undefined ? { baseUrl: inferenceBaseUrl } : {}),
+                            },
+                            source: 'NousPortalFree OAuth',
+                        };
+                    },
+                },
+            },
+            models: buildModels(scanned),
+            api: {
+                stream: (model, context, options) => sanitizeStream(openAiStream(model, normalizeReasoningContext(context), options)),
+                streamSimple: (model, context, options) => sanitizeStream(openAiStreamSimple(model, normalizeReasoningContext(context), options)),
+            },
+        });
+        const profiles = new Map([[PROVIDER, {
                     provider: PROVIDER,
                     displayName: DISPLAY_NAME,
                     apiKeyEnv: credentialRef(apiKeyRefName),
@@ -335,42 +311,20 @@ export async function apply(ctx) {
                     maxRequestImageBytes: 20 * 1_048_576,
                     requestImagePixelBudget: 4_194_304,
                     requestImageMaxBytes: 1_048_576,
-                    retryPolicy: resolveRetryPolicy({ mode: 'always' }, `${name}: retryPolicy`),
-                    piProvider: createProvider({
-                        id: PROVIDER,
-                        name: DISPLAY_NAME,
-                        baseUrl: DEFAULT_INFERENCE_URL,
-                        auth: {
-                            apiKey: {
-                                name: 'NousPortalFree',
-                                resolve: async ({ credential }) => {
-                                    // A stored plain sk- key wins (funded / pay-as-you-go accounts).
-                                    if (credential?.key !== undefined && credential.key.length > 0) {
-                                        return { auth: { apiKey: credential.key }, source: 'NousPortalFree' };
-                                    }
-                                    const plainKey = await resolveSecretValue(apiKeyRefName);
-                                    if (plainKey !== undefined) {
-                                        return { auth: { apiKey: plainKey }, source: 'NousPortalFree' };
-                                    }
-                                    const { apiKey, inferenceBaseUrl } = await tokenManager.getInferenceCredential();
-                                    return {
-                                        auth: {
-                                            apiKey,
-                                            ...(inferenceBaseUrl !== undefined ? { baseUrl: inferenceBaseUrl } : {}),
-                                        },
-                                        source: 'NousPortalFree OAuth',
-                                    };
-                                },
-                            },
-                        },
-                        models: buildModels(scanned),
-                        api: {
-                            stream: (model, context, options) => sanitizeStream(openAiStream(model, normalizeReasoningContext(model, context), options)),
-                            streamSimple: (model, context, options) => sanitizeStream(openAiStreamSimple(model, normalizeReasoningContext(model, context), options)),
-                        },
-                    }),
+                    retryPolicy: resolveRetryPolicy(opts.retryPolicy, `${name}: retryPolicy`),
+                    piProvider,
                     configuredMaxTokens: new Map(),
-                }]]),
+                }]]);
+        return profiles;
+    };
+    // PiAiAdapter memoizes its snapshot on the identity of the Map this hands
+    // back, so a fresh Map per request would rebuild the whole pi-ai collection:
+    // hold one and rebuild it only when the config or the scanned catalog changes.
+    let profiles = buildProfiles();
+    const adapter = new PiAiAdapter({
+        resolveAttachments: () => ctx.get('attachments'),
+        auth: PI_AUTH,
+        profiles: () => profiles,
         resolveApiKey: async (_provider, profile) => {
             const credentials = ctx.get('credentials');
             if (credentials !== undefined) {
@@ -387,16 +341,30 @@ export async function apply(ctx) {
             return apiKey;
         },
     });
+    ctx.llm.registerConfigurableProviders([{ provider: PROVIDER, displayName: DISPLAY_NAME, settingsNs: NS, settingsPath: [] }]);
     ctx.llm.registerAdapter([PROVIDER], adapter);
-    void sync().catch((error) => {
-        ctx.logger.warn('[%s] initial catalog scan failed: %s', name, error instanceof Error ? error.message : String(error));
+    installSettingsSection(ctx, NS, Config, config, {
+        setSource: (source) => {
+            current = source;
+        },
+        onChange: () => {
+            profiles = buildProfiles();
+        },
     });
-    refreshTimer = setInterval(() => {
-        void sync().catch((error) => {
-            ctx.logger.warn('[%s] catalog refresh failed: %s', name, error instanceof Error ? error.message : String(error));
-        });
-    }, REFRESH_MS);
-    refreshTimer.unref?.();
+    async function sync() {
+        const entries = await fetchFreeModels(DEFAULT_MODELS_URL);
+        if (entries.length === 0) {
+            throw new Error('no $0 models found in the live listing; keeping the previous catalog');
+        }
+        if (deepEqualJson(entries, scanned))
+            return;
+        scanned = entries;
+        profiles = buildProfiles();
+        ctx.logger.info('[%s] synced %d free model(s): %s', name, entries.length, entries.map(entry => entry.id).join(', '));
+    }
+    void sync().catch((error) => {
+        ctx.logger.warn('[%s] initial catalog scan failed: %s', name, errorChain(error));
+    });
     // The sign-in flow: rendered by every authorization surface (webui page,
     // CLI) exactly like the built-in pi-ai provider flows. Running it walks the
     // device-code dance and commits the grant through the credentials seam —

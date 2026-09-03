@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 MIN_PYTHON = (3, 8)
 
@@ -34,14 +34,14 @@ CACHE = Path(tempfile.gettempdir()) / "get-transcript"
 COOKIES = ("--cookies-from-browser", "brave:~/.var/app/com.brave.Browser/config/BraveSoftware/Brave-Browser")
 EJS = ("--remote-components", "ejs:github")
 
-X_ASR_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/x-asr-960ms-streaming-zipformer-transducer-zh-en-punct-int8")
+X_ASR_FULL_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/x-asr-zipformer-transducer-zh-en-punct-int8")
+TEN_VAD_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/ten-vad/ten-vad.onnx")
 
 
 def _yt_dlp_cmd() -> list[str]:
-    for prog in ("yt-dlp",):
-        p = shutil.which(prog)
-        if p:
-            return [p]
+    p = shutil.which("yt-dlp")
+    if p:
+        return [p]
     p = shutil.which("uv")
     if p:
         return [p, "run", "--with", "yt-dlp", "--with", "secretstorage", "--with", "curl_cffi", "--", "yt-dlp"]
@@ -57,11 +57,14 @@ def _bili_python_cmd() -> list[str]:
     return [p, "run", "--with", "bilibili-api-python", "--with", "curl_cffi", "--", "python3"]
 
 
-def _sherpa_cmd() -> list[str]:
-    return [
+def _sherpa_cmd(timestamps: bool = False) -> list[str]:
+    cmd = [
         "uv", "run", "--with", "sherpa-onnx", "--with", "soundfile", "--",
         "python3", str(_SCRIPT), "--transcribe-wav",
     ]
+    if timestamps:
+        cmd.append("--timestamps")
+    return cmd
 
 
 def _download_audio(yt: list[str], url: str, tmp: Path) -> Optional[Path]:
@@ -90,9 +93,9 @@ def _download_audio(yt: list[str], url: str, tmp: Path) -> Optional[Path]:
     return wav
 
 
-def _transcribe(wav_path: Path) -> Optional[str]:
+def _transcribe(wav_path: Path, timestamps: bool = False) -> Optional[str]:
     r = subprocess.run(
-        [*_sherpa_cmd(), str(wav_path)],
+        [*_sherpa_cmd(timestamps), str(wav_path)],
         capture_output=True, text=True, check=False)
     if r.returncode != 0:
         sys.stderr.write(f"transcription failed (exit {r.returncode}):\n")
@@ -129,9 +132,10 @@ def _vid(url: str) -> Optional[str]:
     return None
 
 
-def _cached(vid: str) -> Optional[Path]:
+def _cached(vid: str, ts: bool = False) -> Optional[Path]:
     for p in CACHE.glob(f"*{vid}*.md"):
-        return p
+        if ("-ts-" in p.name) == ts:
+            return p
     return None
 
 
@@ -146,7 +150,21 @@ def _norm_date(s: str) -> str:
     return s
 
 
-def _clean_subtitle(sub_path: Path) -> str:
+def _hms(s: str) -> float:
+    parts = s.replace(",", ".").split(":")
+    sec = float(parts[-1])
+    if len(parts) > 1:
+        sec += float(parts[-2]) * 60
+    if len(parts) > 2:
+        sec += float(parts[-3]) * 3600
+    return sec
+
+
+def _ts(seconds: float) -> str:
+    return str(int(seconds))
+
+
+def _clean_subtitle(sub_path: Path, keep_ts: bool = False) -> str:
     raw = sub_path.read_text("utf-8", errors="replace")
     if sub_path.suffix == ".json":
         try:
@@ -159,26 +177,48 @@ def _clean_subtitle(sub_path: Path) -> str:
                 return ""
             if not isinstance(body, list):
                 return ""
-            return "\n".join(item.get("content", "") for item in body if isinstance(item, dict) and item.get("content"))
+            cue: list[str] = []
+            for item in body:
+                if not (isinstance(item, dict) and item.get("content")):
+                    continue
+                if keep_ts and isinstance(item.get("from"), (int, float)):
+                    cue.append(f"[{_ts(item['from'])}] {item['content']}")
+                else:
+                    cue.append(item["content"])
+            return "\n".join(cue)
         except (json.JSONDecodeError, TypeError):
             return ""
     if sub_path.suffix == ".srt":
         out: list[str] = []
+        prefix = ""
         for line in raw.splitlines():
             line = line.strip()
-            if not line or line.isdigit() or "-->" in line:
+            if not line or line.isdigit():
                 continue
-            out.append(line)
+            if "-->" in line:
+                prefix = f"[{_ts(_hms(line.split('-->')[0]))}] " if keep_ts else ""
+                continue
+            out.append(f"{prefix}{line}" if keep_ts else line)
+            prefix = ""
         return "\n".join(out)
     out: list[str] = []
     seen: set[str] = set()
     tag = re.compile(r"<[^>]+>")
+    prefix = ""
     for line in raw.splitlines():
         line = line.strip()
-        if not line or line.startswith(("WEBVTT", "Kind:", "Language:", "NOTE")) or "-->" in line:
+        if "-->" in line:
+            prefix = f"[{_ts(_hms(line.split('-->')[0]))}] " if keep_ts else ""
+            continue
+        if not line or line.startswith(("WEBVTT", "Kind:", "Language:", "NOTE")) or line.isdigit():
             continue
         c = tag.sub("", line).strip()
-        if c and c not in seen:
+        if not c:
+            continue
+        if keep_ts:
+            out.append(f"{prefix}{c}")
+            prefix = ""
+        elif c not in seen:
             seen.add(c)
             out.append(c)
     return "\n".join(out)
@@ -224,7 +264,6 @@ def _fmt_comments(data: list) -> str:
 
 
 BILI_MODE = {"hot": 3, "recent": 1}
-MAX_ROOT_COMMENTS_BILI = 20
 
 
 def _fetch_bili_comments(tmp: Path, vid: str, order: str, out: str) -> bool:
@@ -297,12 +336,9 @@ def _fetch_bili_comments(tmp: Path, vid: str, order: str, out: str) -> bool:
         for ln in (r.stderr or "").splitlines()[-10:]:
             sys.stderr.write(f"  {ln}\n")
         return False
-    try:
-        _, _, payload = r.stdout.partition("\n")
-        (tmp / out).write_text(payload, "utf-8")
-        return True
-    except json.JSONDecodeError:
-        return False
+    _, _, payload = r.stdout.partition("\n")
+    (tmp / out).write_text(payload, "utf-8")
+    return True
 
 
 def _fetch_yt_comments(yt: list[str], url: str, tmp: Path, sort: str, out: str) -> bool:
@@ -325,7 +361,7 @@ def _fetch_yt_comments(yt: list[str], url: str, tmp: Path, sort: str, out: str) 
     return (tmp / out).exists() and (tmp / out).stat().st_size > 0
 
 
-def _fetch(yt: list[str], url: str, tmp: Path) -> Tuple[Optional[Path], list[str], str, bool, str]:
+def _fetch(yt: list[str], url: str, tmp: Path, keep_ts: bool = False) -> Tuple[Optional[Path], list[str], str, bool, str]:
     plat = _platform(url)
     sub_langs = {
         "youtube": "en,es,en-US,es-419,zh-Hans,zh,zh-CN,ja",
@@ -333,17 +369,16 @@ def _fetch(yt: list[str], url: str, tmp: Path) -> Tuple[Optional[Path], list[str
         "x": "en",
     }.get(plat, "en,zh")
 
-    sub_fmt = "json/vtt/srt"
-
     sys.stderr.write(f"[fetch] getting {url} subtitles...\n")
     proc = subprocess.Popen(
         [*yt, *COOKIES, *EJS,
          "--no-progress",
          "--socket-timeout", "10",
+         "--output-na-placeholder", "",
          "--skip-download",
          "--write-auto-sub", "--write-sub",
          "--sub-lang", sub_langs,
-         "--sub-format", sub_fmt,
+         "--sub-format", "json/vtt/srt",
          "--print-to-file", "%(id)s", str(tmp / "id.txt"),
          "--print-to-file",
          "%(title)s\t%(uploader)s\t%(duration_string)s\t%(upload_date)s\t%(view_count)s",
@@ -373,7 +408,7 @@ def _fetch(yt: list[str], url: str, tmp: Path) -> Tuple[Optional[Path], list[str
     ) or sorted(
         f for f in tmp.glob("*.srt") if f.name not in skip
     )
-    if subs and _clean_subtitle(subs[0]).strip():
+    if subs and _clean_subtitle(subs[0], keep_ts).strip():
         meta = _read_meta(tmp)
         comments = _read_comments(tmp)
         return subs[0], meta, comments, False, vid
@@ -384,27 +419,55 @@ def _fetch(yt: list[str], url: str, tmp: Path) -> Tuple[Optional[Path], list[str
         sys.stderr.write("audio download failed, no fallback possible\n")
         return None, [], "", False, vid
     meta = _read_meta(tmp)
-    dur = meta[2] if len(meta) > 2 else "?"
+    dur = meta[2] or "?"
     sys.stderr.write(f"transcribing audio ({dur}), this may take a while, please wait longer...\n")
-    text = _transcribe(wav)
+    text = _transcribe(wav, keep_ts)
     if not text:
         sys.stderr.write("transcription failed\n")
         return None, [], "", False, vid
     txt = tmp / "transcript.txt"
     txt.write_text(text, "utf-8")
-    meta = _read_meta(tmp)
     comments = _read_comments(tmp)
     return txt, meta, comments, True, vid
 
 
+def _fetch_local(src: Path, tmp: Path, keep_ts: bool = False) -> Tuple[Optional[Path], list[str], str, bool, str]:
+    vid = _slug(src.stem)
+    fr = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(src)],
+        capture_output=True, text=True, check=False)
+    meta = [src.name, "", fr.stdout.strip(), "", ""]
+
+    subs = tmp / "subs.srt"
+    fr = subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-i", str(src), "-map", "0:s:0", str(subs)],
+        capture_output=True, check=False)
+    if subs.exists() and subs.stat().st_size > 0 and _clean_subtitle(subs, keep_ts).strip():
+        return subs, meta, "", False, vid
+
+    sys.stderr.write(f"no embedded subtitles, transcribing with x-asr ({meta[2] or '?'}s), this may take a while...\n")
+    wav = tmp / "audio.wav"
+    fr = subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000", str(wav)],
+        capture_output=True, check=False)
+    if fr.returncode != 0 or not wav.exists() or wav.stat().st_size == 0:
+        sys.stderr.write("ffmpeg audio extraction failed\n")
+        return None, meta, "", False, vid
+    text = _transcribe(wav, keep_ts)
+    if not text:
+        sys.stderr.write("transcription failed\n")
+        return None, meta, "", False, vid
+    txt = tmp / "transcript.txt"
+    txt.write_text(text, "utf-8")
+    return txt, meta, "", True, vid
+
+
 def _read_meta(tmp: Path) -> list[str]:
-    meta = ["", "", "", "", ""]
     mf = tmp / "meta.txt"
-    if mf.exists():
-        p = mf.read_text("utf-8", errors="replace").strip().split("\t")
-        for i in range(min(len(p), 5)):
-            meta[i] = p[i]
-    return meta
+    if not mf.exists():
+        return ["", "", "", "", ""]
+    values = [value.strip() for value in mf.read_text("utf-8", errors="replace").split("\t")]
+    return ["" if value == "NA" else value for value in (values + [""] * 5)[:5]]
 
 
 COMMENT_SECTIONS = [("comments-hot.json", "Comments (Hot)"), ("comments-recent.json", "Comments (Recent)")]
@@ -428,71 +491,94 @@ def _read_comments(tmp: Path) -> str:
     return "\n".join(out).lstrip("\n")
 
 
+def _front_matter(fields: dict[str, str]) -> list[str]:
+    entries = []
+    for key, value in fields.items():
+        value = value.strip()
+        if value and value != "NA":
+            entries.append(f"{key}: {value}")
+    return ["---", *entries, "---"]
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) < 2 or not argv[1]:
-        sys.stderr.write("Usage: get-transcript.py <video-url>\n")
+    keep_ts = "--timestamps" in argv[1:]
+    rest = [a for a in argv[1:] if a != "--timestamps"]
+    if not rest or not rest[0]:
+        sys.stderr.write("Usage: get-transcript.py [--timestamps] <video-url | video-file>\n")
         sys.stderr.write("       Supports YouTube, Bilibili and more\n")
         return 1
 
-    if len(argv) >= 3 and argv[1] == "--transcribe-wav":
-        return _run_transcribe_wav(argv[2])
+    if rest[0] == "--transcribe-wav":
+        if len(rest) < 2 or not rest[1]:
+            sys.stderr.write("Usage: get-transcript.py [--timestamps] --transcribe-wav <wav>\n")
+            return 1
+        return _run_transcribe_wav(rest[1], keep_ts)
 
-    url = argv[1]
-    vid = _vid(url)
-    cached = _cached(vid) if vid else None
+    url = rest[0]
+    src_file = Path(url).expanduser()
+    is_local = src_file.is_file()
+    vid = _slug(src_file.stem) if is_local else _vid(url)
+    cached = _cached(vid, keep_ts) if vid else None
     if cached:
         text = cached.read_text("utf-8", errors="replace")
-        m = re.search(r"^title: (.+)\n(?:uploader|channel): (.+)\nduration: (.+)", text, re.M)
-        if m:
-            print(f"CACHED:{cached}")
-            print(f"  title:    {m.group(1)}")
-            print(f"  channel:  {m.group(2)}")
-            print(f"  duration: {m.group(3)}")
-        else:
-            print(f"CACHED:{cached}")
+        metadata = dict(re.findall(r"^(title|uploader|channel|duration): (.+)$", text, re.M))
+        print(f"CACHED:{cached}")
+        if metadata.get("title"):
+            print(f"  title:    {metadata['title']}")
+        channel = metadata.get("uploader") or metadata.get("channel")
+        if channel:
+            print(f"  channel:  {channel}")
+        if metadata.get("duration"):
+            print(f"  duration: {metadata['duration']}")
         return 0
     CACHE.mkdir(parents=True, exist_ok=True)
     yt = _yt_dlp_cmd()
     with tempfile.TemporaryDirectory(prefix="work-", dir=str(CACHE)) as td:
         tmp = Path(td)
-        sub_file, meta, comments, transcribed, vid = _fetch(yt, url, tmp)
+        if is_local:
+            sub_file, meta, comments, transcribed, vid = _fetch_local(src_file, tmp, keep_ts)
+        else:
+            sub_file, meta, comments, transcribed, vid = _fetch(yt, url, tmp, keep_ts)
         if not sub_file:
             return 3
-        text = sub_file.read_text("utf-8", errors="replace") if transcribed else _clean_subtitle(sub_file)
+        text = sub_file.read_text("utf-8", errors="replace") if transcribed else _clean_subtitle(sub_file, keep_ts)
         title, channel, duration, upload_date, views = meta
         upload_date = _norm_date(upload_date)
         today = datetime.date.today().isoformat()
-        name = f"{today}-{vid}-{_slug(title)}.md"
+        name = f"{today}-{vid}{'-ts' if keep_ts else ''}-{_slug(title)}.md"
         path = CACHE / name
-        plat = _platform(url)
-        lines = [
-            "---",
-            f"video_id: {vid}",
-            f"title: {title}",
-            f"uploader: {channel}",
-            f"duration: {duration}",
-            f"upload_date: {upload_date}",
-            f"views: {views}",
-            f"url: {url}",
-            f"cached_at: {today}",
-        ]
+        plat = "local" if is_local else _platform(url)
+        fields = {
+            "video_id": vid,
+            "title": title,
+            "uploader": channel,
+            "duration": duration,
+            "upload_date": upload_date,
+            "views": views,
+            "url": url,
+            "cached_at": today,
+        }
         if transcribed:
-            lines.append("transcribed_by: x-asr")
-        lines.extend(["---", "", "## Transcript", "", text])
+            fields["transcribed_by"] = "x-asr"
+        lines = _front_matter(fields)
+        lines.extend(["", "## Transcript", "", text])
         if comments:
             lines.append(comments)
         path.write_text("\n".join(lines), "utf-8")
         source = "x-asr" if transcribed else plat
         print(f"NEW:{path}")
-        print(f"  title:    {title}")
-        print(f"  uploader: {channel}")
-        print(f"  duration: {duration}")
+        if title:
+            print(f"  title:    {title}")
+        if channel:
+            print(f"  uploader: {channel}")
+        if duration:
+            print(f"  duration: {duration}")
         print(f"  source:   {source}")
         print(f"  comments: {'yes' if comments else 'no'}")
         return 0
 
 
-def _run_transcribe_wav(wav_path: str) -> int:
+def _run_transcribe_wav(wav_path: str, timestamps: bool = False) -> int:
     import numpy as np
     import sherpa_onnx
 
@@ -501,19 +587,17 @@ def _run_transcribe_wav(wav_path: str) -> int:
         sys.stderr.write(f"wav not found: {wav_path}\n")
         return 1
 
-    recognizer = sherpa_onnx.OnlineRecognizer.from_transducer(
-        tokens=str(X_ASR_MODEL / "tokens.txt"),
-        encoder=str(X_ASR_MODEL / "encoder.int8.onnx"),
-        decoder=str(X_ASR_MODEL / "decoder.onnx"),
-        joiner=str(X_ASR_MODEL / "joiner.int8.onnx"),
+    recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
+        encoder=str(X_ASR_FULL_MODEL / "encoder-epoch-99-avg-1.int8.onnx"),
+        decoder=str(X_ASR_FULL_MODEL / "decoder-epoch-99-avg-1.onnx"),
+        joiner=str(X_ASR_FULL_MODEL / "joiner-epoch-99-avg-1.int8.onnx"),
+        tokens=str(X_ASR_FULL_MODEL / "tokens.txt"),
         num_threads=max(1, multiprocessing.cpu_count() // 2),
         sample_rate=16000,
         feature_dim=80,
-        model_type="zipformer2",
         modeling_unit="bpe",
-        bpe_vocab=str(X_ASR_MODEL / "bpe.vocab"),
+        bpe_vocab=str(X_ASR_FULL_MODEL / "bpe.vocab"),
     )
-    stream = recognizer.create_stream()
 
     proc = subprocess.Popen(
         ["ffmpeg", "-hide_banner", "-loglevel", "error",
@@ -521,39 +605,53 @@ def _run_transcribe_wav(wav_path: str) -> int:
          "-f", "s16le", "-acodec", "pcm_s16le",
          "-ac", "1", "-ar", "16000", "-"],
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
-
-    total_samples = 0
+    chunks: list[np.ndarray] = []
     try:
         while True:
             data = proc.stdout.read(16000 * 2) or b""
             if not data:
                 break
-            samples = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
-            stream.accept_waveform(16000, samples)
-            total_samples += len(samples)
+            chunks.append(np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0)
     finally:
         try:
             proc.stdout.close()
         except Exception:
             pass
         proc.wait()
+    samples = np.concatenate(chunks) if chunks else np.zeros(0, dtype=np.float32)
 
-    pad = np.zeros(16000 * 2, dtype=np.float32)
-    stream.accept_waveform(16000, pad)
-    total_samples += len(pad)
-    stream.input_finished()
+    cfg = sherpa_onnx.VadModelConfig()
+    cfg.ten_vad.model = str(TEN_VAD_MODEL)
+    cfg.ten_vad.threshold = 0.5
+    cfg.ten_vad.min_silence_duration = 0.5
+    cfg.sample_rate = 16000
+    vad = sherpa_onnx.VoiceActivityDetector(cfg, buffer_size_in_seconds=30)
 
-    num_frames = total_samples // 160
-    decode_chunk_len = 96
-    frame_size = 109
-    n_chunks = max(0, (num_frames - frame_size) // decode_chunk_len + 1)
-    for _ in range(n_chunks):
-        recognizer.decode_stream(stream)
+    spans = []
+    for i in range(0, len(samples), 16000 * 5):
+        vad.accept_waveform(samples[i:i + 16000 * 5])
+        while not vad.empty():
+            seg = vad.front
+            vad.pop()
+            if len(seg.samples) >= 16000 // 4:
+                spans.append((seg.start, len(seg.samples)))
+    vad.flush()
+    while not vad.empty():
+        seg = vad.front
+        vad.pop()
+        if len(seg.samples) >= 16000 // 4:
+            spans.append((seg.start, len(seg.samples)))
 
-    text = recognizer.get_result(stream)
-    if hasattr(text, "text"):
-        text = text.text
-    print(text.strip())
+    pieces = []
+    for start, n in spans:
+        stream = recognizer.create_stream()
+        stream.accept_waveform(16000, samples[start:start + n])
+        recognizer.decode_streams([stream])
+        text = stream.result.text.strip()
+        if not text:
+            continue
+        pieces.append(f"[{_ts(start / 16000)}s] {text}" if timestamps else text)
+    print("\n".join(pieces) if timestamps else " ".join(pieces))
     return 0
 
 

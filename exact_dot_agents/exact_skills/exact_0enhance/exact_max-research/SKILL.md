@@ -1,6 +1,7 @@
 ---
 name: max-research
 description: For extremely complex topics. NOT for simple questions.
+disable-model-invocation: true
 ---
 
 # Max-Research

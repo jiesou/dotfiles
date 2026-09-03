@@ -1,5 +1,7 @@
-# Disable the stock sandbox provider; mount landlock as the sole sandbox.
+# Disable stock providers; mount Landlock for bash and fs-tool.
 - id: sandbox
+  disabled: true
+- id: fs-sandbox
   disabled: true
 - insert:
     - id: sandbox-landlock
@@ -26,9 +28,11 @@
           - ~/.npm
           - ~/.bun
           - ~/.local/share/pnpm
+          - ~/.local/share/uv
           - ~/.gradle
           - ~/.m2
           - ~/.android
           - ~/.platformio
           - ~/.espressif
           - ~/.arduino15
+

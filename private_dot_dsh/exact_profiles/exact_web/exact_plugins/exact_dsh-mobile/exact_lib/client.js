@@ -30,6 +30,23 @@ window.__ModuleLoader__.load({
 		const PAGE_ATTR = "data-dshm-page";
 		/** Wait after the last scroll event before the pager settles. */
 		const SCROLL_SETTLE_MS = 200;
+		/** Poll interval for the return-to-chat smoother. The smooth scroll is only
+		*  re-issued when it is actually STALLED (scrollLeft stopped advancing),
+		*  never pre-empted while it is in flight — so a retry reads as a natural
+		*  continuation, and the pager is never snapped to the chat page. */
+		const SMOOTH_RETRY_MS = 160;
+		/** Window (ms) after a session pick during which automatic focus into the
+		*  composer is bounced back out: picking a session in the sidebar lands
+		*  focus on the input, which pops the OS keyboard over the pager's smooth
+		*  return-to-chat. On phones the keyboard must not open until the user
+		*  actually taps the input — the focus is suppressed (blurred) during this
+		*  window, so the return scroll runs undisturbed. */
+		const FOCUS_SUPPRESS_MS = 600;
+		/** A focusin is judged "the user's own tap" only when a pointerdown landed
+		*  on the same element within this recent window (a real tap intent).
+		*  Older pointerdowns (e.g. the session row the user just tapped) must not
+		*  count. */
+		const POINTER_ALLOW_MS = 500;
 		/** The sidebar shell's collapse toggle labels (zh / en) — clicking it while
 		*  the sidebar is expanded must NOT collapse it to the rail (which would
 		*  unload its content); it flips back to the chat page instead. */
@@ -71,6 +88,7 @@ window.__ModuleLoader__.load({
 		* padding-right in mobile.css.
 		*/
 		const MARQUEE_GAP_PX = 32;
+		const COMPOSER_DOCK_SELECTOR = "[data-slot='conversation.composer.dock']";
 		/**
 		* The pager's chat-page snap position: the rendered width of the sidebar
 		* page column (the always-open card). Falls back to the frame's own width
@@ -98,6 +116,20 @@ window.__ModuleLoader__.load({
 			#mountFrame = null;
 			#resizeTimer = null;
 			#settleTimer = null;
+			#returnTimer = null;
+			/** Last seen window.innerWidth — the resize handler only re-anchors the
+			*  pager when the WIDTH changed (rotation / split-screen reflows the page
+			*  tracks). A height-only resize (OS keyboard pop, URL bar collapse) must
+			*  never touch scrollLeft: re-anchoring there can cancel the smooth
+			*  return-to-chat that a session pick just started. */
+			#lastInnerWidth = -1;
+			/** Timestamp until which automatic focus into the composer is kicked back
+			*  out (see FOCUS_SUPPRESS_MS). */
+			#focusSuppressUntil = -1;
+			/** The most recent pointerdown target + time, used to tell the user's own
+			*  tap on the composer from the app's automatic focus. */
+			#lastPointerTarget = null;
+			#lastPointerAt = -1;
 			#expandPending = false;
 			#mounted = false;
 			#disposed = false;
@@ -113,8 +145,38 @@ window.__ModuleLoader__.load({
 			/** Return to the chat page (a session picked in the sidebar). Pure scroll —
 			*  the sidebar state is untouched, so its content stays rendered. */
 			returnToChat() {
-				this.#placeOnChat("smooth");
+				if (this.#mql?.matches ?? false) this.#focusSuppressUntil = Date.now() + FOCUS_SUPPRESS_MS;
+				this.#redirectToChat();
 			}
+			/** Smoothly scroll the pager back to the chat page. The smooth scroll is
+			*  re-issued ONLY when it is genuinely stalled (scrollLeft stops
+			*  advancing across a poll) — the rare browser/OS cancellation case —
+			*  and every re-issue is also smooth, so the retry never reads as an
+			*  instant jump: the user always sees a natural slide back to the
+			*  session. While the animation is in flight (or has landed) the poll is
+			*  a no-op. */
+			#redirectToChat = () => {
+				const frame = findFrame();
+				const mobile = this.#mql?.matches ?? false;
+				if (frame === null || !mobile) return;
+				if (chatPageLeft(frame) <= 0) return;
+				this.#placeOnChat("smooth");
+				if (this.#returnTimer !== null) window.clearTimeout(this.#returnTimer);
+				let last = frame.scrollLeft;
+				const poll = () => {
+					this.#returnTimer = null;
+					const f = findFrame();
+					const mm = this.#mql?.matches ?? false;
+					if (f === null || !mm) return;
+					const cl = chatPageLeft(f);
+					if (cl <= 0) return;
+					if (f.scrollLeft >= cl - 4) return;
+					if (f.scrollLeft <= last) this.#placeOnChat("smooth");
+					last = f.scrollLeft;
+					this.#returnTimer = window.setTimeout(poll, SMOOTH_RETRY_MS);
+				};
+				this.#returnTimer = window.setTimeout(poll, SMOOTH_RETRY_MS);
+			};
 			/** Install the controller. Safe to call once; a second call is a no-op.
 			*  The frame may not exist yet (the layout entry mounts after this
 			*  plugin's apply), so the observer chain re-finds it when #root gains
@@ -131,8 +193,12 @@ window.__ModuleLoader__.load({
 				const vv = window.visualViewport;
 				vv?.addEventListener("resize", this.#requestKeyboard);
 				vv?.addEventListener("scroll", this.#requestKeyboard);
+				this.#lastInnerWidth = window.innerWidth;
 				window.addEventListener("resize", this.#onWindowResize);
 				document.addEventListener("click", this.#onDocClickCapture, true);
+				document.addEventListener("pointerdown", this.#onPointerDownCapture, true);
+				document.addEventListener("focusin", this.#onFocusInCapture, true);
+				document.addEventListener("click", this.#onStatsTap, true);
 				const root = document.getElementById("root");
 				if (root !== null) {
 					this.#rootObserver = new MutationObserver(() => {
@@ -192,18 +258,23 @@ window.__ModuleLoader__.load({
 				window.visualViewport?.removeEventListener("resize", this.#requestKeyboard);
 				window.visualViewport?.removeEventListener("scroll", this.#requestKeyboard);
 				document.removeEventListener("click", this.#onDocClickCapture, true);
+				document.removeEventListener("pointerdown", this.#onPointerDownCapture, true);
+				document.removeEventListener("focusin", this.#onFocusInCapture, true);
+				document.removeEventListener("click", this.#onStatsTap, true);
 				for (const timer of [
 					this.#keyboardFrame,
 					this.#mountFrame,
 					this.#resizeTimer,
 					this.#settleTimer,
-					this.#marqueeFrame
+					this.#marqueeFrame,
+					this.#returnTimer
 				]) if (timer !== null) (timer === this.#keyboardFrame || timer === this.#mountFrame || timer === this.#marqueeFrame ? cancelAnimationFrame : window.clearTimeout)(timer);
 				this.#keyboardFrame = null;
 				this.#mountFrame = null;
 				this.#resizeTimer = null;
 				this.#settleTimer = null;
 				this.#marqueeFrame = null;
+				this.#returnTimer = null;
 				const frame = findFrame();
 				if (frame !== null) frame.removeEventListener("scroll", this.#onPagerScroll);
 				if (this.#viewportMeta !== null) {
@@ -266,19 +337,6 @@ window.__ModuleLoader__.load({
 				this.#mirrorPage(frame, "chat");
 				this.#updateFlipVars(frame);
 			};
-			/** Release an editable that lives on the chat page once the pager leaves
-			*  it. Android WebView keeps the input's IME association after the user
-			*  dismisses the keyboard (the element stays focused), so the next pager
-			*  scroll/snap makes the keyboard pop back up. Blurring on the sidebar
-			*  page breaks that association; sidebar-owned editables are untouched. */
-			#releaseChatEditable = () => {
-				const frame = findFrame();
-				const active = document.activeElement;
-				if (frame === null || !(active instanceof HTMLElement)) return;
-				const chatCard = frame.children[1];
-				if (!(chatCard instanceof Element) || !chatCard.contains(active)) return;
-				if (active.matches("textarea, input, [contenteditable=\"true\"]")) active.blur();
-			};
 			/** Mirror the page the pager is resting on (scroll position decides). */
 			#mirrorPage = (frame, hint) => {
 				const html = this.#html;
@@ -286,7 +344,6 @@ window.__ModuleLoader__.load({
 				const chatLeft = chatPageLeft(frame);
 				const page = chatLeft <= 0 ? hint ?? "chat" : frame.scrollLeft < chatLeft / 2 ? "sidebar" : "chat";
 				html.setAttribute(PAGE_ATTR, page);
-				if (page === "sidebar") this.#releaseChatEditable();
 			};
 			/** State flips no longer drive the pager (the page is user-driven); an
 			*  expand that landed just clears the pending always-open request. */
@@ -326,7 +383,11 @@ window.__ModuleLoader__.load({
 				this.#placeOnChat("auto");
 			};
 			/** Width reflow within one breakpoint side: keep the active page put and
-			*  re-measure the model-name overflow (the row width drives it). */
+			*  re-measure the model-name overflow (the row width drives it). Only a
+			*  WIDTH change re-anchors — a height-only resize (OS keyboard pop, URL
+			*  bar) must never scroll the pager, or it would cancel the smooth
+			*  return-to-chat a session pick just started (the composer's focus
+			*  landing pops the keyboard exactly then). */
 			#onWindowResize = () => {
 				if (this.#resizeTimer !== null) return;
 				this.#resizeTimer = window.setTimeout(() => {
@@ -334,6 +395,10 @@ window.__ModuleLoader__.load({
 					const frame = findFrame();
 					const mobile = this.#mql?.matches ?? false;
 					if (frame === null || !mobile) return;
+					const widthChanged = window.innerWidth !== this.#lastInnerWidth;
+					this.#lastInnerWidth = window.innerWidth;
+					this.#requestMarqueeSync();
+					if (!widthChanged) return;
 					const chatLeft = chatPageLeft(frame);
 					if (chatLeft <= 0) return;
 					const onChat = frame.scrollLeft >= chatLeft / 2;
@@ -343,7 +408,6 @@ window.__ModuleLoader__.load({
 					});
 					this.#mirrorPage(frame);
 					this.#updateFlipVars(frame);
-					this.#requestMarqueeSync();
 				}, 120);
 			};
 			/** Live pager driver: PiUI's 3D flip vars follow the scroll, and once the
@@ -391,6 +455,27 @@ window.__ModuleLoader__.load({
 				});
 				this.#mirrorPage(frame);
 			};
+			/** Record every pointerdown (capture, passive) so the focus-in suppressor
+			*  can distinguish the user's own tap on the composer from the app's
+			*  automatic focus. */
+			#onPointerDownCapture = (event) => {
+				const target = event.target;
+				this.#lastPointerTarget = target instanceof Element ? target : null;
+				this.#lastPointerAt = Date.now();
+			};
+			/** During the post-pick window, bounce automatic focus out of the
+			*  composer (the OS keyboard must not cover the return-to-chat). The
+			*  user's OWN tap still focuses: a recent pointerdown on the same element
+			*  (or inside it) means a real intent to type. */
+			#onFocusInCapture = (event) => {
+				if (Date.now() > this.#focusSuppressUntil) return;
+				const target = event.target;
+				if (!(target instanceof HTMLElement)) return;
+				if (target.closest("[data-composer-card]") === null) return;
+				const pointer = this.#lastPointerTarget;
+				if (pointer !== null && Date.now() - this.#lastPointerAt < POINTER_ALLOW_MS && (pointer === target || target.contains(pointer))) return;
+				target.blur();
+			};
 			/** A tap on the exposed chat card returns to the chat page (PiUI's
 			*  overlay behavior: the exposed chat is not interactive while the
 			*  sidebar page is showing). The sidebar's own collapse toggle is
@@ -411,13 +496,27 @@ window.__ModuleLoader__.load({
 					if (btn !== null && SIDEBAR_COLLAPSE_LABELS.has(btn.getAttribute("aria-label") ?? "")) {
 						event.preventDefault();
 						event.stopPropagation();
-						this.#placeOnChat("smooth");
+						this.returnToChat();
 						return;
 					}
 				}
 				if (frame.scrollLeft >= chatLeft / 2) return;
 				const chatCard = frame.children[1];
-				if (chatCard instanceof Element && chatCard.contains(target)) this.#placeOnChat("smooth");
+				if (chatCard instanceof Element && chatCard.contains(target)) this.returnToChat();
+			};
+			#onStatsTap = (event) => {
+				if (!this.#mql?.matches) return;
+				const target = event.target;
+				if (!(target instanceof Element)) return;
+				const dock = target.closest(COMPOSER_DOCK_SELECTOR);
+				if (dock === null) return;
+				const anchor = Array.from(dock.children).find((child) => child instanceof HTMLElement && child.getAttribute("role") !== "tooltip" && child.scrollWidth > child.clientWidth);
+				if (!(anchor instanceof HTMLElement) || !anchor.contains(target)) return;
+				if (dock.querySelector("[role=\"tooltip\"]") !== null) anchor.blur();
+				else {
+					anchor.tabIndex = -1;
+					anchor.focus({ preventScroll: true });
+				}
 			};
 			#requestKeyboard = () => {
 				if (this.#keyboardFrame !== null) return;
@@ -500,7 +599,7 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region \0dsh-raw-css:/var/home/chen/.dsh/profiles/web/plugins/dsh-mobile/src/client/mobile.css.mjs
-		const css = "[data-dsh-mobile]{--dshm-safe-top:env(safe-area-inset-top,0px);--dshm-safe-right:env(safe-area-inset-right,0px);--dshm-safe-bottom:env(safe-area-inset-bottom,0px);--dshm-safe-left:env(safe-area-inset-left,0px);--dshm-keyboard-inset:0px;--dshm-sidebar-width:clamp(280px, 70vw, 360px);--dshm-rotate:0deg;--dshm-scale:1;--dshm-offset-x:0px;--dshm-origin-x:50% 50%;-webkit-tap-highlight-color:transparent}@media (width>=560px) and (width<=768px){[data-dsh-mobile]{--dshm-sidebar-width:clamp(360px, 50vw, 420px)}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child{max-width:160px}}[data-dsh-mobile] body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}@supports (height:100dvh){[data-dsh-mobile] body{height:100dvh}}[data-dsh-mobile] body{height:100vh}[data-dsh-mobile] #root{height:100%}@media (width<=768px){[data-dsh-mobile] div[data-sidebar-collapsed],[data-dsh-mobile] div[data-details-collapsed]{overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:none;overflow:auto hidden;grid-template-columns:var(--dshm-sidebar-width) 100% 0!important}[data-dsh-mobile] div[data-sidebar-collapsed]::-webkit-scrollbar,[data-dsh-mobile] div[data-details-collapsed]::-webkit-scrollbar{width:0;height:0;display:none}[data-dsh-mobile] div[data-sidebar-collapsed]>:nth-child(-n+2),[data-dsh-mobile] div[data-details-collapsed]>:nth-child(-n+2){scroll-snap-align:start;scroll-snap-stop:always}[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child,[data-dsh-mobile] div[data-details-collapsed]>:first-child{background:var(--dsw-alias-bg-base);padding-top:var(--dshm-safe-top);border-right:none}[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child>:first-child,[data-dsh-mobile] div[data-details-collapsed]>:first-child>:first-child,[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child>:first-child>:first-child,[data-dsh-mobile] div[data-details-collapsed]>:first-child>:first-child>:first-child{background:0 0}[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child div[style*=width],[data-dsh-mobile] div[data-details-collapsed]>:first-child div[style*=width]{min-width:100%}[data-dsh-mobile] div[data-sidebar-collapsed]>:nth-child(2),[data-dsh-mobile] div[data-details-collapsed]>:nth-child(2){background:var(--dsw-alias-bg-base);box-shadow:0 6px 28px color-mix(in srgb, var(--dsw-static-neutral-1000) 16%, transparent);transform:translate3d(var(--dshm-offset-x,0px), 0, 0) rotateY(var(--dshm-rotate,0deg)) scale(var(--dshm-scale,1));transform-origin:var(--dshm-origin-x,50% 50%);transform-style:preserve-3d;backface-visibility:hidden;will-change:transform;border:none;border-radius:16px;overflow:hidden}[data-dsh-mobile][data-dshm-page=chat] div[data-sidebar-collapsed]>:nth-child(2),[data-dsh-mobile][data-dshm-page=chat] div[data-details-collapsed]>:nth-child(2){box-shadow:none;border-radius:0}[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child div:has(>[role=tree])>span,[data-dsh-mobile] div[data-details-collapsed]>:first-child div:has(>[role=tree])>span{display:none}[data-dsh-mobile] [data-side]{display:none!important}[data-dsh-mobile] [data-phase=active]>header{padding:calc(6px + var(--dshm-safe-top)) 8px 0 8px}[data-dsh-mobile] [data-phase]{--dsh-composer-side-clearance:12px}[data-dsh-mobile] [data-composer-seat]{padding-bottom:calc(var(--dshm-safe-bottom) + var(--dshm-keyboard-inset))}[data-dsh-mobile] [data-conversation-scroll]{scrollbar-gutter:auto}[data-dsh-mobile] [data-phase=active]>header button,[data-dsh-mobile] [data-composer-card] button,[data-dsh-mobile] [role=treeitem] button{min-height:36px}[data-dsh-mobile] [data-composer-card] div:has(>button[aria-haspopup=listbox]){gap:8px}[data-dsh-mobile] [data-composer-card]>div:last-child{gap:8px;position:relative}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"]>div{position:static}[data-dsh-mobile] [data-composer-card] button[aria-haspopup=listbox]{flex:none;width:36px;min-width:36px;height:36px}[data-dsh-mobile] [data-composer-card] button[aria-label*=访问模式],[data-dsh-mobile] [data-composer-card] button[aria-label*=Access\\ mode]{flex:none;justify-content:center;width:36px;min-width:36px;height:36px;padding:0}[data-dsh-mobile] [data-composer-card] button[aria-label*=访问模式]>span:not(:first-child),[data-dsh-mobile] [data-composer-card] button[aria-label*=Access\\ mode]>span:not(:first-child){display:none}[data-dsh-mobile] [data-composer-card] div:has(>[data-slot=\"conversation.input.model\"]),[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]{flex:0 auto;min-width:0}[data-dsh-mobile] [data-composer-card] div:has(>[data-slot=\"conversation.input.model\"])>:not([data-slot]){flex:none}[data-dsh-mobile] [data-composer-card] button[aria-haspopup=dialog]{width:36px;height:36px}[data-dsh-mobile] [data-composer-card] [aria-haspopup=dialog] svg{width:16px;height:16px}[data-dsh-mobile] [data-composer-card] div:has(>[data-slot=\"conversation.input.model\"])>button{width:36px;height:36px}[data-dsh-mobile] [data-composer-card] [role=dialog]{box-sizing:border-box;width:min(264px,100vw - 32px);max-width:calc(100vw - 32px)}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child{white-space:nowrap;text-overflow:ellipsis;min-width:48px;max-width:96px;overflow:hidden;transform:translateZ(0)}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child>[data-dshm-marquee-runner]{white-space:nowrap;display:inline-block}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] [data-dshm-marquee-runner]>[data-dshm-marquee-item]{white-space:nowrap;padding-right:32px;display:inline-block}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child[data-dshm-marquee]>[data-dshm-marquee-runner]{animation:dshm-marquee var(--dshm-marquee-duration,8s) linear infinite}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child[data-dshm-marquee]:hover>[data-dshm-marquee-runner]{animation-play-state:paused}@keyframes dshm-marquee{0%{transform:translate(0)}to{transform:translate(-50%)}}[data-dsh-mobile] section:has(>[data-question-scroll])>header h2,[data-dsh-mobile] [data-question-scroll]>div:not([role]){overscroll-behavior:contain;max-height:min(24vh,160px);overflow-y:auto}[data-dsh-mobile] [data-question-scroll]>[role=radiogroup],[data-dsh-mobile] [data-question-scroll]>[role=group]{flex:auto}[data-dsh-mobile] [data-turn-tail]>div:last-child>span:last-child{scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;flex:auto;min-width:0;max-width:100%;overflow:auto hidden}[data-dsh-mobile] [data-turn-tail]>div:last-child>span:last-child::-webkit-scrollbar{display:none}[data-dsh-mobile] [data-phase=active]>header ul[aria-label*=后台任务],[data-dsh-mobile] [data-phase=active]>header ul[aria-label*=Background\\ jobs]{left:auto;right:0}[data-dsh-mobile] [role=dialog]:has(>nav){border-radius:20px;flex-direction:column;width:min(560px,100vw - 32px);max-width:calc(100vw - 32px);height:min(720px,100vh - 32px);max-height:calc(100vh - 32px)}[data-dsh-mobile] [role=dialog]>nav{flex-direction:column;flex:none;gap:8px;width:100%;padding:14px 14px 0;overflow:hidden}[data-dsh-mobile] [role=dialog]>nav>div:first-child{padding:0 4px;font-size:15px;font-weight:500;line-height:22px}[data-dsh-mobile] [role=dialog]>nav>div:nth-child(2){scrollbar-width:none;-webkit-overflow-scrolling:touch;flex-direction:row;gap:6px;padding-bottom:4px;overflow:auto hidden}[data-dsh-mobile] [role=dialog]>nav>div:nth-child(2)::-webkit-scrollbar{display:none}[data-dsh-mobile] [role=dialog]>nav button{border-radius:999px;flex:none;gap:6px;width:auto;height:34px;padding:0 14px}[data-dsh-mobile] [role=dialog]:has(>nav)>div:last-child>div:first-child{z-index:2;background:0 0;border:none;align-items:center;gap:4px;height:32px;padding:0;display:flex;position:absolute;top:10px;right:14px}[data-dsh-mobile] [role=dialog]:has(>nav)>div:last-child>div:first-child+*{margin-top:0}[data-dsh-mobile] [role=dialog]:has(>nav)>div:last-child{flex:1;width:100%;min-height:0}[data-dsh-mobile] [role=dialog]:has(>nav)>div:last-child>div:last-child{padding:4px 16px 16px;overflow-y:auto}[data-dsh-mobile] [role=dialog]>:last-child:has(>button){box-sizing:border-box;width:100%;min-width:0;padding-left:24px;padding-right:24px}}@media (pointer:coarse){[data-dsh-mobile] *{scrollbar-width:none}[data-dsh-mobile] ::-webkit-scrollbar{width:0;height:0;display:none}}@media (prefers-reduced-motion:reduce){[data-dsh-mobile]{scroll-behavior:auto!important}[data-dsh-mobile] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child>[data-dshm-marquee-runner]{animation:none!important}}";
+		const css = "[data-dsh-mobile]{--dshm-safe-top:env(safe-area-inset-top,0px);--dshm-safe-right:env(safe-area-inset-right,0px);--dshm-safe-bottom:env(safe-area-inset-bottom,0px);--dshm-safe-left:env(safe-area-inset-left,0px);--dshm-keyboard-inset:0px;--dshm-sidebar-width:clamp(280px, 70vw, 360px);--dshm-rotate:0deg;--dshm-scale:1;--dshm-offset-x:0px;--dshm-origin-x:50% 50%;-webkit-tap-highlight-color:transparent}@media (width>=560px) and (width<=768px){[data-dsh-mobile]{--dshm-sidebar-width:clamp(360px, 50vw, 420px)}}[data-dsh-mobile] body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}@supports (height:100dvh){[data-dsh-mobile] body{height:100dvh}}[data-dsh-mobile] body{height:100vh}[data-dsh-mobile] #root{height:100%}@media (width<=768px){[data-dsh-mobile] div[data-sidebar-collapsed],[data-dsh-mobile] div[data-details-collapsed]{overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:none;overflow:auto hidden;grid-template-columns:var(--dshm-sidebar-width) 100% 0!important}[data-dsh-mobile] div[data-sidebar-collapsed]::-webkit-scrollbar,[data-dsh-mobile] div[data-details-collapsed]::-webkit-scrollbar{width:0;height:0;display:none}[data-dsh-mobile] div[data-sidebar-collapsed]>:nth-child(-n+2),[data-dsh-mobile] div[data-details-collapsed]>:nth-child(-n+2){scroll-snap-align:start;scroll-snap-stop:always}[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child,[data-dsh-mobile] div[data-details-collapsed]>:first-child{background:var(--dsw-alias-bg-base);padding-top:var(--dshm-safe-top);border-right:none}[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child>:first-child,[data-dsh-mobile] div[data-details-collapsed]>:first-child>:first-child,[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child>:first-child>:first-child,[data-dsh-mobile] div[data-details-collapsed]>:first-child>:first-child>:first-child{background:0 0}[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child div[style*=width],[data-dsh-mobile] div[data-details-collapsed]>:first-child div[style*=width]{min-width:100%}[data-dsh-mobile] div[data-sidebar-collapsed]>:nth-child(2),[data-dsh-mobile] div[data-details-collapsed]>:nth-child(2){background:var(--dsw-alias-bg-base);box-shadow:0 6px 28px color-mix(in srgb, var(--dsw-static-neutral-1000) 16%, transparent);transform:translate3d(var(--dshm-offset-x,0px), 0, 0) rotateY(var(--dshm-rotate,0deg)) scale(var(--dshm-scale,1));transform-origin:var(--dshm-origin-x,50% 50%);transform-style:preserve-3d;backface-visibility:hidden;will-change:transform;border:none;border-radius:16px;overflow:hidden}[data-dsh-mobile][data-dshm-page=chat] div[data-sidebar-collapsed]>:nth-child(2),[data-dsh-mobile][data-dshm-page=chat] div[data-details-collapsed]>:nth-child(2){box-shadow:none;border-radius:0}[data-dsh-mobile] div[data-sidebar-collapsed]>:first-child div:has(>[role=tree])>span,[data-dsh-mobile] div[data-details-collapsed]>:first-child div:has(>[role=tree])>span{display:none}[data-dsh-mobile] [data-side]{display:none!important}[data-dsh-mobile] [data-phase=active]>header{padding:calc(6px + var(--dshm-safe-top)) 8px 0 8px}[data-dsh-mobile] [data-phase]{--dsh-composer-side-clearance:12px}[data-dsh-mobile] [data-composer-seat]{padding-bottom:calc(var(--dshm-safe-bottom) + var(--dshm-keyboard-inset))}[data-dsh-mobile] [data-conversation-scroll]{scrollbar-gutter:auto}[data-dsh-mobile] [data-phase=active]>header button,[data-dsh-mobile] [data-composer-card] button,[data-dsh-mobile] [role=treeitem] button{min-height:36px}[data-dsh-mobile] [data-composer-card] div:has(>button[aria-haspopup=listbox]){gap:8px}[data-dsh-mobile] [data-composer-card]>div:last-child{flex-wrap:nowrap;gap:8px;position:relative}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"]>div{position:static}[data-dsh-mobile] [data-composer-card] button[aria-haspopup=listbox]{flex:none;width:36px;min-width:36px;height:36px}[data-dsh-mobile] [data-composer-card] button[aria-label*=访问模式],[data-dsh-mobile] [data-composer-card] button[aria-label*=Access\\ mode]{flex:none;justify-content:center;width:36px;min-width:36px;height:36px;padding:0}[data-dsh-mobile] [data-composer-card] button[aria-label*=访问模式]>span:not(:first-child),[data-dsh-mobile] [data-composer-card] button[aria-label*=Access\\ mode]>span:not(:first-child){display:none}[data-dsh-mobile] [data-composer-card] div:has(>[data-slot=\"conversation.input.model\"]){flex:0 auto;gap:8px;min-width:0}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]{flex:0 auto;min-width:0}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:not(:first-child){text-overflow:ellipsis;white-space:nowrap;flex:0 auto;min-width:0;overflow:hidden}@media (width<=390px){[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:not(:first-child){display:none}}[data-dsh-mobile] [data-composer-card] div:has(>[data-slot=\"conversation.input.model\"])>:not([data-slot]){flex:none}[data-dsh-mobile] [data-composer-card] button[aria-haspopup=dialog]{width:36px;height:36px}[data-dsh-mobile] [data-composer-card] [aria-haspopup=dialog] svg{width:16px;height:16px}[data-dsh-mobile] [data-composer-card] div:has(>[data-slot=\"conversation.input.model\"])>button{width:36px;height:36px}[data-dsh-mobile] [data-composer-card] [role=dialog]{box-sizing:border-box;width:min(264px,100vw - 32px);max-width:calc(100vw - 32px)}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child{white-space:nowrap;text-overflow:ellipsis;min-width:0;overflow:hidden;transform:translateZ(0)}@container (width<=360px){[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child{min-width:48px;max-width:96px}}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child>[data-dshm-marquee-runner]{white-space:nowrap;display:inline-block}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] [data-dshm-marquee-runner]>[data-dshm-marquee-item]{white-space:nowrap;padding-right:32px;display:inline-block}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child[data-dshm-marquee]>[data-dshm-marquee-runner]{animation:dshm-marquee var(--dshm-marquee-duration,8s) linear infinite}[data-dsh-mobile] [data-composer-card] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child[data-dshm-marquee]:hover>[data-dshm-marquee-runner]{animation-play-state:paused}@keyframes dshm-marquee{0%{transform:translate(0)}to{transform:translate(-50%)}}[data-dsh-mobile] section:has(>[data-question-scroll])>header h2,[data-dsh-mobile] [data-question-scroll]>div:not([role]){overscroll-behavior:contain;max-height:min(24vh,160px);overflow-y:auto}[data-dsh-mobile] [data-question-scroll]>[role=radiogroup],[data-dsh-mobile] [data-question-scroll]>[role=group]{flex:auto}[data-dsh-mobile] [data-turn-tail]>div:last-child>span:last-child{scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;flex:auto;min-width:0;max-width:100%;overflow:auto hidden}[data-dsh-mobile] [data-turn-tail]>div:last-child>span:last-child::-webkit-scrollbar{display:none}[data-dsh-mobile] [data-slot=\"conversation.composer.dock\"]>div:first-child{text-overflow:clip;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;overflow:auto hidden}[data-dsh-mobile] [data-slot=\"conversation.composer.dock\"]>div:first-child::-webkit-scrollbar{display:none}[data-dsh-mobile] [data-phase=active]>header ul[aria-label*=后台任务],[data-dsh-mobile] [data-phase=active]>header ul[aria-label*=Background\\ jobs]{left:auto;right:0}[data-dsh-mobile] [role=dialog]:has(>nav){border-radius:20px;flex-direction:column;width:min(560px,100vw - 32px);max-width:calc(100vw - 32px);height:min(720px,100vh - 32px);max-height:calc(100vh - 32px)}[data-dsh-mobile] [role=dialog]>nav{flex-direction:column;flex:none;gap:8px;width:100%;padding:14px 14px 0;overflow:hidden}[data-dsh-mobile] [role=dialog]>nav>div:first-child{padding:0 4px;font-size:15px;font-weight:500;line-height:22px}[data-dsh-mobile] [role=dialog]>nav>div:nth-child(2){scrollbar-width:none;-webkit-overflow-scrolling:touch;flex-direction:row;gap:6px;padding-bottom:4px;overflow:auto hidden}[data-dsh-mobile] [role=dialog]>nav>div:nth-child(2)::-webkit-scrollbar{display:none}[data-dsh-mobile] [role=dialog]>nav button{border-radius:999px;flex:none;gap:6px;width:auto;height:34px;padding:0 14px}[data-dsh-mobile] [role=dialog]:has(>nav)>div:last-child>div:first-child{z-index:2;background:0 0;border:none;align-items:center;gap:4px;height:32px;padding:0;display:flex;position:absolute;top:10px;right:14px}[data-dsh-mobile] [role=dialog]:has(>nav)>div:last-child>div:first-child+*{margin-top:0}[data-dsh-mobile] [role=dialog]:has(>nav)>div:last-child{flex:1;width:100%;min-height:0}[data-dsh-mobile] [role=dialog]:has(>nav)>div:last-child>div:last-child{padding:4px 16px 16px;overflow-y:auto}[data-dsh-mobile] [role=dialog]>:last-child:has(>button){box-sizing:border-box;width:100%;min-width:0;padding-left:24px;padding-right:24px}}@media (pointer:coarse){html[data-dsh-mobile],[data-dsh-mobile] *{scrollbar-width:none}html[data-dsh-mobile]::-webkit-scrollbar,[data-dsh-mobile] ::-webkit-scrollbar{width:0;height:0;display:none}}@media (prefers-reduced-motion:reduce){[data-dsh-mobile]{scroll-behavior:auto!important}[data-dsh-mobile] [data-slot=\"conversation.input.model\"] button[aria-haspopup=menu]>span:first-child>[data-dshm-marquee-runner]{animation:none!important}}";
 		const tagId = "@dsh-external/dsh-mobile/mobile.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");

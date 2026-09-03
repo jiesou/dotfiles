@@ -58,22 +58,22 @@ Storage rides the unified `ctx.credentials` seam entirely: the refresh token is 
 grant record, rotation written back through `modifyRecord` (cross-process lock);
 access tokens stay in memory only.
 
-The plugin has no settings at all: every endpoint and the retry policy
-(`always`) are hardcoded to sane free-tier defaults, and the catalog is
-discovered dynamically from the upstream `/v1/models`; the CLI above is the
-only sign-in entry.
+The plugin exposes exactly one settings key, `retryPolicy` (per-request retry
+policy), defaulting to `always` (retry every failure); every endpoint and the
+catalog are discovered dynamically from the upstream `/v1/models`, hardcoded to
+sane free-tier defaults, and the CLI above is the only sign-in entry.
+
+## Reasoning effort
+
+A model exposes exactly the levels the upstream feed credits it with. **Default** means "do not send `reasoning_effort`" — the upstream picks its own depth. **Off** is a real switch: it sends the upstream's literal close value (`none`, `off`, …). Models the upstream marks mandatory drop the `Off` entry — there is no way to disable thinking, and the plugin doesn't fabricate one. The plugin never pins a level for you.
 
 ## Model catalog: live discovery
 
-Fetched at startup and every 15 minutes from the public `/v1/models` listing
-(no auth needed), **keeping the models whose prompt/completion prices are both
-exactly $0** as the catalog; metadata (context window, input modalities,
-reasoning efforts) follows upstream as well. The free set grows and shrinks
-automatically as upstream rotates — no model id is hardcoded.
+Fetched once at startup from the public `/v1/models` listing (no auth needed), keeping the models whose prompt/completion prices are both exactly `$0` as the catalog; metadata (context window, input modalities, reasoning efforts) follows upstream as well. The free set grows and shrinks automatically as upstream rotates — no model id is hardcoded. If the upstream is unreachable at mount the plugin still comes up with an empty catalog; one network blip never takes the plugin down.
 
-Live result right now (2026-08): stepfun/step-3.7-flash:free,
-tencent/hy3:free, poolside/laguna-s/xs-2.1:free, upstage/solar-pro4:free,
-among 7 total.
+## Error reporting
+
+Upstream refusals ("OpenRouter free models are not supported", ended promotions, …) preserve the real reason in the terminal error event — the harness would otherwise mask them under "API key is invalid". Genuine auth failures still surface as AUTH. Anything unparseable passes through verbatim — the original error is never swallowed.
 
 ## Caveats
 

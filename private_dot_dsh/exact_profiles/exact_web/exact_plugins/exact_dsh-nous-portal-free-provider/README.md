@@ -56,18 +56,22 @@ node ~/.dsh/profiles/web/node_modules/@jiesou/dsh-nous-portal-free-provider/lib/
 存储完全走 `ctx.credentials` 统一接口：refresh token 是 grant record，
 token 轮换通过 `modifyRecord` 写回（跨进程锁）；access token 只存内存。
 
-本插件没有 settings 配置项：所有端点、重试策略（`always`）均硬编码为免费层
-的合理默认值，目录由上游 `/v1/models` 动态发现；唯一的登录入口是上面的 CLI。
+本插件只有一个 settings 配置项 `retryPolicy`（模型请求重试策略），默认 `always`（每次失败都重试）；其余端点、目录均来自上游 `/v1/models` 动态发现，硬编码为免费层的合理默认值；唯一的登录入口是上面的 CLI。
+
+## Reasoning effort（推理深度）
+
+模型只暴露上游接受的档位，不造档位。**Default** 表示"不发送 `reasoning_effort`"字段，由上游自行决定深度。**Off** 是真开关——发送上游的关闭字面值（`none`、`off` 等）。上游标记为 mandatory 的模型干脆不显示 Off 选项，插件不替它伪造一个。`default_effort` 等元数据由上游决定，插件不替你固定某一档。
 
 ## 模型目录：动态发现
 
-启动时和每 15 分钟从公开的 `/v1/models` 列表（无需认证）抓取，
-**过滤出 prompt/completion 价格均为 $0 的模型**作为目录，元数据
+启动时从公开的 `/v1/models` 列表（无需认证）抓取一次，**不轮循**。
+过滤出 prompt/completion 价格均为 $0 的模型作为目录，元数据
 （context window、多模态输入、reasoning efforts）一并跟随上游。
-免费集随上游轮换自动增减，不写死任何模型 id。
+免费集随上游轮换自动增减，不写死任何模型 id。挂载时上游不可达也不挂——目录暂时为空、不会拖垮插件。
 
-当前在线结果（2026-08）：stepfun/step-3.7-flash:free、tencent/hy3:free、
-poolside/laguna-s/xs-2.1:free、upstage/solar-pro4:free 等 7 个。
+## 错误提示
+
+上游拒绝（"OpenRouter free models are not supported"、免费推广结束等）在终端错误事件里保留真实原因，不会被 harness 当 AUTH 吞掉。真正的鉴权失败仍按 AUTH 走，无法解析的内容原样透传。
 
 ## 注意事项
 

@@ -56,19 +56,13 @@
    cap toward HALF the viewport (50vw, capped at 420px), so at 768px the
    two pages meet 50/50 (PiUI's half-open symmetry) and the chat sliver
    never loses its tap-to-return presence. Growth is monotone with the
-   viewport — never narrower than the phone cap, so no regression. The
-   composer has the room too: the model-name cap relaxes from 96px to
-   160px. */
+   viewport — never narrower than the phone cap, so no regression. (The
+   composer row is wide enough here for the FULL model name: the adaptive
+   cap below — a @container query on the row — lets the label grow instead
+   of marqueeing.) */
 @media (min-width: 560px) and (max-width: 768px) {
   [data-dsh-mobile] {
     --dshm-sidebar-width: clamp(360px, 50vw, 420px);
-  }
-
-  /* The trigger is pinned via aria-haspopup='menu': a bare `button` would
-     also hit the open picker's option rows and nav cells (their first
-     spans are optionCopy/cellLabel) and deform the menu card. */
-  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:first-child {
-    max-width: 160px;
   }
 }
 
@@ -289,7 +283,15 @@
     gap: 8px;
   }
 
+  /* The stock row rule is flex-wrap:wrap, so once the trailing cluster
+     (model chip + context ring + send) outgrows the row it breaks onto a
+     SECOND line — the "bar became two rows" report. On phones the model
+     chip is the designated shrink seat (its label already marquees), so
+     one line is always enough: nowrap forces the browser to compress the
+     chip instead of wrapping, and the rules below make sure the chip can
+     actually shrink that far. */
   [data-dsh-mobile] [data-composer-card] > div:last-child {
+    flex-wrap: nowrap;
     gap: 8px;
     position: relative;
   }
@@ -342,6 +344,9 @@
   [data-dsh-mobile] [data-composer-card] div:has(> [data-slot='conversation.input.model']) {
     flex: 0 1 auto;
     min-width: 0;
+    /* Tighter than the stock 12px so the ring and send keep more of the
+       row for the model chip. */
+    gap: 8px;
   }
 
   /* The model trigger chip itself is the trailing cluster's only
@@ -352,6 +357,31 @@
   [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] {
     flex: 0 1 auto;
     min-width: 0;
+  }
+
+  /* The effort badge (the trigger's non-first span under the marquee label)
+     is stock flex:none: it would floor the chip's minimum width and, with
+     the row now nowrap, that floor could still overflow on the narrowest
+     phones. Let it yield with an ellipsis so the model chip absorbs every
+     extra pixel of deficit first. Pinned via aria-haspopup='menu': the open
+     picker's option rows are buttons WITHOUT that attribute, so this can
+     never touch the menu card. */
+  [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:not(:first-child) {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Below 390px (iPhone 12/13 class) even the ellipsized effort eats pixels
+     the label window needs: drop it entirely — the icon, the marquee label
+     and the chevron remain, and the row stays one line on the narrowest
+     phones. */
+  @media (max-width: 390px) {
+    [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:not(:first-child) {
+      display: none;
+    }
   }
 
   /* The context ring keeps its fixed seat (stock 28px circle, flex:none
@@ -394,9 +424,16 @@
     max-width: calc(100vw - 32px);
   }
 
-  /* Model name: capped width with a floor so the marquee window stays
-     readable. At rest the stock ellipsis hints; when the name overflows,
-     the controller wraps TWO item spans (text + text clone, each with a
+  /* Model name: the FULL name by default — no width cap, so when the row
+     has room (wide phones, split-screen, tablets) the label grows to its
+     natural width and the controller's overflow measure stays 0: no
+     marquee, no ellipsis, the whole "DeepSeek-V4-Flash" is readable. The
+     cap is a @container query: the composer ROW declares
+     container-type: inline-size (anonymous container), so
+     `@container (max-width: …)` matches the row's own width — the label
+     only caps into the marquee window when the row actually runs out of
+     space. At rest the stock ellipsis hints; when the name overflows, the
+     controller wraps TWO item spans (text + text clone, each with a
      trailing gap) in a [data-dshm-marquee-runner] layer and tags the
      label with data-dshm-marquee + --dshm-marquee-duration. The keyframes
      slide the runner by -50% (one text width + one gap) on the
@@ -413,14 +450,28 @@
      them — nowrap + translateZ deforming the menu card (the report this
      rule set fixed). */
   [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:first-child {
-    max-width: 96px;
-    min-width: 48px;
+    min-width: 0;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
     /* This element becomes its own compositing ancestor, so the animating
        runner layer cannot bleed past it on iOS Safari. */
     transform: translateZ(0);
+  }
+
+  /* The row is tight: cap the name to the marquee window (96px, 48px
+     floor). The threshold is the point where a typical full name
+     ("DeepSeek-V4-Flash", ~122px at 13/500, plus effort + chevron ≈ 336px
+     of row) stops fitting comfortably — below it every pixel a longer name
+     would need has to come out of the label anyway, so the marquee window
+     is the honest render; above it the name gets its natural width and
+     360px is also the same cut the stock PermissionSelect uses to
+     collapse its label, so the two chips tighten together. */
+  @container (max-width: 360px) {
+    [data-dsh-mobile] [data-composer-card] [data-slot='conversation.input.model'] button[aria-haspopup='menu'] > span:first-child {
+      max-width: 96px;
+      min-width: 48px;
+    }
   }
 
   /* The transform layer: two item spans (text + clone), each with a
@@ -504,6 +555,70 @@
   }
 
   [data-dsh-mobile] [data-turn-tail] > div:last-child > span:last-child::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ---------- session stats line (mobile fit) ----------
+
+     The composer-dock readout — "10 轮 · 176 步 | LLM 31m55s · 工具调用
+     16m33s | 首 token 平均 3.6s · 117 tok/s | 缓存命中 84% | 输入 18.3M
+     tok · 输出 150K tok" — is ONE nowrap line with overflow:hidden +
+     text-overflow:ellipsis (stock StatsLine): on phones the tail readings
+     are ellipsized away with NO way to reveal them — the stock Tooltip
+     that would show the full line is hover/focus-only, dead on touch.
+     Same fix as the message tail clock above: the line itself scrolls
+     horizontally — swipe to see the rest, no scrollbar chrome, and
+     overscroll-behavior:contain keeps the swipe from chaining into the
+     pager flip. text-overflow:clip drops the ellipsis, which would keep
+     painting over the scrolled content's edge. The stock
+     text-align:center stays: for inline content in a BLOCK scroll box the
+     scrollable overflow covers both directions (the unsafe-centering trap
+     is a flexbox-only behavior), so a fitting line stays centered while an
+     overflowing one scrolls end to end. The component's own truncation
+     measure (scrollWidth > clientWidth) is unaffected — it only gates the
+     Tooltip.
+
+     WINDOW-CONFINED SCROLL: with plain overflow-x:auto the scrolling
+     text roams the WHOLE element box — the padding is transparent, so
+     glyphs ride all the way out to the element edge ("到顶") while the
+     resting end keeps its inset gap: the scroll area is visibly bigger
+     than the area the stock line ever displayed in, and the two ends
+     can never look alike. The fix is to confine the scroll to the
+     ORIGINAL display window — the content box inside the stock padding
+     (clearance+16px each side, the column the composer text aligns to):
+     a mask keeps both padding zones permanently EMPTY and clips the
+     scrolling text exactly at those boundaries, at every scroll
+     position. The geometry works out exactly: the scrollable overflow
+     includes the padding, so at either scroll limit the text's
+     start/end ink lands precisely ON the window boundary — no dead
+     overshoot, and the resting text is never under the mask's
+     transparent zone, so nothing fully visible is ever dimmed (no
+     fade ramps anywhere — earlier fade/scroll-driven attempts treated
+     the symptom and were removed). text-align:center stays: a fitting
+     line still centers (its glyphs sit inside the opaque window
+     untouched), an overflowing one scrolls within it. mask-image is
+     anchored to the element box (it does not scroll with the content),
+     which is exactly the behavior wanted; the var() carries a 0px
+     fallback so an undefined clearance degrades to a plain 16px inset
+     rather than dropping the declaration. Both mask-image spellings
+     are written out — iOS Safari still requires the -webkit- prefix.
+     Keyed off the slot anchor, never the hashed class: the
+     conversation.composer.dock outlet (a display:contents div) has exactly
+     one shipped occupant — StatsLine, id 'stats', order 0 — and Tooltip
+     cloneElements its child (no wrapper node), so the readout div is the
+     outlet's first child element. todo/queue strips live in the SIBLING
+     conversation.input.dock slot and can never match. */
+
+  [data-dsh-mobile] [data-slot='conversation.composer.dock'] > div:first-child {
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-overflow: clip;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  [data-dsh-mobile] [data-slot='conversation.composer.dock'] > div:first-child::-webkit-scrollbar {
     display: none;
   }
 
@@ -675,10 +790,12 @@
 
 /* Coarse pointers (touch) never hover: drop scrollbars entirely. */
 @media (pointer: coarse) {
+  html[data-dsh-mobile],
   [data-dsh-mobile] * {
     scrollbar-width: none;
   }
 
+  html[data-dsh-mobile]::-webkit-scrollbar,
   [data-dsh-mobile] *::-webkit-scrollbar {
     width: 0;
     height: 0;

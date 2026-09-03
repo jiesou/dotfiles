@@ -28,3 +28,10 @@ vendor `--probe` verdict becomes the reported enforcement (`full`/`partial`);
 - No private PID namespace / `/proc`: host processes visible
 - Landlock metadata gap: `chmod/chown/utime/setxattr` on owned files not governed
 - Off-Linux: no sandbox service provided
+
+The plugin also mounts a local `ctx.fs` provider on Linux. It subclasses the upstream
+`dsh-fs-local` implementation, preserving its atomic writes and edits while fencing
+mutations to the session workspace, `/tmp`, and this plugin's `writeDirs`. The stock
+`dsh-fs-sandbox` provider is disabled by the companion patch, so `tool-fs` uses the
+same extra roots as bash without modifying any upstream package.
+

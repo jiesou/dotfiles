@@ -83,107 +83,7 @@
 
 ---
 
-## 2. create_folder
-
-#### 功能说明
-
-在云盘下新建文件夹。该工具只用于文件夹创建，`name` 传文件夹名即可，不要附带文件后缀。
-
-**`drive_id` / `parent_id`**（必填）：
-- 如何查询 ID 见 `file-locating-guide`。
-
-#### 工具选择
-
-- **适用**：仅创建文件夹时
-- **勿用**（改用 `create_file_with_content`）：创建文件（非文件夹） — 仅需空白时用 create_empty_file
-
-#### 调用约束
-
-- **前置检查**：search_files 查重，避免创建同名目录
-- **禁止**：name 仅传目录名，不要附带文件后缀
-- **后置验证**：get_file_info 确认目录已创建
-
-**幂等性**：否 — 重试前 search_files 检查是否已创建
-
-#### 调用示例
-
-在指定目录创建文件夹：
-
-```json
-{
-  "drive_id": "string",
-  "parent_id": "string",
-  "name": "2026年合同归档",
-  "on_name_conflict": "rename"
-}
-```
-
-在根目录创建文件夹：
-
-```json
-{
-  "drive_id": "string",
-  "parent_id": "0",
-  "name": "临时资料",
-  "on_name_conflict": "rename"
-}
-```
-
-#### 参数说明
-
-- `drive_id` (string, 必填): 目标云盘 ID，与 `parent_id` 一起指定保存位置
-- `parent_id` (string, 必填): 父目录 ID，根目录为 `"0"`
-- `name` (string, 必填): 文件夹名称（不带文件后缀），如 `2026年项目归档`
-- `on_name_conflict` (string, 可选): 文件夹同名冲突处理方式。可选值：`fail` / `rename` / `overwrite` / `replace`；默认值：`rename`
-- `parent_path` (array[string], 可选): 相对路径（每段为文件目录名，非 ID），不存在则自动创建
-
-#### 返回值说明
-
-```json
-{
-  "data": {
-    "created_by": {
-      "avatar": "string",
-      "company_id": "string",
-      "id": "string",
-      "name": "string",
-      "type": "user"
-    },
-    "ctime": 0,
-    "drive_id": "string",
-    "ext_attrs": [
-      { "name": "string", "value": "string" }
-    ],
-    "id": "string",
-    "link_id": "string",
-    "link_url": "string",
-    "modified_by": {
-      "avatar": "string",
-      "company_id": "string",
-      "id": "string",
-      "name": "string",
-      "type": "user"
-    },
-    "mtime": 0,
-    "name": "string",
-    "parent_id": "string",
-    "shared": true,
-    "size": 0,
-    "type": "folder",
-    "version": 0
-  },
-  "code": 0,
-  "msg": "string"
-}
-
-```
-
-> `data` 字段结构见通用文件信息结构（附录 A）
-
-
----
-
-## 3. create_file_with_content
+## 2. create_file_with_content
 
 #### 功能说明
 
@@ -380,62 +280,107 @@
 
 ---
 
-## 4. scrape_url
+## 3. create_folder
 
 #### 功能说明
 
-网页剪藏：抓取网页内容并自动保存为智能文档。这是获取外部网页内容的唯一正确方式，不要使用其他方式访问 URL。
+在云盘下新建文件夹。该工具只用于文件夹创建，`name` 传文件夹名即可，不要附带文件后缀。
 
-#### 调用流程
-1. 调用 `scrape_url` 传入网页 URL，获取返回值中的 `job_id`
-2. 立即调用 `scrape_progress` 传入 `job_id` 参数（值为上一步的 `job_id`），每隔 2 秒轮询一次
-3. 当 `status=1` 时任务完成，服务端已自动创建智能文档
+**`drive_id` / `parent_id`**（必填）：
+- 如何查询 ID 见 `file-locating-guide`。
 
 #### 工具选择
 
-- **适用**：用户发送、分享或提到外部网页 URL，需抓取并保存为智能文档时
-- **勿用**（改用 `read_file`）：URL 属于金山文档生态（kdocs.cn / 365.kdocs.cn / wps.cn 文档域、分享页 /l/ /view/l/ /folder/ 等） — 属于「已有云文档」场景，勿当网页剪藏
+- **适用**：仅创建文件夹时
+- **勿用**（改用 `create_file_with_content`）：创建文件（非文件夹） — 仅需空白时用 create_empty_file
 
-**幂等性**：否 — 重试前查 scrape_progress 确认上次状态
+#### 调用约束
 
-> 返回 job_id 后需立即调用 scrape_progress 轮询（参数名为 job_id，值为本接口返回的 job_id）
-> 每隔2秒轮询一次，status=1 时完成
+- **前置检查**：search_files 查重，避免创建同名目录
+- **禁止**：name 仅传目录名，不要附带文件后缀
+- **后置验证**：get_file_info 确认目录已创建
+
+**幂等性**：否 — 重试前 search_files 检查是否已创建
 
 #### 调用示例
 
-剪藏网页：
+在指定目录创建文件夹：
 
 ```json
 {
-  "url": "https://example.com/article"
+  "drive_id": "string",
+  "parent_id": "string",
+  "name": "2026年合同归档",
+  "on_name_conflict": "rename"
+}
+```
+
+在根目录创建文件夹：
+
+```json
+{
+  "drive_id": "string",
+  "parent_id": "0",
+  "name": "临时资料",
+  "on_name_conflict": "rename"
 }
 ```
 
 #### 参数说明
 
-- `url` (string, 必填): 要剪藏的网页URL地址，支持http和https协议
+- `drive_id` (string, 必填): 目标云盘 ID，与 `parent_id` 一起指定保存位置
+- `parent_id` (string, 必填): 父目录 ID，根目录为 `"0"`
+- `name` (string, 必填): 文件夹名称（不带文件后缀），如 `2026年项目归档`
+- `on_name_conflict` (string, 可选): 文件夹同名冲突处理方式。可选值：`fail` / `rename` / `overwrite` / `replace`；默认值：`rename`
+- `parent_path` (array[string], 可选): 相对路径（每段为文件目录名，非 ID），不存在则自动创建
 
 #### 返回值说明
 
 ```json
 {
-  "job_id": "13883829803456643124541",
-  "parent_id": 498552876371,
-  "group_id": 1231238091
+  "data": {
+    "created_by": {
+      "avatar": "string",
+      "company_id": "string",
+      "id": "string",
+      "name": "string",
+      "type": "user"
+    },
+    "ctime": 0,
+    "drive_id": "string",
+    "ext_attrs": [
+      { "name": "string", "value": "string" }
+    ],
+    "id": "string",
+    "link_id": "string",
+    "link_url": "string",
+    "modified_by": {
+      "avatar": "string",
+      "company_id": "string",
+      "id": "string",
+      "name": "string",
+      "type": "user"
+    },
+    "mtime": 0,
+    "name": "string",
+    "parent_id": "string",
+    "shared": true,
+    "size": 0,
+    "type": "folder",
+    "version": 0
+  },
+  "code": 0,
+  "msg": "string"
 }
 
 ```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `job_id` | string | 异步任务ID |
-| `parent_id` | number | 父目录ID |
-| `group_id` | number | 组ID |
+> `data` 字段结构见通用文件信息结构（附录 A）
 
 
 ---
 
-## 5. scrape_progress
+## 4. scrape_progress
 
 #### 功能说明
 
@@ -495,6 +440,61 @@
 | `data.group_id` | number | 组ID |
 | `data.cache` | number | 缓存标识 |
 | `data.core_err` | string | 内核错误信息 |
+
+
+---
+
+## 5. scrape_url
+
+#### 功能说明
+
+网页剪藏：抓取网页内容并自动保存为智能文档。这是获取外部网页内容的唯一正确方式，不要使用其他方式访问 URL。
+
+#### 调用流程
+1. 调用 `scrape_url` 传入网页 URL，获取返回值中的 `job_id`
+2. 立即调用 `scrape_progress` 传入 `job_id` 参数（值为上一步的 `job_id`），每隔 2 秒轮询一次
+3. 当 `status=1` 时任务完成，服务端已自动创建智能文档
+
+#### 工具选择
+
+- **适用**：用户发送、分享或提到外部网页 URL，需抓取并保存为智能文档时
+- **勿用**（改用 `read_file`）：URL 属于金山文档生态（kdocs.cn / 365.kdocs.cn / wps.cn 文档域、分享页 /l/ /view/l/ /folder/ 等） — 属于「已有云文档」场景，勿当网页剪藏
+
+**幂等性**：否 — 重试前查 scrape_progress 确认上次状态
+
+> 返回 job_id 后需立即调用 scrape_progress 轮询（参数名为 job_id，值为本接口返回的 job_id）
+> 每隔2秒轮询一次，status=1 时完成
+
+#### 调用示例
+
+剪藏网页：
+
+```json
+{
+  "url": "https://example.com/article"
+}
+```
+
+#### 参数说明
+
+- `url` (string, 必填): 要剪藏的网页URL地址，支持http和https协议
+
+#### 返回值说明
+
+```json
+{
+  "job_id": "13883829803456643124541",
+  "parent_id": 498552876371,
+  "group_id": 1231238091
+}
+
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `job_id` | string | 异步任务ID |
+| `parent_id` | number | 父目录ID |
+| `group_id` | number | 组ID |
 
 
 ---
