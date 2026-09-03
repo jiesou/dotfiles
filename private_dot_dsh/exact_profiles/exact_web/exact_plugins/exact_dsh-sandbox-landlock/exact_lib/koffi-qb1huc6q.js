@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import util from "node:util";
-//#region ../../../../../../linuxbrew/.linuxbrew/lib/node_modules/@deepseek-ai/dsh/node_modules/koffi/src/koffi/src/static.js
+//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/koffi/src/koffi/src/static.js
 const require = createRequire(import.meta.url);
 function loadStatic(pkg) {
 	let native = null;
@@ -53,7 +53,7 @@ function loadStatic(pkg) {
 	return native;
 }
 //#endregion
-//#region ../../../../../../linuxbrew/.linuxbrew/lib/node_modules/@deepseek-ai/dsh/node_modules/koffi/src/koffi/index.js
+//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/koffi/src/koffi/index.js
 var __knownSymbol = (name, symbol) => (symbol = Symbol[name]) ? symbol : /* @__PURE__ */ Symbol.for("Symbol." + name);
 var __typeError = (msg) => {
 	throw TypeError(msg);

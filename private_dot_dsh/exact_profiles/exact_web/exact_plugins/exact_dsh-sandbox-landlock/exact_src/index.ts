@@ -171,7 +171,17 @@ function grantFlags(seam: Seam, policy: SandboxPolicy, writeDirs: readonly strin
   const readWrite = policy.mode === 'workspace-write'
     ? ['/dev/null', '/tmp', policy.workspaceRoot, ...writeDirs]
     : ['/dev/null']
-  return seam.grantArgs({ readOnly: ['/'], readWrite: normalizeDirs(readWrite) })
+  // landlock-run 对打不开的授权根 fail-closed（exit 125，整条命令不执行），
+  // 不存在的目录必须剔除；目录稍后建出来后下次 confine 自动纳入。
+  return seam.grantArgs({ readOnly: ['/'], readWrite: normalizeDirs(readWrite).filter(existsDir) })
+}
+
+function existsDir(dir: string): boolean {
+  try {
+    return existsSync(dir)
+  } catch {
+    return false
+  }
 }
 
 export const name = 'dsh-sandbox-landlock'
@@ -193,6 +203,10 @@ export async function apply(ctx: Context | PluginCtx, config: Config = {}): Prom
     return
   }
   if (ctx.plugin) ctx.plugin(LandlockFileSystem, { cwd: config.cwd, writeDirs })
+  const missing = writeDirs.filter((dir) => !existsDir(dir))
+  if (missing.length > 0) {
+    console.warn(`dsh-sandbox-landlock: skipping ${missing.length} missing writeDirs (created later they take effect automatically): ${missing.join(', ')}`)
+  }
   ctx.provide('sandbox', {
     // 生产消费方在 danger-full-access 时不会调用 confine；此处只接收受限模式。
     confine(commandArgv: readonly string[], policy: SandboxPolicy): ConfinedArgv {

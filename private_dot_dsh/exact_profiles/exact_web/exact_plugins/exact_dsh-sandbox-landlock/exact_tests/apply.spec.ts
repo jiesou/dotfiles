@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -43,7 +44,7 @@ describe('workspace-write', () => {
   })
 
   it('授权面齐全且去重（含尾斜杠变体）', () => {
-    for (const dir of normalizeDirs(['/dev/null', '/tmp', workspace, ...writeDirs])) {
+    for (const dir of normalizeDirs(['/dev/null', '/tmp', workspace, ...writeDirs]).filter((d) => existsSync(d))) {
       expect(wrapped.argv).toContain(dir)
     }
     expect(wrapped.argv.filter((x) => x === '/tmp')).toHaveLength(1)
@@ -58,6 +59,22 @@ describe('workspace-write', () => {
       fatalSignatures: ['landlock-run: '],
       informationalLines: ['landlock-run: partial enforcement (older Landlock ABI)'],
     })
+  })
+})
+
+describe('缺失目录', () => {
+  it('不存在的 writeDirs 被剔除（launcher 对打不开的授权根 exit 125），存在的保留', async () => {
+    const missing = join(tmpdir(), 'dsl-spec-definitely-missing')
+    expect(existsSync(missing)).toBe(false)
+    const provided2 = new Map<string, unknown>()
+    await apply(
+      { provide: (id, service) => { provided2.set(id, service) } },
+      { writeDirs: ['/tmp', missing] },
+    )
+    const confine2 = (provided2.get('sandbox') as { confine: typeof confine }).confine
+    const wrapped2 = confine2(['bash', '-c', 'echo hi'], { mode: 'workspace-write', workspaceRoot: workspace })
+    expect(wrapped2.argv).not.toContain(missing)
+    expect(wrapped2.argv).toContain('/tmp')
   })
 })
 
