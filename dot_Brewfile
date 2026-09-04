@@ -39,6 +39,8 @@ brew "nmap"
 brew "node"
 # Fast, disk space efficient package manager
 brew "pnpm"
+# Coreutils progress viewer
+brew "progress"
 # Display and control your Android device
 brew "scrcpy"
 # Simple TTY terminal I/O application
@@ -53,8 +55,6 @@ brew "anomalyco/tap/opencode", trusted: true
 brew "espressif/eim/eim", trusted: true
 # OpenAI's official ChatGPT desktop app
 cask "ublue-os/experimental-tap/chatgpt-linux", trusted: true
-# Terminal-based AI coding assistant
-cask "claude-code"
 # OpenAI's coding agent that runs in your terminal
 cask "codex"
 # Brings the power of Copilot coding agent directly to your terminal
