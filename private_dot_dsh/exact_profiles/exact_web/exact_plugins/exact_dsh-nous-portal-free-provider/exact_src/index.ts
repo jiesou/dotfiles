@@ -26,7 +26,7 @@ import { assertUsableApiKey, errorChain, resolveRetryPolicy, RetryPolicySchema }
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
-import { AuthorizationSession } from '@deepseek-ai/dsh-authorization'
+import type { AuthorizationSession } from '@deepseek-ai/dsh-authorization'
 import { credentialKey, credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { GrantRecord } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
@@ -42,7 +42,8 @@ import {
 } from '@earendil-works/pi-ai'
 import { stream as openAiStream, streamSimple as openAiStreamSimple } from '@earendil-works/pi-ai/api/openai-completions'
 import z from '@deepseek-ai/schemastery'
-import { deepEqualJson, installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
+import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
+import type {} from '@deepseek-ai/dsh-settings'
 import { DEFAULT_INFERENCE_URL, DEFAULT_MODELS_URL, DEFAULT_PORTAL_URL, deviceCodeLogin, NousTokenManager, refreshAccessToken } from './oauth.js'
 import type { NousPortalGrant } from './oauth.js'
 import { fetchFreeModels } from './models.js'
@@ -55,7 +56,7 @@ export { fetchFreeModels, parseFreeModels } from './models.js'
 export type { NousPortalModel } from './models.js'
 
 export const name = 'nous-portal-free-provider'
-export const inject = ['llm', 'settings']
+export const inject = ['llm']
 
 const PROVIDER = 'nous-portal'
 const DISPLAY_NAME = 'Nous Portal Free'
@@ -65,7 +66,7 @@ const RECORD_KEY = credentialKey(name, 'portal')
 const DEFAULT_API_KEY_ENV = 'NOUS_PORTAL_API_KEY'
 
 /** Settings section this plugin owns; its only key is the retry policy. */
-const NS = settingsNamespace(name)
+const NS = 'nous-portal-free-provider'
 
 /** Plugin configuration, validated by the same-named schemastery schema. */
 export interface Config {
@@ -385,13 +386,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   ctx.llm.registerConfigurableProviders([{ provider: PROVIDER, displayName: DISPLAY_NAME, settingsNs: NS, settingsPath: [] }])
   ctx.llm.registerAdapter([PROVIDER], adapter)
 
-  installSettingsSection(ctx, NS, Config, config, {
-    setSource: (source) => {
-      current = source
-    },
-    onChange: () => {
-      profiles = buildProfiles()
-    },
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.settings.installSection(ctx, NS, Config, config, {
+      setSource: (source) => {
+        current = source
+      },
+      onChange: () => {
+        profiles = buildProfiles()
+      },
+    })
   })
 
   async function sync(): Promise<void> {

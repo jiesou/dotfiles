@@ -1,8 +1,8 @@
 ui-onboarding:
   welcomeNoticeVersion: 2026-08-13.1
 agent-default-model:
-  provider: commandcode-2
-  model: meta/muse-spark-1.3-contributor
+  provider: opencode-zen-free-provider
+  model: muse-spark-1.3-contributor-free
 llm-pi-ai:
   providers:
     sui-xiang-claude-kiro:

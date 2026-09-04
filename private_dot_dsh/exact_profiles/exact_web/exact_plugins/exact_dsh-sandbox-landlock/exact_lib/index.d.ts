@@ -1,4 +1,4 @@
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cosmokit/lib/types/misc.d.ts
+//#region node_modules/.pnpm/@deepseek-ai+cosmokit@1.8.3/node_modules/@deepseek-ai/cosmokit/lib/types/misc.d.ts
 /** String/symbol keyed dictionary type. */
 type Dict<T = any, K extends string | symbol = string> = { [key in K]: T; };
 /** Wrap a value in `Promise`, preserving the resolved type of existing promises. */
@@ -6,7 +6,7 @@ type Promisify<T> = Promise<T extends Promise<infer S> ? S : T>;
 /** Accept a value or promise unless the value type is already promise-like. */
 type Awaitable<T> = [T] extends [Promise<unknown>] ? T : T | Promise<T>;
 //#endregion
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@standard-schema/spec/dist/index.d.ts
+//#region node_modules/.pnpm/@standard-schema+spec@1.1.0/node_modules/@standard-schema/spec/dist/index.d.ts
 /** The Standard Typed interface. This is a base type extended by other specs. */
 interface StandardTypedV1<Input = unknown, Output = Input> {
   /** The Standard properties. */
@@ -83,7 +83,7 @@ declare namespace StandardSchemaV1 {
   type InferOutput<Schema extends StandardTypedV1> = StandardTypedV1.InferOutput<Schema>;
 }
 //#endregion
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis/lib/types/utils.d.ts
+//#region node_modules/.pnpm/@deepseek-ai+cordis@4.0.2/node_modules/@deepseek-ai/cordis/lib/types/utils.d.ts
 /** Ordered collection of disposable values with O(1) deletion by value. */
 declare class DisposableList<T extends WeakKey> {
   private sn;
@@ -116,7 +116,7 @@ declare const symbols: {
   resolveConfig: typeof Service.resolveConfig;
 };
 //#endregion
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis/lib/types/registry.d.ts
+//#region node_modules/.pnpm/@deepseek-ai+cordis@4.0.2/node_modules/@deepseek-ai/cordis/lib/types/registry.d.ts
 /**
  * Service dependency declaration accepted by plugins and the `@Inject`
  * decorator.
@@ -308,7 +308,7 @@ declare class RegistryService {
   plugin(plugin: Plugin, config?: any, getOuterStack?: () => string[]): Fiber & PromiseLike<Fiber>;
 }
 //#endregion
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis/lib/types/reflect.d.ts
+//#region node_modules/.pnpm/@deepseek-ai+cordis@4.0.2/node_modules/@deepseek-ai/cordis/lib/types/reflect.d.ts
 declare module './context.ts' {
   interface Context {
     /**
@@ -492,7 +492,7 @@ declare class ReflectService {
   bind<T extends Function>(callback: T): T;
 }
 //#endregion
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis/lib/types/fiber.d.ts
+//#region node_modules/.pnpm/@deepseek-ai+cordis@4.0.2/node_modules/@deepseek-ai/cordis/lib/types/fiber.d.ts
 declare module './context.ts' {
   interface Context extends Pick<Fiber, 'effect'> {
     /** The fiber (plugin runtime instance) that owns this context. */
@@ -653,7 +653,7 @@ declare class Fiber {
   update(config: any, noSave?: boolean): void | Promise<void>;
 }
 //#endregion
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis/lib/types/events.d.ts
+//#region node_modules/.pnpm/@deepseek-ai+cordis@4.0.2/node_modules/@deepseek-ai/cordis/lib/types/events.d.ts
 /** Extract the parameter tuple from a function type. */
 type Parameters<F> = F extends ((...args: infer P) => any) ? P : never;
 /** Extract the return type from a function type. */
@@ -884,7 +884,7 @@ interface Events {
   'internal/dispatch'(mode: DispatchMode, name: string, args: any[], thisArg: any): void;
 }
 //#endregion
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis/lib/types/logger.d.ts
+//#region node_modules/.pnpm/@deepseek-ai+cordis@4.0.2/node_modules/@deepseek-ai/cordis/lib/types/logger.d.ts
 declare module './context.ts' {
   interface Intercept {
     logger: LoggerService.Intercept;
@@ -972,7 +972,7 @@ declare class LoggerService {
   [symbols.invoke](name?: string): Logger;
 }
 //#endregion
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis/lib/types/context.d.ts
+//#region node_modules/.pnpm/@deepseek-ai+cordis@4.0.2/node_modules/@deepseek-ai/cordis/lib/types/context.d.ts
 /**
  * Public shape of a Cordis context.
  *
@@ -1067,7 +1067,7 @@ declare class Context {
   intercept(name: string, config: any): this;
 }
 //#endregion
-//#region ../../../../../.local/share/fnm/node-versions/v24.19.0/installation/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/cordis/lib/types/service.d.ts
+//#region node_modules/.pnpm/@deepseek-ai+cordis@4.0.2/node_modules/@deepseek-ai/cordis/lib/types/service.d.ts
 /**
  * Base class for services that expose a named API on `ctx`.
  *

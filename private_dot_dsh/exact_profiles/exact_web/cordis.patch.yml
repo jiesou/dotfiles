@@ -35,6 +35,10 @@
           - mcp__tinyfish__list_search_usage
           - mcp__tinyfish__list_runs
           - mcp__tinyfish__get_run
+          - mcp__tinyfish__batch_status
+          - mcp__tinyfish__batch_cancel
+          - mcp__tinyfish__cancel_run
+          - mcp__tinyfish__run_web_automation_async
           - mcp__tinyfish__list_browser_sessions
           - mcp__tinyfish__create_browser_session
           - mcp__tinyfish__close_browser_session

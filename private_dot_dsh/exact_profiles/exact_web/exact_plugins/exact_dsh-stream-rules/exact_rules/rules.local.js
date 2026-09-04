@@ -29,6 +29,9 @@ const isBlockedTmp = (command) => {
     // git clone may only target /tmp/agent/...
     return command.includes("git clone") && !command.includes("/tmp/agent")
   }
+  if (command.includes("tmux")) {
+    return false
+  }
   // bare "/tmp" (or /tmp/ with nothing after) is off-limits
   return true
 }

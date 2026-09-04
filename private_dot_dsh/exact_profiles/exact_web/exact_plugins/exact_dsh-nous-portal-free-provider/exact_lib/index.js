@@ -27,21 +27,21 @@ import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment';
 import { createProvider, } from '@earendil-works/pi-ai';
 import { stream as openAiStream, streamSimple as openAiStreamSimple } from '@earendil-works/pi-ai/api/openai-completions';
 import z from '@deepseek-ai/schemastery';
-import { deepEqualJson, installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings';
+import { deepEqualJson } from '@deepseek-ai/dsh-util-values';
 import { DEFAULT_INFERENCE_URL, DEFAULT_MODELS_URL, DEFAULT_PORTAL_URL, deviceCodeLogin, NousTokenManager, refreshAccessToken } from './oauth.js';
 import { fetchFreeModels } from './models.js';
 export { DEFAULT_CLIENT_ID, DEFAULT_INFERENCE_URL, DEFAULT_PORTAL_URL, DEFAULT_SCOPE } from './oauth.js';
 export { deviceCodeLogin, NousTokenManager, pollForToken, requestDeviceCode } from './oauth.js';
 export { fetchFreeModels, parseFreeModels } from './models.js';
 export const name = 'nous-portal-free-provider';
-export const inject = ['llm', 'settings'];
+export const inject = ['llm'];
 const PROVIDER = 'nous-portal';
 const DISPLAY_NAME = 'Nous Portal Free';
 /** The one credential record this plugin owns: `<scope>/portal`. */
 const RECORD_KEY = credentialKey(name, 'portal');
 const DEFAULT_API_KEY_ENV = 'NOUS_PORTAL_API_KEY';
 /** Settings section this plugin owns; its only key is the retry policy. */
-const NS = settingsNamespace(name);
+const NS = 'nous-portal-free-provider';
 export const Config = z.object({
     retryPolicy: RetryPolicySchema.default({ mode: 'always' }),
 });
@@ -343,13 +343,15 @@ export async function apply(ctx, config) {
     });
     ctx.llm.registerConfigurableProviders([{ provider: PROVIDER, displayName: DISPLAY_NAME, settingsNs: NS, settingsPath: [] }]);
     ctx.llm.registerAdapter([PROVIDER], adapter);
-    installSettingsSection(ctx, NS, Config, config, {
-        setSource: (source) => {
-            current = source;
-        },
-        onChange: () => {
-            profiles = buildProfiles();
-        },
+    ctx.inject(['settings'], (settingsCtx) => {
+        settingsCtx.settings.installSection(ctx, NS, Config, config, {
+            setSource: (source) => {
+                current = source;
+            },
+            onChange: () => {
+                profiles = buildProfiles();
+            },
+        });
     });
     async function sync() {
         const entries = await fetchFreeModels(DEFAULT_MODELS_URL);

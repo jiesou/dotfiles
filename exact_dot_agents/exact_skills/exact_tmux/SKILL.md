@@ -26,6 +26,14 @@ echo "$TARGET"
 # Once `TARGET` got, the session can be always reused
 ```
 
+#### Permission issues
+
+If you are in a sandbox, you do not need many permissions.
+
+You only need to request permission when running `tmux new` for the first time.
+
+Subsequent uses of `send-keys` do not require requesting permission again—doing so will be rejected!
+
 ### Enter Shell Env
 
 ```

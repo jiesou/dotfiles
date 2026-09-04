@@ -1,9 +1,20 @@
 //#region src/index.ts
 const name = "tool-deny";
-const inject = ["agents", "timer"];
-const MAX_RETRIES = 10;
-const RETRY_BASE_MS = 500;
-const RETRY_CAP_MS = 3e4;
+const inject = [
+	"agents",
+	"timer",
+	"tools"
+];
+const RECONCILE_DEBOUNCE_MS = 300;
+/**
+* Names quoted in a `tools.restrict()` unknown-global-tool error.
+* Returns undefined when the message is a different failure.
+*/
+function parseUnknownTools(message) {
+	const match = /unknown global tools? (.*?); known global tools:/s.exec(message);
+	if (!match) return void 0;
+	return [...match[1].matchAll(/"([^"]+)"/g)].map((hit) => hit[1]).filter(Boolean);
+}
 function apply(ctx, config = {}) {
 	const log = {
 		info: (msg) => {
@@ -24,70 +35,115 @@ function apply(ctx, config = {}) {
 		log.warn("`denyTools` is empty — nothing to deny (add tool names via the profile patch row)");
 		return;
 	}
-	/** Per-agent state: active mask disposer + pending retry timer. */
+	/** Per-agent state: masked-so-far subset + active mask layers. */
 	const states = /* @__PURE__ */ new WeakMap();
-	const clearRetry = (state) => {
-		if (state.retry !== void 0) {
-			ctx.clearTimeout(state.retry);
-			state.retry = void 0;
-		}
-	};
-	const teardown = (state) => {
-		clearRetry(state);
-		if (state.lift !== void 0) {
-			try {
-				state.lift();
-			} catch {}
-			state.lift = void 0;
-		}
-	};
-	const install = (agent, state) => {
+	/** Missing sets already warned about — each distinct set logs exactly once. */
+	const warnedMissing = /* @__PURE__ */ new Set();
+	let reconcileTimer;
+	let closed = false;
+	const knownGlobalTools = () => {
 		try {
-			state.lift = agent.ctx.tools.restrict({ deny: denyTools });
-			clearRetry(state);
-			const retries = state.attempts ?? 0;
-			log.info(`masked ${denyTools.join(", ")} from agent ${agent.id}` + (retries > 0 ? ` (after ${retries} retr${retries === 1 ? "y" : "ies"})` : ""));
+			return ctx.tools.view(void 0).restrictableNames ?? /* @__PURE__ */ new Set();
+		} catch {
+			return /* @__PURE__ */ new Set();
+		}
+	};
+	const adopt = (agent, known) => {
+		let state = states.get(agent);
+		if (!state) {
+			state = {
+				masked: /* @__PURE__ */ new Set(),
+				lifts: []
+			};
+			states.set(agent, state);
+		}
+		const pending = denyTools.filter((tool) => !state.masked.has(tool));
+		if (pending.length === 0) return [];
+		const available = pending.filter((tool) => known.has(tool));
+		if (available.length === 0) return [];
+		const maskNow = (names) => {
+			if (names.length === 0) return true;
+			try {
+				state.lifts.push(agent.ctx.tools.restrict({ deny: names }));
+				for (const tool of names) state.masked.add(tool);
+				return true;
+			} catch {
+				return false;
+			}
+		};
+		if (maskNow(available)) return available;
+		try {
+			agent.ctx.tools.restrict({ deny: available });
+			return [];
 		} catch (error) {
 			const message = String(error?.message ?? error);
 			if (!message.includes("unknown global tool")) {
-				clearRetry(state);
 				log.error(`failed to mask agent ${agent.id}: ${message}`);
-				return;
+				return [];
 			}
-			const attempts = (state.attempts ?? 0) + 1;
-			state.attempts = attempts;
-			if (attempts === 1) log.warn(`tools ${denyTools.join(", ")} not registered yet for agent ${agent.id}; retrying (up to ${MAX_RETRIES} times)…`);
-			if (attempts > MAX_RETRIES) {
-				clearRetry(state);
-				log.error(`gave up denying ${denyTools.join(", ")} from agent ${agent.id} after ${MAX_RETRIES} retries — these tools never registered. Every name in denyTools must match a live tool; a disabled MCP server's tools will never appear. Missing: ${denyTools.join(", ")}.`);
-				return;
+			const unknown = new Set(parseUnknownTools(message) ?? available);
+			const knownPart = available.filter((tool) => !unknown.has(tool));
+			if (maskNow(knownPart)) {
+				scheduleReconcile();
+				return knownPart;
 			}
-			if (state.retry === void 0) {
-				const delay = Math.min(RETRY_BASE_MS * 2 ** (attempts - 1), RETRY_CAP_MS);
-				state.retry = ctx.setTimeout(() => {
-					state.retry = void 0;
-					install(agent, state);
-				}, delay);
+			scheduleReconcile();
+			return [];
+		}
+	};
+	const reconcile = () => {
+		if (closed) return;
+		const known = knownGlobalTools();
+		const newlyMasked = /* @__PURE__ */ new Set();
+		let maskedAgents = 0;
+		for (const agent of ctx.agents.list()) {
+			const masked = adopt(agent, known);
+			if (masked.length > 0) {
+				maskedAgents += 1;
+				for (const tool of masked) newlyMasked.add(tool);
+			}
+		}
+		if (newlyMasked.size > 0) log.info(`masked ${[...newlyMasked].sort().join(", ")} from ${maskedAgents} agent(s)`);
+		const missing = denyTools.filter((tool) => !known.has(tool));
+		if (missing.length > 0) {
+			const key = missing.slice().sort().join("\n");
+			if (!warnedMissing.has(key)) {
+				warnedMissing.add(key);
+				log.warn(`tools ${missing.join(", ")} not registered (MCP server disabled or not yet discovered?) — tracking registry events, will mask on arrival.`);
 			}
 		}
 	};
-	const adopt = (agent) => {
-		if (states.has(agent)) return;
-		const state = {};
-		states.set(agent, state);
-		install(agent, state);
+	const scheduleReconcile = () => {
+		if (closed || reconcileTimer !== void 0) return;
+		reconcileTimer = ctx.setTimeout(() => {
+			reconcileTimer = void 0;
+			reconcile();
+		}, RECONCILE_DEBOUNCE_MS);
 	};
 	ctx.effect(() => {
-		for (const agent of ctx.agents.list()) adopt(agent);
-		const stop = ctx.on("agent/created", ({ agent }) => adopt(agent));
+		const denySet = new Set(denyTools);
+		const unguard = ctx.tools.guard((exec) => denySet.has(exec.name) ? `tool-deny: "${exec.name}" is denied by denyTools` : void 0);
+		reconcile();
+		const stopCreated = ctx.on("agent/created", () => reconcile());
+		const stopChanged = ctx.on("tools/change", () => scheduleReconcile());
 		return () => {
-			stop();
+			closed = true;
+			stopCreated();
+			stopChanged();
+			unguard();
+			if (reconcileTimer !== void 0) {
+				ctx.clearTimeout(reconcileTimer);
+				reconcileTimer = void 0;
+			}
 			for (const agent of ctx.agents.list()) {
 				const state = states.get(agent);
-				if (state) teardown(state);
+				if (!state) continue;
+				for (const lift of state.lifts.splice(0)) try {
+					lift();
+				} catch {}
 			}
 		};
 	}, "tool-deny.lifecycle()");
 }
 //#endregion
-export { apply, inject, name };
+export { apply, inject, name, parseUnknownTools };

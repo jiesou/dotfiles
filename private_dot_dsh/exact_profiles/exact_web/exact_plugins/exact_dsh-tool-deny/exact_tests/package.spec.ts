@@ -25,7 +25,7 @@ describe('entry contract', () => {
 
   it('导出 name/inject/apply', () => {
     expect(entrySrc).toMatch(/export const name = 'tool-deny'/)
-    expect(entrySrc).toMatch(/export const inject = \['agents', 'timer'\]/)
+    expect(entrySrc).toMatch(/export const inject = \['agents', 'timer', 'tools'\]/)
     expect(entrySrc).toMatch(/export function apply\(/)
   })
 

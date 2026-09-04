@@ -9,8 +9,11 @@
 | 能力面 | 说明 |
 |---|---|
 | 可见性掩码 | 对每个 agent 应用 `tools.restrict({ deny })`：被拒工具不出现在任何模型请求的工具清单中，执行层解析为 `UNKNOWN_TOOL`（与从未注册完全一致） |
+| 部分掩码 | 列表里混进未注册名时，只对存活工具立即掩码、未知名单独挂起——一个缺失名不再毒化整张掩码 |
+| 事件卫生 | `tools/change` 是唯一的工具事件且是无载荷广播（任何注册/重组、包括我们自己的掩码成功都会触发），没有更细的订阅。handler 先读全局注册表预检、无新增静默跳过，突发事件去抖 300ms 合并，同一缺失集合只 warn 一次——启动不再刷屏，日志量与真实变化成正比 |
+| 运行时启用追踪 | MCP 面板里动态启用的 server，其工具一注册就自动补上掩码；不再有时限耗尽的“放弃” |
+| 执行兜底 | 全局 `tools.guard()` 按名拦截：掩码尚未补上（或竞态窗口）的调用也会被拒绝 |
 | 覆盖范围 | `agent/created` + 挂载时采纳已存活 agent；子 agent 同样生效；agent 销毁/插件停用自动摘除掩码 |
-| 顺序安全 | 若目标工具尚未注册（如 MCP server 启动发现未完成），带退避重试（最多 10 次）直至成功；若始终未注册（如对应 MCP server 已停用），**有界重试后报错并放弃**，日志明确列出缺失的工具名，绝不静默重试 |
 | 配置项 | `denyTools: string[]`——要屏蔽的工具公开名列表（如 `mcp__linkup__linkup-research`） |
 
 ## 安装
@@ -31,12 +34,12 @@ dsh plugin --profile web add /path/to/dsh-tool-deny
           - mcp__linkup__linkup-research
 ```
 
-保存后 web 面 HMR 实时挂载。启动日志应出现 `tool-deny: masked ... from agent ...`；目标工具从下一轮模型请求起不再出现。
+保存后 web 面 HMR 实时挂载。启动日志至多出现一行 `masked ... from N agent(s)`；目标工具从下一轮模型请求起不再出现。
 
 > 诊断可见性：web profile 下 `ctx.logger` 无控制台导出（消息只进内部缓冲），
 > 因此本插件同时向 `console` 输出 `[tool-deny]` 前缀的 warn/error——journal / 服务日志中一定能看到。
-> 若出现 `gave up denying ... these tools never registered`，说明 `denyTools` 里配了不会注册的工具
-> （典型：MCP server 已停用），应删除对应条目。
+> 若出现 `... not registered (MCP server disabled or not yet discovered?)`，说明 `denyTools` 里配了
+> 当前未注册的工具（典型：对应 MCP server 已停用）——插件会持续追踪，server 启用后自动补上掩码，无需任何操作。
 
 ## 插件管理
 
