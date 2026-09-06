@@ -1,6 +1,6 @@
 agent-default-model:
-  model: gemini-3.8-flash-high
-  provider: antigravity-cpa
+  model: meta/muse-spark-1.3-contributor
+  provider: commandcode-3
 agent-presets:
   default: focus
 dsh-better-sidebar:
