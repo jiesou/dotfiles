@@ -50,7 +50,7 @@ export default [
     prompt: "Use `gio trash` or `mv` instead of rm except in tmpdir",
   },
   {
-    match: (v) => /\bgh\s+(?:issue|pr)\s+create\b|mcp__gh__create_(?:issue|pull_request)\b/.test(v),
+    match: (v) => /\bgh\s+(?:issue|pr)\s+(create|comment)\b|mcp__gh__create_(?:issue|pull_request)\b/.test(v),
     reject: true,
     prompt:
       "Users must explicitly confirm before publishing public content. Public issue/PR create is irreversible. If user's confirmation is given, call the same command again.",
@@ -125,6 +125,11 @@ export default [
     match: (v) => v.includes("opencode-ai/opencode"),
     prompt:
       "The GitHub repository for opencode.ai is anomalyco/opencode (formerly sst/opencode), NOT opencode-ai/opencode (it is a standalone, old, go-implemented agent, now archived).",
+  },
+  {
+    match: (v) => v.includes("MetaCubeX/mihomo"),
+    prompt:
+      "The GitHub repository for Mihomo Kernel is https://github.com/MetaCubeX/mihomo/tree/Meta",
   },
   {
     match: (v) => v.includes("curl") && v.includes("api.github.com"),

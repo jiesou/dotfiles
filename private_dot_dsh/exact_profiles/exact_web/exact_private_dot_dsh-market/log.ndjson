@@ -1,0 +1,22 @@
+{"at":"2026-09-04T10:31:42.972Z","level":"info","event":"toggle","detail":"@linxin666/dsh-chat-recovery -> off: fiber=false"}
+{"at":"2026-09-04T10:31:42.973Z","level":"info","event":"boot","detail":"plugin kept off: @linxin666/dsh-chat-recovery"}
+{"at":"2026-09-04T10:31:42.973Z","level":"info","event":"toggle","detail":"dsh-context -> off: fiber=false"}
+{"at":"2026-09-04T10:31:42.973Z","level":"info","event":"boot","detail":"plugin kept off: dsh-context"}
+{"at":"2026-09-04T10:31:43.492Z","level":"info","event":"region","detail":"no region on record; network check chose china"}
+{"at":"2026-09-04T10:32:00.035Z","level":"info","event":"toggle","detail":"@linxin666/dsh-chat-recovery -> off: fiber=false"}
+{"at":"2026-09-04T10:32:00.036Z","level":"info","event":"boot","detail":"plugin kept off: @linxin666/dsh-chat-recovery"}
+{"at":"2026-09-04T10:32:00.036Z","level":"info","event":"toggle","detail":"dsh-context -> off: fiber=false"}
+{"at":"2026-09-04T10:32:00.036Z","level":"info","event":"boot","detail":"plugin kept off: dsh-context"}
+{"at":"2026-09-04T16:23:45.793Z","level":"info","event":"toggle","detail":"@linxin666/dsh-chat-recovery -> off: fiber=false"}
+{"at":"2026-09-04T16:23:45.794Z","level":"info","event":"boot","detail":"plugin kept off: @linxin666/dsh-chat-recovery"}
+{"at":"2026-09-04T16:23:45.794Z","level":"info","event":"toggle","detail":"dsh-context -> off: fiber=false"}
+{"at":"2026-09-04T16:23:45.794Z","level":"info","event":"boot","detail":"plugin kept off: dsh-context"}
+{"at":"2026-09-04T18:37:52.546Z","level":"warn","event":"update-blocked","detail":"@bill9109/dsh-conversation-share: refused while agents are running — session-9339d627-42ec-42dd-8372-89383bd40727"}
+{"at":"2026-09-05T09:41:23.708Z","level":"info","event":"toggle","detail":"@linxin666/dsh-chat-recovery -> off: fiber=false"}
+{"at":"2026-09-05T09:41:23.709Z","level":"info","event":"boot","detail":"plugin kept off: @linxin666/dsh-chat-recovery"}
+{"at":"2026-09-05T09:41:23.709Z","level":"info","event":"toggle","detail":"dsh-context -> off: fiber=false"}
+{"at":"2026-09-05T09:41:23.709Z","level":"info","event":"boot","detail":"plugin kept off: dsh-context"}
+{"at":"2026-09-05T10:02:47.536Z","level":"info","event":"toggle","detail":"@linxin666/dsh-chat-recovery -> off: fiber=false"}
+{"at":"2026-09-05T10:02:47.537Z","level":"info","event":"boot","detail":"plugin kept off: @linxin666/dsh-chat-recovery"}
+{"at":"2026-09-05T10:02:47.538Z","level":"info","event":"toggle","detail":"dsh-context -> off: fiber=false"}
+{"at":"2026-09-05T10:02:47.538Z","level":"info","event":"boot","detail":"plugin kept off: dsh-context"}

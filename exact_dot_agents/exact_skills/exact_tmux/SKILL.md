@@ -28,7 +28,7 @@ echo "$TARGET"
 
 #### Permission issues
 
-If you are in a sandbox, you do not need many permissions.
+If you are in a sandbox, you do not need many permissions. But if permission is required, request for it directly, rather than trying to bypass tmux.
 
 You only need to request permission when running `tmux new` for the first time.
 
