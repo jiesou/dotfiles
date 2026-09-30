@@ -26,7 +26,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm';
 import type { CommandCodeGoConnectionOptions, CommandCodeGoModel } from './adapter.js';
-export { CommandCodeGoAdapter, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, } from './adapter.js';
+export { CommandCodeGoAdapter, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_REQUEST_IMAGE_BYTES, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, } from './adapter.js';
 export type { CommandCodeGoAdapterOptions, CommandCodeGoConnectionOptions, CommandCodeGoModel } from './adapter.js';
 export { fetchCatalog, fetchGoModels, imageCapable, isGoPlan, parseCatalog } from './models.js';
 export type { CatalogEntry, GoModel } from './models.js';
@@ -49,6 +49,8 @@ export interface AccountProfile {
     maxTokens?: number;
     /** Positive context capacity used when the selected model has no exact value; defaults to the top-level value. */
     defaultContextWindow?: number;
+    /** Inline image budget for one request; defaults to the top-level value. */
+    maxRequestImageBytes?: number;
     /** Provider-owned model-request retry policy; defaults to the top-level `retryPolicy`. */
     retryPolicy?: RetryPolicyConfig;
 }
@@ -67,8 +69,23 @@ export interface Config {
     maxTokens?: number;
     /** Positive context capacity used when the selected model has no exact value (default 1,000,000). Also every account's default. */
     defaultContextWindow?: number;
+    /**
+     * Inline base64 image bytes one request accepts before it must be offloaded
+     * (default 4 MiB). Images are re-sent on every turn because the gateway keeps
+     * no server-side copy, so a request above this budget fails with
+     * `IMAGE_OFFLOAD_REQUIRED`; the harness then records the oldest occurrences
+     * as offloaded and retries. Also every account's default.
+     */
+    maxRequestImageBytes?: number;
     /** Provider-owned model-request retry policy; omission uses normal defaults. Also every account's default. */
     retryPolicy?: RetryPolicyConfig;
+    /**
+     * Send gateway traffic over HTTP/1.1 (default `false`: the runtime's own
+     * protocol choice, HTTP/2 on Node >= 26). The gateway's edge resets HTTP/2
+     * streams with `ENHANCE_YOUR_CALM` under concurrent traffic; HTTP/1.1 turns
+     * the same limit into a readable 429.
+     */
+    http1?: boolean;
 }
 export declare const AccountProfile: z<AccountProfile>;
 export declare const Config: z<Schemastery.ObjectS<NoInfer<{
@@ -77,14 +94,18 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     baseURL: z<string, string, "volatile-defined">;
     maxTokens: z<number, number, "volatile-defined">;
     defaultContextWindow: z<number, number, "volatile-defined">;
+    maxRequestImageBytes: z<number, number, "volatile-defined">;
     retryPolicy: z<NoInfer<RetryPolicyConfig>, NoInfer<RetryPolicyConfig>, "volatile">;
+    http1: z<boolean, boolean, "volatile-defined">;
 }>>, Schemastery.ObjectT<NoInfer<{
     accounts: z<NoInfer<import("@deepseek-ai/cosmokit").Dict<AccountProfile, string>>, NoInfer<import("@deepseek-ai/cosmokit").Dict<AccountProfile, string>>, "volatile-defined">;
     apiKeyEnv: z<string, string, "volatile-defined">;
     baseURL: z<string, string, "volatile-defined">;
     maxTokens: z<number, number, "volatile-defined">;
     defaultContextWindow: z<number, number, "volatile-defined">;
+    maxRequestImageBytes: z<number, number, "volatile-defined">;
     retryPolicy: z<NoInfer<RetryPolicyConfig>, NoInfer<RetryPolicyConfig>, "volatile">;
+    http1: z<boolean, boolean, "volatile-defined">;
 }>>, "plain">;
 /**
  * {@link Config} as the Loader holds it: every field is volatile, so a settings write

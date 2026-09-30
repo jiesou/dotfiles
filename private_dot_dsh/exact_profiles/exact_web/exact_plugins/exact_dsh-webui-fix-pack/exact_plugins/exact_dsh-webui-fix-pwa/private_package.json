@@ -1,6 +1,6 @@
 {
   "name": "@jiesou/dsh-webui-fix-pwa",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "type": "module",
   "description": "PWA color/mode fix for the DSH Web UI: standalone display plus light/dark theme-color/background-color taken from the design tokens.",
   "license": "MIT",

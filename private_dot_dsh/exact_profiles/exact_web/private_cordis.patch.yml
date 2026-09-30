@@ -12,9 +12,6 @@
     surfaceContext: true
     trustedHosts:
       - chenpc.lan
-- id: mcp-manager
-  config:
-    patchFile: /home/chen/.dsh/cordis.patch.yml
 - insert:
     - id: tool-deny
       name: dsh-tool-deny
@@ -47,15 +44,10 @@
           - mcp__tinyfish__guide_next_step
     - id: subagent-background-only
       name: 'dsh-subagent-background-only'
-- id: ui-chat-recovery
-  disabled: true
-
 - id: session-query-sqlite
   config:
     path: !!js dshHomePath('search.db')
     openAt: startup
-- id: dsh-context
-  disabled: true
 - id: agent-default-model
   name: "@deepseek-ai/dsh-agent-default-model"
   config:
@@ -64,7 +56,7 @@
 - id: ui-settings-general
   name: "@deepseek-ai/dsh-client-ui-settings-general"
   config:
-    welcomeNoticeVersion: 2026-08-13.1
+    welcomeNoticeVersion: 2026-09-28.1
 - id: llm-pi-ai
   name: "@deepseek-ai/dsh-llm-pi-ai"
   config:
@@ -575,3 +567,7 @@
   name: "@deepseek-ai/dsh-subagent"
   config:
     maxDepth: 2
+- id: session-log-deepseek
+  name: "@deepseek-ai/dsh-session-log-deepseek"
+  config:
+    enabled: false

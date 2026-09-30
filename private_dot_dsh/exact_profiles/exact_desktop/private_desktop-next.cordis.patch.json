@@ -1,0 +1,8 @@
+[
+  {
+    "id": "agents-anywhere-bridge-next",
+    "config": {
+      "dshHome": "/var/home/chen/.dsh"
+    }
+  }
+]

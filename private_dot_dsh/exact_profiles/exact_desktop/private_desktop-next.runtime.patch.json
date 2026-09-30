@@ -1,0 +1,17 @@
+[
+  {
+    "id": "desktop-next-webserver",
+    "config": {
+      "host": "127.0.0.1",
+      "port": 0
+    }
+  },
+  {
+    "id": "connection",
+    "config": {
+      "trustedHosts": [
+        "192.168.11.192"
+      ]
+    }
+  }
+]

@@ -33,7 +33,7 @@ import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import {
   createProvider,
   type AuthContext,
-  type Context as PiContext,
+  type TranscriptContext,
   type CredentialStore,
   type Model,
   type ProviderStreams,
@@ -152,7 +152,7 @@ const sanitizeStream = <S extends { push(event: unknown): void }>(stream: S): S 
 // Replayed thinking blocks carry no wire signature; marking them
 // `reasoning_content` keeps the transport from mangling history. Never gated on
 // `model.reasoning`: a model with no effort control still streams thinking.
-const normalizeReasoningContext = (context: PiContext): PiContext => ({
+const normalizeReasoningContext = (context: TranscriptContext): TranscriptContext => ({
   ...context,
   messages: context.messages.map(message => message.role !== 'assistant' ? message : {
     ...message,
@@ -350,9 +350,9 @@ export async function apply(ctx: Context, config: LiveConfig): Promise<void> {
       },
       models: buildModels(scanned),
       api: {
-        stream: (model: Model<'openai-completions'>, context: PiContext, options: Parameters<ProviderStreams['stream']>[2]) =>
+        stream: (model: Model<'openai-completions'>, context: TranscriptContext, options: Parameters<ProviderStreams['stream']>[2]) =>
           sanitizeStream(openAiStream(model, normalizeReasoningContext(context), options)) as unknown as ReturnType<ProviderStreams['stream']>,
-        streamSimple: (model: Model<'openai-completions'>, context: PiContext, options: SimpleStreamOptions) =>
+        streamSimple: (model: Model<'openai-completions'>, context: TranscriptContext, options: SimpleStreamOptions) =>
           sanitizeStream(openAiStreamSimple(model, normalizeReasoningContext(context), options)) as unknown as ReturnType<ProviderStreams['streamSimple']>,
       } as ProviderStreams,
     })
