@@ -1,0 +1,10 @@
+? Verifying lockfile against supply-chain policies (23 entries)...
+✓ Lockfile passes supply-chain policies (23 entries in 1.6s)
+Lockfile is up to date, resolution step is skipped
+Packages: -4
+----
+
+dependencies:
+- dshmarket 1.47.0
+
+Done in 1.7s using pnpm v12.4.1

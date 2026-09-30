@@ -47,8 +47,9 @@ prompt 直接写「请 load <skill>」，并要求它也需要严格认真遵循
 
 ## HELPFUL Notes
 
+- 输出中，直接说“要做什么”，而不要说“不能做什么”
 - 无权限可直接访问的目录：
-  - 工作涉及的杂项数据文档：workdir（定期归档）
+  - 工作涉及的杂项数据文档：workdir 或当前 workspace（定期归档）
   - 临时浏览/浅克隆：/tmp/agents（随时会被清）
 - 刚才修改的文件有时会被再次修改。这多半其他用户在后台进行的修改，语义更改代表了用户的意见，需尊重用户的意见
 - 有关开源项目的 research → git clone --depth=1 到 tmp。Source is the Truth

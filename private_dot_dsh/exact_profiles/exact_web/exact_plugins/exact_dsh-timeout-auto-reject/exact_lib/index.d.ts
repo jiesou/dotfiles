@@ -15,5 +15,13 @@
  * pattern), ported to dsh's synchronous decision model.
  */
 import type { Context } from '@deepseek-ai/cordis';
+import type { ContextFormed } from '@deepseek-ai/dsh-llm';
+declare module '@deepseek-ai/dsh-llm' {
+    interface MessageSourceMap {
+        'timeout-auto-reject': {
+            kind: 'timeout-auto-reject';
+        } & ContextFormed;
+    }
+}
 export declare const name = "timeout-auto-reject";
 export declare function apply(ctx: Context): void;

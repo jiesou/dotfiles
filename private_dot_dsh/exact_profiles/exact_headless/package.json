@@ -3,9 +3,10 @@
   "private": true,
   "dependencies": {
     "@jiesou/dsh-cline-free-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-cline-free-provider",
+    "@jiesou/dsh-commandcode-go-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-commandcode-go-provider",
     "@jiesou/dsh-nous-portal-free-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-nous-portal-free-provider",
     "@jiesou/dsh-opencode-zen-free-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-opencode-zen-free-provider",
-    "@jiesou/dsh-commandcode-go-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-commandcode-go-provider"
+    "dsh-subagent-background-only": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-subagent-background-only"
   },
   "dsh": {
     "profile": {

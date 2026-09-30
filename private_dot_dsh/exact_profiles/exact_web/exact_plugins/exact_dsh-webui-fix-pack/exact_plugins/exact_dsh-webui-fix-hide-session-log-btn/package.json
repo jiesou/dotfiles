@@ -1,6 +1,6 @@
 {
   "name": "@jiesou/dsh-webui-fix-hide-session-log-btn",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Hide the Session log button in the DSH Web UI (client-only plugin, label-matched).",
   "license": "MIT",
   "type": "module",

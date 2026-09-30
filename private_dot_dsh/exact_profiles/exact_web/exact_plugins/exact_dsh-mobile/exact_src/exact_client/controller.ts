@@ -65,12 +65,15 @@ const VIEWPORT_CONTENT =
 
 /**
  * The AppFrame keeps at least one of its two data attributes in every state
- * (a closed sidebar renders the rail, a closed details column renders zero
+ * (a closed sidebar renders the rail, a collapsed right column renders zero
  * width), so the union always selects the frame and never a descendant. The
  * attributes identify the frame wherever it sits in the tree — rc.5 wraps
  * the frame in an extra shell div, so no `#root >` child prefix is assumed.
+ * The right column's attribute was renamed upstream: `data-details-collapsed`
+ * through dsh 0.1.3, `data-rightbar-collapsed` from 0.1.5. Both spellings are
+ * matched so one build covers either generation.
  */
-const FRAME_SELECTOR = 'div[data-sidebar-collapsed], div[data-details-collapsed]'
+const FRAME_SELECTOR = 'div[data-sidebar-collapsed], div[data-details-collapsed], div[data-rightbar-collapsed]'
 
 /** The AppFrame element, or null before the layout entry mounts it. */
 function findFrame(): HTMLElement | null {
@@ -98,7 +101,6 @@ const MODEL_LABEL_SELECTOR =
  * padding-right in mobile.css.
  */
 const MARQUEE_GAP_PX = 32
-const COMPOSER_DOCK_SELECTOR = "[data-slot='conversation.composer.dock']"
 
 /**
  * The pager's chat-page snap position: the rendered width of the sidebar
@@ -264,7 +266,7 @@ export class MobileController implements MobileControllerHandle {
     // automatic focus is bounced.
     document.addEventListener('pointerdown', this.#onPointerDownCapture, true)
     document.addEventListener('focusin', this.#onFocusInCapture, true)
-    document.addEventListener('click', this.#onStatsTap, true)
+    document.addEventListener('keydown', this.#onComposerKeyDown, true)
 
     const root = document.getElementById('root')
     if (root !== null) {
@@ -339,7 +341,7 @@ export class MobileController implements MobileControllerHandle {
     document.removeEventListener('click', this.#onDocClickCapture, true)
     document.removeEventListener('pointerdown', this.#onPointerDownCapture, true)
     document.removeEventListener('focusin', this.#onFocusInCapture, true)
-    document.removeEventListener('click', this.#onStatsTap, true)
+    document.removeEventListener('keydown', this.#onComposerKeyDown, true)
     for (const timer of [this.#keyboardFrame, this.#mountFrame, this.#resizeTimer, this.#settleTimer, this.#marqueeFrame, this.#returnTimer]) {
       if (timer !== null) (timer === this.#keyboardFrame || timer === this.#mountFrame || timer === this.#marqueeFrame ? cancelAnimationFrame : window.clearTimeout)(timer)
     }
@@ -566,6 +568,32 @@ export class MobileController implements MobileControllerHandle {
     target.blur()
   }
 
+  /** Touch Enter inserts a newline while preserving the stock modifier and
+   *  slash-menu paths. The composer surface differs by dsh generation:
+   *  <= 0.1.1 renders a <textarea>, >= 0.1.2 a Lexical contenteditable
+   *  ([data-composer-input]). On the contenteditable, stopping the keydown
+   *  keeps Lexical's KEY_ENTER_COMMAND (submit) from firing while the OS
+   *  keyboard's own beforeinput insertParagraph still lands the line break
+   *  through Lexical's model — no editor desync.
+   *
+   *  Only the OS keyboard's own press is remapped: plugins that DRIVE the
+   *  composer synthesize an untrusted Enter (the touch "sendified" primary
+   *  button replays one to submit), and swallowing those would leave their
+   *  button dead — stopImmediatePropagation here kills the event before it
+   *  can reach the editor's own keymap. */
+  readonly #onComposerKeyDown = (event: KeyboardEvent): void => {
+    const target = event.target
+    if (event.key !== 'Enter' || !event.isTrusted) return
+    const isTextarea = target instanceof HTMLTextAreaElement
+    const isComposerEditable = target instanceof Element
+      && target.closest('[data-composer-input]') !== null
+    if (!isTextarea && !isComposerEditable) return
+    if (event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (!this.#mql?.matches || target.closest('[data-composer-card]') === null) return
+    if (document.querySelector('[role="listbox"][aria-activedescendant]') !== null) return
+    event.stopImmediatePropagation()
+  }
+
   /** A tap on the exposed chat card returns to the chat page (PiUI's
    *  overlay behavior: the exposed chat is not interactive while the
    *  sidebar page is showing). The sidebar's own collapse toggle is
@@ -596,25 +624,6 @@ export class MobileController implements MobileControllerHandle {
     const chatCard = frame.children[1]
     if (chatCard instanceof Element && chatCard.contains(target)) {
       this.returnToChat()
-    }
-  }
-
-  readonly #onStatsTap = (event: MouseEvent): void => {
-    if (!this.#mql?.matches) return
-    const target = event.target
-    if (!(target instanceof Element)) return
-    const dock = target.closest(COMPOSER_DOCK_SELECTOR)
-    if (dock === null) return
-    const anchor = Array.from(dock.children).find((child) => (
-      child instanceof HTMLElement
-      && child.getAttribute('role') !== 'tooltip'
-      && child.scrollWidth > child.clientWidth
-    ))
-    if (!(anchor instanceof HTMLElement) || !anchor.contains(target)) return
-    if (dock.querySelector('[role="tooltip"]') !== null) anchor.blur()
-    else {
-      anchor.tabIndex = -1
-      anchor.focus({ preventScroll: true })
     }
   }
 

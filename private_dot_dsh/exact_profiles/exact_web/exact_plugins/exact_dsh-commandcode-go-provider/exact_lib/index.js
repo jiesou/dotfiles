@@ -11,7 +11,7 @@
  *    Grok 4.5, Muse Spark 1.2 Contributor), re-scanning on an interval. The
  *    Provider API discloses no reasoning metadata, so per-model effort support
  *    is merged from the official `command-code` CLI catalog
- *    (`reference/models.md`, fetched live from jsDelivr).
+ *    (`reference/models.md`, fetched live from the published npm package).
  * 2. Registers one configurable provider route per configured account (the
  *    `accounts` dictionary; a single default account when it is absent) whose
  *    adapter streams over `/alpha/generate`, so the harness model picker,
@@ -23,13 +23,13 @@
  * @module dsh-commandcode-go-provider
  */
 import z from '@deepseek-ai/schemastery';
-import { assertUsableApiKey, errorChain, LlmError, resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm';
+import { assertUsableApiKey, errorChain, LlmError, resolveImageAttachmentAccess, resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm';
 import { credentialRef } from '@deepseek-ai/dsh-credentials';
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment';
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values';
-import { CommandCodeGoAdapter, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS } from './adapter.js';
+import { CommandCodeGoAdapter, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_REQUEST_IMAGE_BYTES, DEFAULT_MAX_TOKENS } from './adapter.js';
 import { fetchCatalog, fetchGoModels } from './models.js';
-export { CommandCodeGoAdapter, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, } from './adapter.js';
+export { CommandCodeGoAdapter, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_REQUEST_IMAGE_BYTES, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS, } from './adapter.js';
 export { fetchCatalog, fetchGoModels, imageCapable, isGoPlan, parseCatalog } from './models.js';
 export { chunkState } from './protocol.js';
 export const name = 'commandcode-go-provider';
@@ -46,16 +46,36 @@ export const AccountProfile = z.object({
     baseURL: z.string(),
     maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
     defaultContextWindow: z.number().step(1).min(1),
+    maxRequestImageBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
     retryPolicy: RetryPolicySchema,
 });
 export const Config = z.object({
-    accounts: z.dict(AccountProfile).default({}),
-    apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
-    baseURL: z.string().default(DEFAULT_BASE_URL),
-    maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_TOKENS),
-    defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
-    retryPolicy: RetryPolicySchema,
+    accounts: z.dict(AccountProfile).default({}).volatile(),
+    apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV).volatile(),
+    baseURL: z.string().default(DEFAULT_BASE_URL).volatile(),
+    maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_TOKENS).volatile(),
+    defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW).volatile(),
+    maxRequestImageBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES).volatile(),
+    retryPolicy: RetryPolicySchema.volatile(),
+    http1: z.boolean().default(false).volatile(),
 });
+/**
+ * The committed configuration as plain mutable values, which is the {@link Config}
+ * shape {@link resolveAccounts} and {@link multiAccount} consume. Unwrapping the
+ * references yields immutable snapshots; cloning is what makes them workable again.
+ */
+function liveConfig(config) {
+    return structuredClone({
+        accounts: config.accounts.get(),
+        apiKeyEnv: config.apiKeyEnv.get(),
+        baseURL: config.baseURL.get(),
+        maxTokens: config.maxTokens.get(),
+        defaultContextWindow: config.defaultContextWindow.get(),
+        maxRequestImageBytes: config.maxRequestImageBytes.get(),
+        retryPolicy: config.retryPolicy.get(),
+        http1: config.http1.get(),
+    });
+}
 /** Whether the config declares named accounts rather than the default single one. */
 function multiAccount(config) {
     return Object.keys(config.accounts ?? {}).length > 0;
@@ -80,8 +100,10 @@ export function resolveAccounts(config, scanned) {
             baseURL: profile?.baseURL ?? config.baseURL ?? DEFAULT_BASE_URL,
             maxTokens: profile?.maxTokens ?? config.maxTokens ?? DEFAULT_MAX_TOKENS,
             defaultContextWindow: profile?.defaultContextWindow ?? config.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
+            maxRequestImageBytes: profile?.maxRequestImageBytes ?? config.maxRequestImageBytes ?? DEFAULT_MAX_REQUEST_IMAGE_BYTES,
             models: scanned,
             retryPolicy: resolveRetryPolicy(profile?.retryPolicy ?? config.retryPolicy, 'commandcode-go-provider: retryPolicy'),
+            http1: config.http1 ?? false,
         }]));
 }
 export function apply(ctx, config) {
@@ -89,15 +111,24 @@ export function apply(ctx, config) {
     // scan cannot be clobbered by a settings snapshot; every account reads the
     // merged view through this thunk.
     let scanned = [];
-    let current = () => config;
-    let cache;
+    // The Loader owns this namespace, so the configuration form is addressed by
+    // the profile entry id that mounted this plugin.
+    const settingsNs = ctx.fiber.entry?.options.id ?? DEFAULT_SETTINGS_NS;
+    let lastRaw;
+    let lastScanned;
+    let memoized;
     const accounts = () => {
-        const raw = current();
-        if (cache !== undefined && cache.raw === raw && cache.scanned === scanned) {
-            return cache.accounts;
+        const raw = liveConfig(config);
+        // The resolved snapshot must stay identical across operations that observe
+        // no change, so it is memoized on the committed configuration plus the scan.
+        if (memoized !== undefined && lastScanned === scanned && lastRaw !== undefined
+            && deepEqualJson(raw, lastRaw)) {
+            return memoized;
         }
         const next = resolveAccounts(raw, scanned);
-        cache = { raw, scanned, accounts: next };
+        lastRaw = raw;
+        lastScanned = scanned;
+        memoized = next;
         return next;
     };
     const resolveApiKey = async (provider) => {
@@ -141,6 +172,9 @@ export function apply(ctx, config) {
                 return undefined;
             }
         },
+        // Bridges the stored image object into the current tool execution world, so
+        // an offloaded occurrence still names a path the model can read.
+        resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(attachments, hostPath => ctx.get('fs')?.processPathFromHostPath(hostPath), ref),
     });
     /**
      * Directory entries: one configurable provider per account. Sorted by
@@ -149,14 +183,17 @@ export function apply(ctx, config) {
      * shape it has always had); declared accounts address their own
      * `accounts.<key>` scope, like the official pi-ai adapter.
      */
-    const directoryEntries = () => [...accounts().entries()]
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([provider, account]) => ({
-        provider,
-        displayName: account.displayName,
-        settingsNs: DEFAULT_SETTINGS_NS,
-        settingsPath: multiAccount(current()) ? ['accounts', provider] : [],
-    }));
+    const directoryEntries = () => {
+        const declared = multiAccount(liveConfig(config));
+        return [...accounts().entries()]
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([provider, account]) => ({
+            provider,
+            displayName: account.displayName,
+            settingsNs,
+            settingsPath: declared ? ['accounts', provider] : [],
+        }));
+    };
     /**
      * Registration facts: a change here must re-register the adapter routes.
      * Sorted like the directory entries for the same reason.
@@ -191,26 +228,21 @@ export function apply(ctx, config) {
     };
     ensureDirectory();
     ensureRegistrationFacts();
-    ctx.inject(['settings'], (settingsCtx) => {
-        settingsCtx.settings.installSection(ctx, DEFAULT_SETTINGS_NS, Config, config, {
-            setSource: (source) => {
-                current = source;
-            },
-            onChange: () => {
-                try {
-                    ensureRegistrationFacts();
-                }
-                catch (error) {
-                    ctx.logger.error('[commandcode-go-provider] keeping the previously registered routes after a refused update: %s', errorChain(error));
-                }
-                try {
-                    ensureDirectory();
-                }
-                catch (error) {
-                    ctx.logger.error('[commandcode-go-provider] keeping the previous configurable-provider directory after a refused update: %s', errorChain(error));
-                }
-            },
-        });
+    // Every field is volatile, so the Loader commits a settings write into this
+    // fiber and announces it here instead of remounting; re-derive the routes.
+    ctx.on('loader/volatile-update', () => {
+        try {
+            ensureRegistrationFacts();
+        }
+        catch (error) {
+            ctx.logger.error('[commandcode-go-provider] keeping the previously registered routes after a refused update: %s', errorChain(error));
+        }
+        try {
+            ensureDirectory();
+        }
+        catch (error) {
+            ctx.logger.error('[commandcode-go-provider] keeping the previous configurable-provider directory after a refused update: %s', errorChain(error));
+        }
     });
     /** Scan the Go catalog and swap it into the adapter's view. */
     async function sync() {

@@ -1,0 +1,132 @@
+diff --git a/lib/client.js b/lib/client.js
+index a51c477e1dae2246770f07ba24b0502bd7e84553..2610766926ef9320849f9a731446d4a48de09785 100644
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -666,11 +666,9 @@ function collectPortalTargets(nodes) {
+         if (target === null)
+             continue;
+         const row = rows.get(target.rowKey);
+-        const messageRoot = row?.querySelector?.('[data-time-hover-root="true"]');
+-        // Match the actions container by class or last child element
+-        const actions = (typeof messageRoot?.querySelector === 'function'
+-            ? messageRoot.querySelector('[class*="actions"]')
+-            : undefined) ?? messageRoot?.lastElementChild;
++        // DSH 0.1.5 removed the `data-time-hover-root` wrapper; the time/copy
++        // actions row now lives directly inside the user flow item.
++        const actions = row?.querySelector?.('[class*="actions"]') ?? row?.lastElementChild?.lastElementChild;
+         if (!(actions instanceof HTMLElement))
+             continue;
+         targets.push({ container: actions, matched: target.matched });
+@@ -690,9 +688,10 @@ async function openSessionWithDraft(ctx, sessionId, promptText) {
+     let lastError = new Error('新对话还没有准备好');
+     for (let attempt = 0; attempt < 20; attempt += 1) {
+         try {
+-            ctx.sessions.open(sessionId);
+             const scope = ctx.sessions.scope(sessionId);
+             if (scope !== undefined) {
++                ctx.sessions.open(sessionId);
++                await new Promise(resolve => { setTimeout(resolve, 0); });
+                 ctx.conversation.input.for(scope).setDraft(promptText);
+                 return;
+             }
+diff --git a/lib/index.js b/lib/index.js
+index ccf0f0fe2ae1fe8d95fcfbcdfd2bfc1dcfdb717b..bf232fbc72d30177c605e58cfa8c1cfa23cfe024 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -17,7 +17,7 @@ export class ChangeLedgerService {
+         ctx.inject(['agents'], (scope) => { checkpoints.install(scope); });
+         // `apiProxy` is deliberately absent: DSH 0.1.2-alpha carriers (DSH Desktop 2.x)
+         // provide `sessionController` instead, and the route must exist on both.
+-        ctx.inject(['webServer', 'sessions', 'sessionQuery', 'agents'], (scope) => {
++        ctx.inject(['webServer', 'sessions', 'sessionController', 'sessionQuery', 'agents'], (scope) => {
+             installRewindHttp(scope, this.engine, checkpoints);
+             installManageHttp(scope, this.engine);
+         });
+diff --git a/lib/rewind-host.js b/lib/rewind-host.js
+index b04d685bb32cc4911647016cbd3a7f74d0bf4646..f3825376dd03b75e1465ef0d0dbff53cf9141dad 100644
+--- a/lib/rewind-host.js
++++ b/lib/rewind-host.js
+@@ -431,7 +431,9 @@ async function createConversationRestart(ctx, sourceId, checkpoint) {
+         const created = checkpoint.previousTurnEndSeq === undefined
+             ? await controller.create({ cwd: checkpoint.cwd })
+             : await controller.fork({ sessionId: sourceId, atSeq: checkpoint.previousTurnEndSeq });
+-        return { sessionId: requiredText(created.sessionId, 'sessionController sessionId') };
++        const sessionId = requiredText(created.sessionId, 'sessionController sessionId');
++        discardInheritedInbox(ctx, sessionId);
++        return { sessionId };
+     }
+     const apiProxy = ctx.apiProxy;
+     if (apiProxy === undefined) {
+@@ -449,7 +451,29 @@ async function createConversationRestart(ctx, sourceId, checkpoint) {
+     if (!response.result.ok) {
+         throw new ChangeLedgerError('CONVERSATION_REWIND_FAILED', response.result.error.message);
+     }
+-    return { sessionId: requiredText(response.result.value.sessionId, 'fork sessionId') };
++    const sessionId = requiredText(response.result.value.sessionId, 'fork sessionId');
++    discardInheritedInbox(ctx, sessionId);
++    return { sessionId };
++}
++/**
++ * Drop the pending input a fork inherited from the tail it cut away.
++ *
++ * The 0.1.5 fork cut runs from the boundary `turn/end` forward to the next
++ * `turn/start`, so a child seeded that way can end on the `agent/inbox/spliced`
++ * insert that queued the discarded turn's own message. Rebuilt from the seed
++ * alone, that insert reads as input still awaiting its turn: the child then
++ * runs the pre-rewind message ahead of whatever the user sends next, and the
++ * user's own message queues up behind it. A rewind child must start with an
++ * empty inbox — the whole point is that the discarded turn never happened.
++ * @param ctx - host context carrying the agent registry.
++ * @param sessionId - the freshly created child session.
++ */
++function discardInheritedInbox(ctx, sessionId) {
++    const agent = typeof ctx.agents?.get === 'function' ? ctx.agents.get(sessionId) : undefined;
++    const inbox = agent?.inbox;
++    if (inbox !== undefined && typeof inbox.clear === 'function' && inbox.hasPending === true) {
++        inbox.clear();
++    }
+ }
+ function messageTarget(session, messageSeq) {
+     const cwd = session.header.cwd;
+diff --git a/lib/settings.js b/lib/settings.js
+index 52313b9e113666d64a41e89c29f20ac4d17e54c8..09b1a8860a86f138f043c91f4faf63e35387c9e9 100644
+--- a/lib/settings.js
++++ b/lib/settings.js
+@@ -1,8 +1,7 @@
+-import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings';
+ import z from '@deepseek-ai/schemastery';
+ import { resolveConfig } from './engine.js';
+ /** Namespace join key shared by the host section and the browser settings card. */
+-export const TURN_REWIND_SETTINGS_NAMESPACE = settingsNamespace('turn-rewind');
++export const TURN_REWIND_SETTINGS_NAMESPACE = 'turn-rewind';
+ /** Schemastery schema for the `turn-rewind` settings namespace. */
+ export const TurnRewindSettingsSchema = (() => {
+     const defaults = tunableSettings(resolveConfig({}));
+@@ -44,15 +43,17 @@ function tunableSettings(resolved) {
+  */
+ export function installTurnRewindSettings(ctx, config, engine) {
+     let source = () => tunableSettings(resolveConfig(config));
+-    installSettingsSection(ctx, TURN_REWIND_SETTINGS_NAMESPACE, TurnRewindSettingsSchema, source(), {
+-        setSource: (current) => { source = current; },
+-        onChange: () => {
+-            try {
+-                engine.updateConfig({ ...config, ...source() });
+-            }
+-            catch (error) {
+-                ctx.logger.warn(`[turn-rewind] could not apply settings update: ${error instanceof Error ? error.message : String(error)}`);
+-            }
+-        },
++    ctx.inject(['settings'], (sctx) => {
++        sctx.settings.installSection(ctx, TURN_REWIND_SETTINGS_NAMESPACE, TurnRewindSettingsSchema, source(), {
++            setSource: (current) => { source = current; },
++            onChange: () => {
++                try {
++                    engine.updateConfig({ ...config, ...source() });
++                }
++                catch (error) {
++                    ctx.logger.warn(`[turn-rewind] could not apply settings update: ${error instanceof Error ? error.message : String(error)}`);
++                }
++            },
++        });
+     });
+ }

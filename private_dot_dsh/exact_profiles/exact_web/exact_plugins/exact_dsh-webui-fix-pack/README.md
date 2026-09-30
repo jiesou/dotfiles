@@ -88,6 +88,8 @@ https://github.com/user-attachments/assets/f322ad94-5ba2-4cda-a10e-51902a9331db
 
 原来的 webui 在移动端完全无法通过软键盘实现换行，这个扩展让移动端软键盘下 Enter 能够换行
 
+> 上游进展：运行中主按钮的「点击即 queue / steering」已由本体实现——`primaryStops` 只在输入框为空（或 blocked）时才变停止键，有文字时按钮本就是发送键，按 `busyEnter` 偏好 queue 或 steer，图标也随之切成发送箭头。因此本插件原来的 sendify（换图标 + 拦 click 回放一个合成 Enter）已删除，只剩软键盘 Enter 换行这一半。
+
 ### mobile-hide-h-scroll
 
 [plugins/dsh-webui-fix-mobile-hide-h-scroll](plugins/dsh-webui-fix-mobile-hide-h-scroll/)
@@ -98,7 +100,7 @@ https://github.com/user-attachments/assets/f322ad94-5ba2-4cda-a10e-51902a9331db
 
 <img height="600" src="https://github.com/user-attachments/assets/bb0c963b-8cc8-4a9a-baff-db661a8b2e1c" />
 
-> 此功能已提交 PR 给 dsh-mobile 并被合并，由 dsh-mobile 在 2026-08-24 的 commit [`49f904c`](https://github.com/lehhair/dsh-mobile/commit/49f904cacdc2979f9d2b186bde7a00e79b1db8a7) 中实现
+> 此功能已提交 PR 给 dsh-mobile 并被合并，由 dsh-mobile 在 2026-08-24 的 commit [`49f904c`](https://github.com/lehhair/dsh-mobile/commit/49f904cacdc2979f9d2b186bde7a00e79b1db8a7) 中实现。聚合包默认不再包含此插件，旧版本用户可单独安装 `@jiesou/dsh-webui-fix-mobile-hide-h-scroll`。
 
 ### mobile-stats-line
 
@@ -112,7 +114,7 @@ https://github.com/user-attachments/assets/f322ad94-5ba2-4cda-a10e-51902a9331db
 
 <img height="600" src="https://github.com/user-attachments/assets/194204e3-59ca-434f-a558-8044c072ae45" />
 
-> 此功能已由 dsh-mobile 在 2026-09-01 的 commit [`5c6a90e`](https://github.com/lehhair/dsh-mobile/commit/5c6a90e0878fb7bf827269196279d2ea87b40efb)（随 v0.1.4 发布）以另一种方式实现：stats line 被放进一个 `mask-image` 钳制的显示窗口里，左右滑动即可看到完整读数，触摸下不再需要点击弹 tooltip。现在仅适用于尚未包含该实现的旧版本
+> 此功能已由 dsh-mobile 在 2026-09-01 的 commit [`5c6a90e`](https://github.com/lehhair/dsh-mobile/commit/5c6a90e0878fb7bf827269196279d2ea87b40efb)（随 v0.1.4 发布）以另一种方式实现：stats line 被放进一个 `mask-image` 钳制的显示窗口里，左右滑动即可看到完整读数，触摸下不再需要点击弹 tooltip。现在仅适用于尚未包含该实现的旧版本，聚合包默认不再包含此插件，旧版本用户可单独安装 `@jiesou/dsh-webui-fix-mobile-stats-line`
 
 ### session-row-context-menu
 
@@ -154,7 +156,7 @@ https://github.com/user-attachments/assets/9d39a220-7933-4902-8f64-38c9ec7978b4
 
 修复了这个问题
 
-> 此功能已由 DSH 本体的 [`@deepseek-ai/dsh-client-ui-commands`](https://github.com/deepseek-ai/deepseek-harness/commit/a2d0f7f41121ee81911dd1badbf248edd3f2ab70) 在 2026-08-12 的 commit [`a2d0f7f`](https://github.com/deepseek-ai/deepseek-harness/commit/a2d0f7f41121ee81911dd1badbf248edd3f2ab70) 中实现。现在仅适用于尚未包含该实现的旧版本。
+> 此功能已由 DSH 本体的 [`@deepseek-ai/dsh-client-ui-commands`](https://github.com/deepseek-ai/deepseek-harness/commit/a2d0f7f41121ee81911dd1badbf248edd3f2ab70) 在 2026-08-12 的 commit [`a2d0f7f`](https://github.com/deepseek-ai/deepseek-harness/commit/a2d0f7f41121ee81911dd1badbf248edd3f2ab70) 中实现。现在仅适用于尚未包含该实现的旧版本，聚合包默认不再包含此插件，旧版本用户可单独安装 `@jiesou/dsh-webui-fix-composer-focus-restore`。
 
 ### subagent-panel
 
@@ -198,7 +200,7 @@ https://github.com/user-attachments/assets/55f1ab47-6b16-4946-842c-fcd3ff97143f
 
 修复了这个问题
 
-> 此功能已由 DSH 本体在 2026-08-20 的 commit [`e06625d`](https://github.com/deepseek-ai/deepseek-harness/commit/e06625d202ba53836a16865e0f779a44a85ec167) 中实现。现在仅适用于尚未包含该实现的旧版本。
+> 此功能已由 DSH 本体在 2026-08-20 的 commit [`e06625d`](https://github.com/deepseek-ai/deepseek-harness/commit/e06625d202ba53836a16865e0f779a44a85ec167) 中实现。现在仅适用于尚未包含该实现的旧版本，聚合包默认不再包含此插件，旧版本用户可单独安装 `@jiesou/dsh-webui-fix-mobile-keyboard-blur`。
 
 ## 依赖策略
 

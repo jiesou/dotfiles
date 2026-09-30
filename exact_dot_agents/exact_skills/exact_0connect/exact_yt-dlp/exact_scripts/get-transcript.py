@@ -34,6 +34,8 @@ CACHE = Path(tempfile.gettempdir()) / "get-transcript"
 COOKIES = ("--cookies-from-browser", "brave:~/.var/app/com.brave.Browser/config/BraveSoftware/Brave-Browser")
 EJS = ("--remote-components", "ejs:github")
 
+DOWNLOAD_TIMEOUT = float(os.environ.get("GET_TRANSCRIPT_DL_TIMEOUT") or 1800)
+
 X_ASR_FULL_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/x-asr-zipformer-transducer-zh-en-punct-int8")
 TEN_VAD_MODEL = Path("/var/home/chen/.var/app/org.fcitx.Fcitx5/data/vinput/models/sherpa-onnx/ten-vad/ten-vad.onnx")
 
@@ -68,14 +70,20 @@ def _sherpa_cmd(timestamps: bool = False) -> list[str]:
 
 
 def _download_audio(yt: list[str], url: str, tmp: Path) -> Optional[Path]:
-    r = subprocess.run(
-        [*yt, *COOKIES,
-         "--no-progress",
-         "--socket-timeout", "10",
-         "-f", "bestaudio/best",
-         "-o", str(tmp / "audio.%(ext)s"),
-         url],
-        check=False, timeout=120)
+    try:
+        r = subprocess.run(
+            [*yt, *COOKIES,
+             "--no-progress",
+             "--socket-timeout", "10",
+             "-f", "bestaudio/best",
+             "-o", str(tmp / "audio.%(ext)s"),
+             url],
+            check=False, timeout=DOWNLOAD_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        sys.stderr.write(
+            f"audio download timed out after {DOWNLOAD_TIMEOUT:.0f}s; "
+            "set GET_TRANSCRIPT_DL_TIMEOUT to raise it for long videos\n")
+        return None
     if r.returncode != 0:
         sys.stderr.write("audio download failed\n")
         return None
@@ -328,9 +336,13 @@ def _fetch_bili_comments(tmp: Path, vid: str, order: str, out: str) -> bool:
         "    json.dump(out, sys.stdout, ensure_ascii=False)\n"
         "asyncio.run(run())\n"
     )
-    r = subprocess.run(
-        [*_bili_python_cmd(), "-c", code, vid, str(mode)],
-        capture_output=True, text=True, check=False, timeout=120)
+    try:
+        r = subprocess.run(
+            [*_bili_python_cmd(), "-c", code, vid, str(mode)],
+            capture_output=True, text=True, check=False, timeout=120)
+    except subprocess.TimeoutExpired:
+        sys.stderr.write(f"bilibili-api-python {order} comments timed out\n")
+        return False
     if r.returncode != 0 or not r.stdout.strip():
         sys.stderr.write(f"bilibili-api-python {order} comments failed (exit {r.returncode}):\n")
         for ln in (r.stderr or "").splitlines()[-10:]:
@@ -342,16 +354,21 @@ def _fetch_bili_comments(tmp: Path, vid: str, order: str, out: str) -> bool:
 
 
 def _fetch_yt_comments(yt: list[str], url: str, tmp: Path, sort: str, out: str) -> bool:
-    r = subprocess.run(
-        [*yt, *COOKIES, *EJS,
-         "--no-progress", "--skip-download",
-         "--no-write-auto-sub", "--no-write-sub",
-         "--write-comments",
-         "--socket-timeout", "10",
-         "--extractor-args", f"youtube:comment-sort={sort};max_comments=200,20,20",
-         "--print-to-file", "%(comments)j", str(tmp / out),
-         url],
-        capture_output=True, text=True, check=False, timeout=120)
+    try:
+        r = subprocess.run(
+            [*yt, *COOKIES, *EJS,
+             "--no-progress", "--skip-download",
+             "--no-write-auto-sub", "--no-write-sub",
+             "--write-comments",
+             "--socket-timeout", "10",
+             "--extractor-args", f"youtube:comment-sort={sort};max_comments=200,20,20",
+             "--print-to-file", "%(comments)j", str(tmp / out),
+             "-o", str(tmp / "c.%(ext)s"),
+             url],
+            capture_output=True, text=True, check=False, timeout=120)
+    except subprocess.TimeoutExpired:
+        sys.stderr.write(f"yt-dlp {sort} comments timed out\n")
+        return False
     for ln in (r.stderr or "").splitlines():
         if not ln.startswith("[download]"):
             sys.stderr.write(f"{ln}\n")
@@ -364,8 +381,8 @@ def _fetch_yt_comments(yt: list[str], url: str, tmp: Path, sort: str, out: str) 
 def _fetch(yt: list[str], url: str, tmp: Path, keep_ts: bool = False) -> Tuple[Optional[Path], list[str], str, bool, str]:
     plat = _platform(url)
     sub_langs = {
-        "youtube": "en,es,en-US,es-419,zh-Hans,zh,zh-CN,ja",
-        "bilibili": "ai-zh,zh-Hans,zh,zh-CN,en,ja",
+        "youtube": "en,es,en-US,es-419,zh-Hans,zh-Hant,zh,zh-CN,zh-TW,zh-HK,ja",
+        "bilibili": "ai-zh,zh-Hans,zh-Hant,zh,zh-CN,zh-TW,zh-HK,en,ja",
         "x": "en",
     }.get(plat, "en,zh")
 

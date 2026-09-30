@@ -1,0 +1,12 @@
+{
+  "name": "@local/dsh-focus-preset",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Focus agent preset: the standard preset without the web tool and with spawn-only delegation.",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

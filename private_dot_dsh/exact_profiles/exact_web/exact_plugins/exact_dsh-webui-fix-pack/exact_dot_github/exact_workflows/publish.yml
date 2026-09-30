@@ -24,17 +24,28 @@ jobs:
       - name: Typecheck, build and publish
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          failed=()
           for dir in plugins/*/ bundles/*/; do
             [ -f "$dir/package.json" ] || continue
-            (cd "$dir" && npm run typecheck --if-present && npm run build --if-present)
+            echo "=== $dir ==="
+            (cd "$dir" && npm run typecheck --if-present && npm run build --if-present) || { failed+=("$dir(typecheck/build)"); continue; }
             if output="$(cd "$dir" && npm publish --provenance --access public 2>&1)"; then
               echo "published $dir"
-            elif grep -Eq 'EPUBLISHCONFLICT|cannot publish over the previously published versions' <<<"$output"; then
+            elif grep -Eq 'EPUBLISHCONFLICT|previously published versions|previously staged version' <<<"$output"; then
               echo "skip $dir: version already exists"
             else
               echo "publish failed for $dir:"
               echo "$output"
-              exit 1
+              if grep -Eq 'E404|404 Not Found - PUT' <<<"$output"; then
+                echo "hint: '$dir' looks like a first-time publish rejected by npm Trusted Publishing."
+                echo "hint: add a Pending Trusted Publisher for this package on npmjs.com,"
+                echo "      or run 'npm publish' once locally with a classic token, then re-run this workflow."
+              fi
+              failed+=("$dir")
             fi
           done
+          if [ "${#failed[@]}" -ne 0 ]; then
+            echo "FAILED: ${failed[*]}"
+            exit 1
+          fi

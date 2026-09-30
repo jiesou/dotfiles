@@ -97,6 +97,13 @@ Internet
 
 - 此网段网络设施的 IP 基本都通过 R2S 的 DHCP Server 设置了静态
 
+#### IPv6 相关改动（2026-09-17）
+
+由于电信网断了，需要走WY联通的IPv6，进行调整：
+
+- `dhcp.lan.ra_default='1'`：LAN 口 RA 带默认网关标志，电脑才有 v6 默认路由。删掉验证过一次：纯 v6 站全断（`test6.ustc` 报网络不可达），证明必须留。改完只重启 odhcpd，不碰 OpenClash。
+- `openclash.config.china_ip6_route` 1→0：国内 v6 也进代理走联通。
+
 #### 学校,实验室 内的网络设施细节
 
 ##### 网是怎么连的？
@@ -213,7 +220,7 @@ ssh ubuntu@192.168.11.131 'sudo systemctl restart nftables-rdp-forward.service'
 一台 Ubuntu 服务器承载了学校很多数字化服务
 
 | 端口 | 服务名称 | 框架 | 说明 |
-|------|---------|------|---------|------|
+|------|---------|------|---------|
 | 22 | SSH | OpenSSH 8.9p1 | Ubuntu 系统管理 |
 | 51 | 软件下载中心 | gunicorn/Flask | 校内软件分发（钉钉/微信/WPS） |
 | 61 | 通勤管理系统前端 | nginx → Vite SPA | 学生通勤/门禁管理 |
@@ -243,7 +250,13 @@ _以上信息截止 2026.06.06_
 | 设备 | IP | 角色 |
 | ---------- | --------------- | ------------------------------------------------------- |
 | 外部公网拨号路由器 | 192.168.100.1 | ImmortalWrt, PPPoE 出口, DHCP 服务器, OpenClash fake-IP |
-| eduGateway | 192.168.100.100 | ImmortalWrt，外部路由器前的终端节点，EasyTier 10.144.100.100/24 |
+| eduGateway | 192.168.100.100 | ImmortalWrt，外部路由器前的终端节点，EasyTier 10.144.100.100/24；eth1 当前 `2408:8340:2841:d300:2ef0:5dff:fe80:40c5` + `fd71:431d:5f6c::/64` |
+
+#### eduGateway 防非法 RA（2026-09-17）
+
+有坏设备在乱发 IPv6 路由广播（RA），会把 edu 的默认路由带跑偏。做法：eth1 只认 100.1 主路由（MAC `00:e0:4c:16:24:f7`）的 RA，坏 MAC（`d2:11:e5:9e:f2:64`）的包全丢，外加 `network.wan6.accept_ra='2'`（只收本站点 RA）
+
+- 防护脚本 `/etc/firewall.raguard.sh`（firewall include 自动重建，幂等），看计数：`ssh root@192.168.100.100 'nft list chain netdev ra_guard ingress'`
 
 ---
 

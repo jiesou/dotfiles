@@ -11,6 +11,7 @@
           - ~/.dsh
           - ~/.agents
           - /var/home/linuxbrew/.linuxbrew/lib/node_modules/@deepseek-ai
+          - ~/.mcp-auth
           - ~/.cache/opencode
           - ~/.local/share/opencode
           - ~/Downloads

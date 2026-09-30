@@ -5586,24 +5586,30 @@ function normalizeDirs(dirs = []) {
 	}
 	return result;
 }
-const SEAM_RELATIVE = join("node_modules", "@deepseek-ai", "node-addon-landlock-run", "lib", "index.js");
+const SEAM_RELATIVES = [
+	join("node_modules", "@deepseek-ai", "node-addon-landlock-run", "lib", "index.js"),
+	join("node_modules", "@deepseek-ai", "node-addon-system", "lib", "index.js")
+];
 async function importSeam() {
 	const candidates = [];
+	const pushSeams = (dir) => {
+		for (const relative of SEAM_RELATIVES) candidates.push(join(dir, relative));
+	};
 	if (argv[1]) {
-		candidates.push(join(dirname(dirname(argv[1])), SEAM_RELATIVE));
+		pushSeams(dirname(dirname(argv[1])));
 		let dir = dirname(argv[1]);
 		try {
 			dir = dirname(realpathSync(argv[1]));
 		} catch {}
 		while (dir && dir !== dirname(dir)) {
-			candidates.push(join(dir, SEAM_RELATIVE));
+			pushSeams(dir);
 			candidates.push(join(dir, "node_modules", ".pnpm", "node_modules", "@deepseek-ai", "node-addon-landlock-run", "lib", "index.js"));
 			candidates.push(join(dir, "native", "landlock-run", "packages", "entry", "lib", "index.js"));
 			dir = dirname(dir);
 		}
 	}
 	const globalRoot = spawnSync("npm", ["root", "-g"], { encoding: "utf8" }).stdout?.trim();
-	if (globalRoot) candidates.push(join(globalRoot, "@deepseek-ai", "dsh", SEAM_RELATIVE));
+	if (globalRoot) pushSeams(join(globalRoot, "@deepseek-ai", "dsh"));
 	const found = candidates.find((path) => existsSync(path));
 	if (!found) throw new Error("dsh-sandbox-landlock: node-addon-landlock-run seam not found next to the dsh install");
 	return import(found);

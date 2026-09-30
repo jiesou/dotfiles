@@ -30,6 +30,11 @@
 | **listeners** | **无**（wy100/wsc13 有 `ss-in`/`trojan-in` 回家监听）|
 | **sub-rules** | 有 `premium` 子规则 |
 | **特殊 rule** | `IP-CIDR,192.168.100.0/24,WYUnicom`、`SUB-RULE,(RULE-SET,premiumip),premium` |
+| **fake-IP 覆盖规则** | 主 rules 在 `privateip` 前加 `IP-CIDR,198.18.0.0/15,Default` + `IP-CIDR6,fdfe:dcba:9876::/64,Default`；premium 子规则同样两段→`Premium`（2026-09-17 加，备份 `wscmixed.yaml.bak-20260917-fakeoverride`，RUN/API/日志已确认命中）|
+| **Fake-IP 池** | v4 `198.18.0.1/15`；v6 UCI `fakeip_range6='0'`（未启用，RUN 无 `fake-ip-range6`，与 wy100 不一致，待定）|
+| **china_ip6_route** | `0`（关闭，国内 v6 也经联通走；2026-09-17 由 1 改为 0）|
+| **DNS 劫持** | `enable_redirect_dns='1'`（dnsmasq 转发）|
+| **LAN RA** | `dhcp.lan.ra_default='1'`（2026-09-17 加）|
 | **premiumip** | 有内嵌 IP 列表（SRC-IP-CIDR，变动频繁，以实际文件为准）|
 | **DNS** | `61.153.81.74`, `202.96.104.17`, `202.96.104.15`（慈溪电信）+ `221.12.33.227`, `221.12.1.227`（宁波联通）|
 | **Tailscale** | 有规则 |
@@ -47,6 +52,10 @@
 | **sub-rules** | 无 |
 | **premiumip** | 无 |
 | **DNS** | `221.12.33.227`, `221.12.1.227`（仅联通）|
+| **DNS 劫持** | `enable_redirect_dns='2'`（防火墙重定向，白名单模式要求）|
+| **china_ip6_route** | `1`（绕过大陆）|
+| **Fake-IP 池** | v4 `198.18.0.1/15`；v6 UCI `fakeip_range6='fdfe:dcba:9876::1/64'`（RUN 有 `fake-ip-range6`，与 inno11 不一致，待定）|
+| **白名单** | `lan_ac_white_ips`: `192.168.100.100/68/98` + edu eth1 双栈 `fd71…40c5`、`2408:8340:2841:d300…40c5`（2026-09-17 删旧 `2408:8340:2823:14e0…`、加新，UCI+nft 双改）|
 | **Tailscale** | 无规则 |
 
 ### wsc13 (192.168.13.1, config.yaml)

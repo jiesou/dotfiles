@@ -11,7 +11,7 @@
  *    Grok 4.5, Muse Spark 1.2 Contributor), re-scanning on an interval. The
  *    Provider API discloses no reasoning metadata, so per-model effort support
  *    is merged from the official `command-code` CLI catalog
- *    (`reference/models.md`, fetched live from jsDelivr).
+ *    (`reference/models.md`, fetched live from the published npm package).
  * 2. Registers one configurable provider route per configured account (the
  *    `accounts` dictionary; a single default account when it is absent) whose
  *    adapter streams over `/alpha/generate`, so the harness model picker,
@@ -25,19 +25,21 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { assertUsableApiKey, errorChain, LlmError, resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm'
+import { assertUsableApiKey, errorChain, LlmError, resolveImageAttachmentAccess, resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm'
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
-import type {} from '@deepseek-ai/dsh-settings'
-import { CommandCodeGoAdapter, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS } from './adapter.js'
+// Augments Context with `fiber.entry` and the `loader/volatile-update` event.
+import type {} from '@deepseek-ai/cordis-plugin-loader'
+import { CommandCodeGoAdapter, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_REQUEST_IMAGE_BYTES, DEFAULT_MAX_TOKENS, DEFAULT_STREAM_IDLE_TIMEOUT_MS } from './adapter.js'
 import type { CommandCodeGoConnectionOptions, CommandCodeGoModel } from './adapter.js'
 import { fetchCatalog, fetchGoModels } from './models.js'
 
 export {
   CommandCodeGoAdapter,
   DEFAULT_CONTEXT_WINDOW,
+  DEFAULT_MAX_REQUEST_IMAGE_BYTES,
   DEFAULT_MAX_TOKENS,
   DEFAULT_STREAM_IDLE_TIMEOUT_MS,
 } from './adapter.js'
@@ -73,6 +75,8 @@ export interface AccountProfile {
   maxTokens?: number
   /** Positive context capacity used when the selected model has no exact value; defaults to the top-level value. */
   defaultContextWindow?: number
+  /** Inline image budget for one request; defaults to the top-level value. */
+  maxRequestImageBytes?: number
   /** Provider-owned model-request retry policy; defaults to the top-level `retryPolicy`. */
   retryPolicy?: RetryPolicyConfig
 }
@@ -92,8 +96,23 @@ export interface Config {
   maxTokens?: number
   /** Positive context capacity used when the selected model has no exact value (default 1,000,000). Also every account's default. */
   defaultContextWindow?: number
+  /**
+   * Inline base64 image bytes one request accepts before it must be offloaded
+   * (default 4 MiB). Images are re-sent on every turn because the gateway keeps
+   * no server-side copy, so a request above this budget fails with
+   * `IMAGE_OFFLOAD_REQUIRED`; the harness then records the oldest occurrences
+   * as offloaded and retries. Also every account's default.
+   */
+  maxRequestImageBytes?: number
   /** Provider-owned model-request retry policy; omission uses normal defaults. Also every account's default. */
   retryPolicy?: RetryPolicyConfig
+  /**
+   * Send gateway traffic over HTTP/1.1 (default `false`: the runtime's own
+   * protocol choice, HTTP/2 on Node >= 26). The gateway's edge resets HTTP/2
+   * streams with `ENHANCE_YOUR_CALM` under concurrent traffic; HTTP/1.1 turns
+   * the same limit into a readable 429.
+   */
+  http1?: boolean
 }
 
 export const AccountProfile: z<AccountProfile> = z.object({
@@ -102,17 +121,45 @@ export const AccountProfile: z<AccountProfile> = z.object({
   baseURL: z.string(),
   maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
   defaultContextWindow: z.number().step(1).min(1),
+  maxRequestImageBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
   retryPolicy: RetryPolicySchema,
 })
 
-export const Config: z<Config> = z.object({
-  accounts: z.dict(AccountProfile).default({}),
-  apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
-  baseURL: z.string().default(DEFAULT_BASE_URL),
-  maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_TOKENS),
-  defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
-  retryPolicy: RetryPolicySchema,
+export const Config = z.object({
+  accounts: z.dict(AccountProfile).default({}).volatile(),
+  apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV).volatile(),
+  baseURL: z.string().default(DEFAULT_BASE_URL).volatile(),
+  maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_TOKENS).volatile(),
+  defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW).volatile(),
+  maxRequestImageBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES).volatile(),
+  retryPolicy: RetryPolicySchema.volatile(),
+  http1: z.boolean().default(false).volatile(),
 })
+
+/**
+ * {@link Config} as the Loader holds it: every field is volatile, so a settings write
+ * reaches the running plugin as a committed reference instead of remounting it, and
+ * the field is one the settings service shows a form for.
+ */
+type LiveConfig = Schemastery.TypeT<typeof Config>
+
+/**
+ * The committed configuration as plain mutable values, which is the {@link Config}
+ * shape {@link resolveAccounts} and {@link multiAccount} consume. Unwrapping the
+ * references yields immutable snapshots; cloning is what makes them workable again.
+ */
+function liveConfig(config: LiveConfig): Config {
+  return structuredClone({
+    accounts: config.accounts.get(),
+    apiKeyEnv: config.apiKeyEnv.get(),
+    baseURL: config.baseURL.get(),
+    maxTokens: config.maxTokens.get(),
+    defaultContextWindow: config.defaultContextWindow.get(),
+    maxRequestImageBytes: config.maxRequestImageBytes.get(),
+    retryPolicy: config.retryPolicy.get(),
+    http1: config.http1.get(),
+  }) as Config
+}
 
 /** Resolved connection facts per provider route, keyed by route id. */
 export type ResolvedAccounts = Map<string, CommandCodeGoConnectionOptions>
@@ -142,25 +189,36 @@ export function resolveAccounts(config: Config, scanned: readonly CommandCodeGoM
     baseURL: profile?.baseURL ?? config.baseURL ?? DEFAULT_BASE_URL,
     maxTokens: profile?.maxTokens ?? config.maxTokens ?? DEFAULT_MAX_TOKENS,
     defaultContextWindow: profile?.defaultContextWindow ?? config.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
+    maxRequestImageBytes: profile?.maxRequestImageBytes ?? config.maxRequestImageBytes ?? DEFAULT_MAX_REQUEST_IMAGE_BYTES,
     models: scanned,
     retryPolicy: resolveRetryPolicy(profile?.retryPolicy ?? config.retryPolicy, 'commandcode-go-provider: retryPolicy'),
+    http1: config.http1 ?? false,
   }]))
 }
 
-export function apply(ctx: Context, config: Config): void {
+export function apply(ctx: Context, config: LiveConfig): void {
   // The live-scanned catalog lives OUTSIDE the settings-backed config so a
   // scan cannot be clobbered by a settings snapshot; every account reads the
   // merged view through this thunk.
   let scanned: CommandCodeGoModel[] = []
-  let current: () => Config = () => config
-  let cache: { raw: Config; scanned: readonly CommandCodeGoModel[]; accounts: ResolvedAccounts } | undefined
+  // The Loader owns this namespace, so the configuration form is addressed by
+  // the profile entry id that mounted this plugin.
+  const settingsNs = ctx.fiber.entry?.options.id ?? DEFAULT_SETTINGS_NS
+  let lastRaw: Config | undefined
+  let lastScanned: readonly CommandCodeGoModel[] | undefined
+  let memoized: ResolvedAccounts | undefined
   const accounts = (): ResolvedAccounts => {
-    const raw = current()
-    if (cache !== undefined && cache.raw === raw && cache.scanned === scanned) {
-      return cache.accounts
+    const raw = liveConfig(config)
+    // The resolved snapshot must stay identical across operations that observe
+    // no change, so it is memoized on the committed configuration plus the scan.
+    if (memoized !== undefined && lastScanned === scanned && lastRaw !== undefined
+      && deepEqualJson(raw, lastRaw)) {
+      return memoized
     }
     const next = resolveAccounts(raw, scanned)
-    cache = { raw, scanned, accounts: next }
+    lastRaw = raw
+    lastScanned = scanned
+    memoized = next
     return next
   }
 
@@ -206,6 +264,13 @@ export function apply(ctx: Context, config: Config): void {
         return undefined
       }
     },
+    // Bridges the stored image object into the current tool execution world, so
+    // an offloaded occurrence still names a path the model can read.
+    resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
+      attachments,
+      hostPath => ctx.get('fs')?.processPathFromHostPath(hostPath),
+      ref,
+    ),
   })
 
   /**
@@ -215,14 +280,17 @@ export function apply(ctx: Context, config: Config): void {
    * shape it has always had); declared accounts address their own
    * `accounts.<key>` scope, like the official pi-ai adapter.
    */
-  const directoryEntries = () => [...accounts().entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([provider, account]) => ({
-      provider,
-      displayName: account.displayName,
-      settingsNs: DEFAULT_SETTINGS_NS,
-      settingsPath: multiAccount(current()) ? ['accounts', provider] : [],
-    }))
+  const directoryEntries = () => {
+    const declared = multiAccount(liveConfig(config))
+    return [...accounts().entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([provider, account]) => ({
+        provider,
+        displayName: account.displayName,
+        settingsNs,
+        settingsPath: declared ? ['accounts', provider] : [],
+      }))
+  }
 
   /**
    * Registration facts: a change here must re-register the adapter routes.
@@ -256,24 +324,19 @@ export function apply(ctx: Context, config: Config): void {
   ensureDirectory()
   ensureRegistrationFacts()
 
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, DEFAULT_SETTINGS_NS, Config, config, {
-      setSource: (source) => {
-        current = source
-      },
-      onChange: () => {
-        try {
-          ensureRegistrationFacts()
-        } catch (error: unknown) {
-          ctx.logger.error('[commandcode-go-provider] keeping the previously registered routes after a refused update: %s', errorChain(error))
-        }
-        try {
-          ensureDirectory()
-        } catch (error: unknown) {
-          ctx.logger.error('[commandcode-go-provider] keeping the previous configurable-provider directory after a refused update: %s', errorChain(error))
-        }
-      },
-    })
+  // Every field is volatile, so the Loader commits a settings write into this
+  // fiber and announces it here instead of remounting; re-derive the routes.
+  ctx.on('loader/volatile-update', () => {
+    try {
+      ensureRegistrationFacts()
+    } catch (error: unknown) {
+      ctx.logger.error('[commandcode-go-provider] keeping the previously registered routes after a refused update: %s', errorChain(error))
+    }
+    try {
+      ensureDirectory()
+    } catch (error: unknown) {
+      ctx.logger.error('[commandcode-go-provider] keeping the previous configurable-provider directory after a refused update: %s', errorChain(error))
+    }
   })
 
   /** Scan the Go catalog and swap it into the adapter's view. */

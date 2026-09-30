@@ -3,7 +3,9 @@
    leaves the stock GUI byte-identical.
 
    Selectors key off stable, version-independent hooks only: the AppFrame's
-   data-* attributes (data-sidebar-collapsed / data-details-collapsed, which
+   data-* attributes (data-sidebar-collapsed, plus the right column's
+   data-details-collapsed through dsh 0.1.3 / data-rightbar-collapsed from
+   0.1.5 — both spellings are matched — which
    the frame div itself carries in every snapshot and official bundle,
    wherever it sits in the shell tree — rc.5 wraps the frame in an extra
    shell div, so no `#root >` child prefix is assumed), the conversation
@@ -105,7 +107,7 @@
      the chat page full-width (so the chat stays visible beside the
      sidebar), the details track dropped (no phone use). */
   [data-dsh-mobile] div[data-sidebar-collapsed],
-  [data-dsh-mobile] div[data-details-collapsed] {
+  [data-dsh-mobile] div:is([data-details-collapsed], [data-rightbar-collapsed]) {
     grid-template-columns: var(--dshm-sidebar-width) 100% 0 !important;
     overflow-x: auto;
     overflow-y: hidden;
@@ -116,7 +118,7 @@
 
   /* Hide the pager's own horizontal scrollbar on every engine. */
   [data-dsh-mobile] div[data-sidebar-collapsed]::-webkit-scrollbar,
-  [data-dsh-mobile] div[data-details-collapsed]::-webkit-scrollbar {
+  [data-dsh-mobile] div:is([data-details-collapsed], [data-rightbar-collapsed])::-webkit-scrollbar {
     width: 0;
     height: 0;
     display: none;
@@ -125,7 +127,7 @@
   /* The two live pages snap to the scrollport start (scroll-snap-stop keeps
      a fast swipe from skipping a page). */
   [data-dsh-mobile] div[data-sidebar-collapsed] > :nth-child(-n+2),
-  [data-dsh-mobile] div[data-details-collapsed] > :nth-child(-n+2) {
+  [data-dsh-mobile] div:is([data-details-collapsed], [data-rightbar-collapsed]) > :nth-child(-n+2) {
     scroll-snap-align: start;
     scroll-snap-stop: always;
   }
@@ -137,7 +139,7 @@
      bg-base; the sidebar shell's own fill is reset to transparent so every
      layer of the sidebar matches the chat. */
   [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child,
-  [data-dsh-mobile] div[data-details-collapsed] > :first-child {
+  [data-dsh-mobile] div:is([data-details-collapsed], [data-rightbar-collapsed]) > :first-child {
     background: var(--dsw-alias-bg-base);
     border-right: none;
     padding-top: var(--dshm-safe-top);
@@ -150,9 +152,9 @@
      the chat background. Deeper elements keep their own states (hover,
      active) untouched. */
   [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child > :first-child,
-  [data-dsh-mobile] div[data-details-collapsed] > :first-child > :first-child,
+  [data-dsh-mobile] div:is([data-details-collapsed], [data-rightbar-collapsed]) > :first-child > :first-child,
   [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child > :first-child > :first-child,
-  [data-dsh-mobile] div[data-details-collapsed] > :first-child > :first-child > :first-child {
+  [data-dsh-mobile] div:is([data-details-collapsed], [data-rightbar-collapsed]) > :first-child > :first-child > :first-child {
     background: transparent;
   }
 
@@ -169,7 +171,7 @@
      scoping under the frame's first child keeps the frame's own inline
      grid-template-columns out of reach. */
   [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child div[style*='width'],
-  [data-dsh-mobile] div[data-details-collapsed] > :first-child div[style*='width'] {
+  [data-dsh-mobile] div:is([data-details-collapsed], [data-rightbar-collapsed]) > :first-child div[style*='width'] {
     min-width: 100%;
   }
 
@@ -184,7 +186,7 @@
      shadow inside the screen, exactly like OpenCodeUI's full-width mobile
      chat. The inner layout is untouched; only the card chrome changes. */
   [data-dsh-mobile] div[data-sidebar-collapsed] > :nth-child(2),
-  [data-dsh-mobile] div[data-details-collapsed] > :nth-child(2) {
+  [data-dsh-mobile] div:is([data-details-collapsed], [data-rightbar-collapsed]) > :nth-child(2) {
     border: none;
     border-radius: 16px;
     overflow: hidden;
@@ -203,7 +205,7 @@
      square corners and no shadow so nothing inside the screen suggests a
      card. Only the exposed sliver state (sidebar page) keeps the radius. */
   [data-dsh-mobile][data-dshm-page='chat'] div[data-sidebar-collapsed] > :nth-child(2),
-  [data-dsh-mobile][data-dshm-page='chat'] div[data-details-collapsed] > :nth-child(2) {
+  [data-dsh-mobile][data-dshm-page='chat'] div:is([data-details-collapsed], [data-rightbar-collapsed]) > :nth-child(2) {
     border-radius: 0;
     box-shadow: none;
   }
@@ -214,7 +216,7 @@
      the list. Selected structurally (the tree body's span child, next to
      the role=tree list), never by hashed class name. */
   [data-dsh-mobile] div[data-sidebar-collapsed] > :first-child div:has(> [role='tree']) > span,
-  [data-dsh-mobile] div[data-details-collapsed] > :first-child div:has(> [role='tree']) > span {
+  [data-dsh-mobile] div:is([data-details-collapsed], [data-rightbar-collapsed]) > :first-child div:has(> [role='tree']) > span {
     display: none;
   }
 
@@ -616,6 +618,20 @@
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+    -webkit-mask-image: linear-gradient(to right,
+      transparent 0,
+      transparent calc(var(--dsh-composer-side-clearance, 0px) + 16px),
+      #000 calc(var(--dsh-composer-side-clearance, 0px) + 16px),
+      #000 calc(100% - var(--dsh-composer-side-clearance, 0px) - 16px),
+      transparent calc(100% - var(--dsh-composer-side-clearance, 0px) - 16px),
+      transparent 100%);
+    mask-image: linear-gradient(to right,
+      transparent 0,
+      transparent calc(var(--dsh-composer-side-clearance, 0px) + 16px),
+      #000 calc(var(--dsh-composer-side-clearance, 0px) + 16px),
+      #000 calc(100% - var(--dsh-composer-side-clearance, 0px) - 16px),
+      transparent calc(100% - var(--dsh-composer-side-clearance, 0px) - 16px),
+      transparent 100%);
   }
 
   [data-dsh-mobile] [data-slot='conversation.composer.dock'] > div:first-child::-webkit-scrollbar {

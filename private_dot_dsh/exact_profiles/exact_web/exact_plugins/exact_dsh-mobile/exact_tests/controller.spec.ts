@@ -172,6 +172,29 @@ describe('MobileController always-open sidebar + pager', () => {
     expect(frameEl.scrollLeft).toBe(300) // starts on the chat page
   })
 
+  it('finds the AppFrame by the renamed dsh 0.1.5 right-column attribute', () => {
+    stubMatchMedia(true)
+    const root = document.createElement('div')
+    root.id = 'root'
+    const frame = document.createElement('div')
+    // The dsh 0.1.5 AppFrame: the right column is collapsed via
+    // data-rightbar-collapsed (renamed from data-details-collapsed), and the
+    // sidebar attribute is absent whenever the sidebar is expanded — so the
+    // new spelling is the only hook identifying the frame here.
+    frame.setAttribute('data-rightbar-collapsed', '')
+    const sidebar = document.createElement('div')
+    Object.defineProperty(sidebar, 'offsetWidth', { configurable: true, value: 300 })
+    frame.append(sidebar)
+    frame.append(document.createElement('div'))
+    frame.scrollTo = ((opts: ScrollToOptions): void => { frame.scrollLeft = opts.left ?? 0 }) as never
+    root.append(frame)
+    document.body.append(root)
+    const controller = makeController({ toggleSidebar: toggleSidebarSpy() })
+    controller.mount()
+    expect(frame.scrollLeft).toBe(300) // the pager mounted and starts on the chat page
+    expect(document.documentElement.getAttribute(PAGE_ATTR)).toBe('chat')
+  })
+
   it('clicking the exposed chat card returns to the chat page', () => {
     stubMatchMedia(true)
     const frame = makeFrame()
@@ -577,5 +600,110 @@ describe('MobileController model-name marquee', () => {
     expect(label.style.getPropertyValue('--dshm-marquee-duration')).toBe('')
     expect((label.firstElementChild?.hasAttribute('data-dshm-marquee-runner') ?? false)).toBe(false)
     expect(label.textContent).toBe('DeepSeek-V4-Flash')
+  })
+})
+
+describe('MobileController touch-Enter newline', () => {
+  /** Mount a composer card holding the given editor surface. */
+  function makeComposer(surface: HTMLElement): void {
+    makeFrame()
+    const card = document.createElement('div')
+    card.setAttribute('data-composer-card', '')
+    card.append(surface)
+    document.getElementById('root')!.firstElementChild!.children[1]!.append(card)
+  }
+
+  /** Dispatch a keydown on the surface and report whether it survived to a
+   *  stock-world listener (submit). jsdom events are never trusted, so a real
+   *  dispatch is exactly what a plugin driving the composer produces. */
+  function fireEnter(surface: HTMLElement, init: Partial<KeyboardEventInit> = {}): boolean {
+    let reachedStock = false
+    surface.addEventListener('keydown', () => { reachedStock = true })
+    surface.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter', bubbles: true, cancelable: true,
+      ...init,
+    }))
+    return reachedStock
+  }
+
+  /** Mount, capturing the controller's own capture-phase keydown listener.
+   *  The remap is keyed on isTrusted, which jsdom cannot forge, so an OS
+   *  keyboard press is replayed by calling that listener directly. */
+  function captureKeydownListener(): (event: KeyboardEvent) => void {
+    let captured: ((event: KeyboardEvent) => void) | null = null
+    const add = document.addEventListener.bind(document)
+    const spy = vi.spyOn(document, 'addEventListener').mockImplementation(((
+      type: string, listener: never, options: never,
+    ) => {
+      if (type === 'keydown' && options === true && captured === null) {
+        captured = listener as unknown as (event: KeyboardEvent) => void
+      }
+      add(type, listener, options)
+    }) as never)
+    const controller = makeController({ toggleSidebar: toggleSidebarSpy() })
+    controller.mount()
+    spy.mockRestore()
+    if (captured === null) throw new Error('the controller registered no capture-phase keydown listener')
+    return captured
+  }
+
+  /** Report whether the controller swallowed an OS keyboard (trusted) Enter. */
+  function swallowed(
+    keydown: (event: KeyboardEvent) => void,
+    target: EventTarget,
+    init: Partial<KeyboardEventInit> = {},
+  ): boolean {
+    const stopImmediatePropagation = vi.fn()
+    keydown({
+      key: 'Enter', code: 'Enter', keyCode: 13, isComposing: false,
+      ctrlKey: false, metaKey: false, shiftKey: false, isTrusted: true,
+      target, stopImmediatePropagation,
+      ...init,
+    } as unknown as KeyboardEvent)
+    return stopImmediatePropagation.mock.calls.length > 0
+  }
+
+  it('stops bare Enter on the dsh <=0.1.1 textarea composer', () => {
+    stubMatchMedia(true)
+    const textarea = document.createElement('textarea')
+    makeComposer(textarea)
+    const keydown = captureKeydownListener()
+    expect(swallowed(keydown, textarea)).toBe(true)
+    // Modifier/IME paths stay with the stock world (submit / menu pick).
+    expect(swallowed(keydown, textarea, { shiftKey: true })).toBe(false)
+    expect(swallowed(keydown, textarea, { ctrlKey: true })).toBe(false)
+  })
+
+  it('stops bare Enter on the dsh >=0.1.2 Lexical contenteditable composer', () => {
+    stubMatchMedia(true)
+    const editable = document.createElement('div')
+    editable.setAttribute('data-composer-input', '')
+    editable.setAttribute('contenteditable', 'true')
+    makeComposer(editable)
+    const keydown = captureKeydownListener()
+    expect(swallowed(keydown, editable)).toBe(true)
+    // Modifier/IME paths stay with the stock world.
+    expect(swallowed(keydown, editable, { shiftKey: true })).toBe(false)
+  })
+
+  it('leaves a composed (untrusted) Enter to the stock world', () => {
+    stubMatchMedia(true)
+    const editable = document.createElement('div')
+    editable.setAttribute('data-composer-input', '')
+    editable.setAttribute('contenteditable', 'true')
+    makeComposer(editable)
+    captureKeydownListener() // the remap is armed and would match this target
+    // The touch "sendified" primary button submits by replaying an Enter on
+    // the editor; swallowing it in capture phase would leave the tap dead.
+    expect(fireEnter(editable)).toBe(true)
+  })
+
+  it('ignores Enter outside the mobile breakpoint and outside the composer', () => {
+    stubMatchMedia(false) // desktop
+    const textarea = document.createElement('textarea')
+    makeComposer(textarea)
+    const keydown = captureKeydownListener()
+    // Desktop keeps the stock submit.
+    expect(swallowed(keydown, textarea)).toBe(false)
   })
 })

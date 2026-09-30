@@ -1,0 +1,10 @@
+? Verifying lockfile against supply-chain policies (27 entries)...
+✓ Lockfile passes supply-chain policies (27 entries in 1.4s)
+Lockfile is up to date, resolution step is skipped
+Packages: -3
+---
+
+dependencies:
+- @linxin666/dsh-chat-recovery 0.3.5
+
+Done in 1.5s using pnpm v12.4.1

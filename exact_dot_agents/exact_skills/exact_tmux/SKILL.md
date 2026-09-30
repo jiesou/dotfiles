@@ -67,8 +67,9 @@ tmux capture-pane -p -t "$TARGET" | grep . | tail -4  # strip blank lines
 
 ### Send command (Long-running)
 
-For any operation that require waiting longer than 5 seconds, don't use `sleep [large number]`; instead, use wait-for-text.sh and follow these guidelines:
-- Invoking two commands in one toolcall (avoid waiting timing issues)
+For any operation that require waiting longer than 5 seconds, don't use `sleep [large number]`; instead, use wait-for-text.sh and MUST follow these guidelines to avoid waiting timing issues:
+- Invoking two commands (`send-keys` + `wait-for-text`) in **ONLY ONE** bash toolcall by using a line break. Don't use two Bash tool calls to execute two commands.
+- Don't call `wait-for-text` *after* running `send-keys`. If `send-keys` has already been executed on its own, do not attempt to add `wait-for-text` retroactively (it is already too late); instead, call `capture-pane` first.
 - Set caller timeout to 15s (not default long timeout)
 
 Always set your shell tool caller's timeout to a reasonable upper bound (e.g. timeout=15000ms).

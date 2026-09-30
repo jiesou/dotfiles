@@ -1,0 +1,34 @@
+{
+  "name": "dsh-subagent-background-only",
+  "version": "0.1.0",
+  "description": "DSH plugin: only expose background subagents. The subagent/subagent_fork definition each agent resolves is patched in place — the model-visible schema loses the run_in_background parameter and execute forces background; one-shot delegation tools are denied. 纯 Cordis 插件，insert 行实时挂载。",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "tests",
+    "README.md"
+  ],
+  "license": "MIT",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "pnpm run typecheck && pnpm run build && pnpm run test"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

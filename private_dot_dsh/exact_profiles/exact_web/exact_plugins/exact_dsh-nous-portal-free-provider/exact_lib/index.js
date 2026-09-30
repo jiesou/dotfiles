@@ -40,11 +40,18 @@ const DISPLAY_NAME = 'Nous Portal Free';
 /** The one credential record this plugin owns: `<scope>/portal`. */
 const RECORD_KEY = credentialKey(name, 'portal');
 const DEFAULT_API_KEY_ENV = 'NOUS_PORTAL_API_KEY';
-/** Settings section this plugin owns; its only key is the retry policy. */
-const NS = 'nous-portal-free-provider';
 export const Config = z.object({
-    retryPolicy: RetryPolicySchema.default({ mode: 'always' }),
+    retryPolicy: RetryPolicySchema.default({ mode: 'always' }).volatile(),
 });
+/**
+ * The committed configuration as plain mutable values. Unwrapping the references
+ * yields immutable snapshots; cloning is what makes them workable again.
+ */
+function liveConfig(config) {
+    return structuredClone({
+        retryPolicy: config.retryPolicy.get(),
+    });
+}
 /** pi-ai's standard ladder keys (off = explicit close; the rest are depths). */
 const PI_LEVEL_KEYS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 const isRecord = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -179,6 +186,9 @@ function grantOf(record) {
 }
 export async function apply(ctx, config) {
     const apiKeyRefName = DEFAULT_API_KEY_ENV;
+    // The Loader owns the settings namespace, so the configuration form is
+    // addressed by the profile entry id that mounted this plugin.
+    const settingsNs = ctx.fiber.entry?.options.id ?? name;
     /** Resolve one named secret through the credentials service, then ambient env. */
     const resolveSecretValue = async (envName) => {
         const credentials = ctx.get('credentials');
@@ -263,13 +273,8 @@ export async function apply(ctx, config) {
     // an empty catalog and the first refresh fills it, so an unreachable upstream
     // never throws and kills the plugin.
     let scanned = [];
-    let current = () => config;
-    // PiAiAdapter.current() memoizes its snapshot by the identity of the Map this
-    // returns, rebuilding the whole pi-ai collection on every change — so hand
-    // back the same instance until the config or the scanned catalog actually
-    // changes .
     const buildProfiles = () => {
-        const opts = current();
+        const opts = liveConfig(config);
         const piProvider = createProvider({
             id: PROVIDER,
             name: DISPLAY_NAME,
@@ -313,6 +318,7 @@ export async function apply(ctx, config) {
                     requestImageMaxBytes: 1_048_576,
                     retryPolicy: resolveRetryPolicy(opts.retryPolicy, `${name}: retryPolicy`),
                     piProvider,
+                    modelErrors: new Map(),
                     configuredMaxTokens: new Map(),
                 }]]);
         return profiles;
@@ -341,17 +347,12 @@ export async function apply(ctx, config) {
             return apiKey;
         },
     });
-    ctx.llm.registerConfigurableProviders([{ provider: PROVIDER, displayName: DISPLAY_NAME, settingsNs: NS, settingsPath: [] }]);
+    ctx.llm.registerConfigurableProviders([{ provider: PROVIDER, displayName: DISPLAY_NAME, settingsNs, settingsPath: [] }]);
     ctx.llm.registerAdapter([PROVIDER], adapter);
-    ctx.inject(['settings'], (settingsCtx) => {
-        settingsCtx.settings.installSection(ctx, NS, Config, config, {
-            setSource: (source) => {
-                current = source;
-            },
-            onChange: () => {
-                profiles = buildProfiles();
-            },
-        });
+    // Every field is volatile, so the Loader commits a settings write into this
+    // fiber and announces it here instead of remounting; re-derive the profiles.
+    ctx.on('loader/volatile-update', () => {
+        profiles = buildProfiles();
     });
     async function sync() {
         const entries = await fetchFreeModels(DEFAULT_MODELS_URL);

@@ -60,7 +60,7 @@ export function apply(ctx) {
                 try {
                     request.agent?.steer?.(createUserMessage({
                         content: [{ type: 'text', text: TIMEOUT_MESSAGE }],
-                        source: { kind: 'plugin', plugin: name },
+                        source: { kind: 'timeout-auto-reject' },
                     }));
                 }
                 catch { }

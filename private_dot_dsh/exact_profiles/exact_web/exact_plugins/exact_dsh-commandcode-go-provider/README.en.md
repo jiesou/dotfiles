@@ -52,6 +52,7 @@ All fields optional, defaults work out of the box:
     baseURL: https://api.commandcode.ai
     maxTokens: 64000
     defaultContextWindow: 1000000
+    maxRequestImageBytes: 4194304
 ```
 
 | Field | Type | Default | Description |
@@ -60,7 +61,9 @@ All fields optional, defaults work out of the box:
 | `baseURL` | `string` | `"https://api.commandcode.ai"` | Command Code gateway base URL; `/alpha/generate` is appended |
 | `maxTokens` | `number` | `64000` | Per-request output token cap |
 | `defaultContextWindow` | `number` | `1000000` | Fallback context capacity when a model has no exact value |
+| `maxRequestImageBytes` | `number` | `4194304` (4 MiB) | Inline base64 image budget for one request |
 | `accounts` | `object` | `{}` | Multi-account dictionary: each key is an independent provider route. Absent or empty = single-account mode driven by the top-level fields |
+| `http1` | `boolean` | `false` | Send gateway requests over HTTP/1.1. Node ≥ 26 negotiates HTTP/2 for `fetch` and multiplexes everything onto one connection; the gateway's edge (Cloudflare) resets streams with `ENHANCE_YOUR_CALM` under that concurrency. HTTP/1.1 turns the same limit into a readable 429 |
 
 ### Multiple accounts
 
@@ -89,17 +92,44 @@ The `accounts` dictionary exposes several accounts of the same Go plan as severa
 | `baseURL` | `string` | top-level `baseURL` | Per-account gateway override |
 | `maxTokens` | `number` | top-level `maxTokens` | Per-account output cap override |
 | `defaultContextWindow` | `number` | top-level `defaultContextWindow` | Per-account fallback capacity override |
+| `maxRequestImageBytes` | `number` | top-level `maxRequestImageBytes` | Per-account image budget override |
 | `retryPolicy` | `object` | top-level `retryPolicy` | Per-account retry policy override |
 
 The model catalog is scanned once and shared by every account; settings changes apply to the next request without a restart. Empty or remove `accounts` to go back to the single-account shape.
 
 Reasoning effort needs no configuration: levels come from the official CLI catalog, and a model exposes exactly the levels it accepts (`low`/`medium`/`high`/`xhigh`/`max`), plus an explicit `Off` entry. **Default** means "do not send `reasoning_effort`" — the gateway decides the depth. **Off** is the same wire shape as Default but pins the intent explicitly. A model the catalog leaves blank shows no level selector at all.
 
+## Images
+
+`/alpha/generate` is stateless: the gateway stores no image and exposes no upload endpoint (the official CLI also re-sends every historical image inline on every turn). So this plugin follows the DSH route standard:
+
+- Each image is re-encoded to fit 512 KiB (under a 2048×2048 pixel budget).
+- When the inline base64 images of one request exceed `maxRequestImageBytes` (default 4 MiB), no request is sent; the adapter throws `IMAGE_OFFLOAD_REQUIRED` naming how many occurrences must be offloaded. DSH records the **oldest** ones in an `image/offload` event and retries; from then on their bytes are replaced by placeholder text that still names the image identity and a readable path.
+- An offloaded image is never read, encoded, or uploaded again.
+
+Lower `maxRequestImageBytes` to save more bandwidth; raise it to keep more images visible to the model. It must stay above the 512 KiB per-image cap, or not even one image fits.
+
+## Compatibility
+
+Declared in `package.json` under `dsh.compatibility`: DSH `>=0.1.7-alpha.1 <0.2.0`, Node.js `^22.19.0 || >=24.0.0`, profiles `web` / `headless`.
+
+`>=0.1.7-alpha.1` is a hard floor, not a preference: that release made dsh-llm carry tool results as first-class `role: 'tool'` messages (`toolCallId` moved to the message) and rewrote the dsh-settings form model (`installSection` replaced by `SettingsForms`, and a config field only appears on the settings page once it is marked `volatile()`). This plugin implements the new model; the pre-0.1.7 `role: 'user'` + `tool-result` block shape is no longer supported.
+
+Per-release evidence (each release installed into a disposable profile with `dsh plugin add <tarball>`, cold-started until it issued a real request, then uninstalled):
+
+| DSH version | install | start | uninstall |
+| --- | --- | --- | --- |
+| 0.1.7-rc.2 | passed | passed | passed |
+
+0.1.7-alpha.1 / alpha.2 / rc.1 meet the declared floor but were not each verified end to end.
+
+Reproduce with `DSH_HOME=<empty dir> dsh --profile compat --from-default-profile headless`, add that release's `@deepseek-ai/dsh-base` and the plugin tarball, check the plugin row in `dsh --profile compat --dump-config`, cold-start a real gateway request to exercise the provider and its model catalog, then `dsh plugin --profile compat remove` and confirm the profile still boots.
+
 ## Credit
 
 Port of [brent-weatherall/opencode-commandcode-provider](https://github.com/brent-weatherall/opencode-commandcode-provider) to DSH.
 
-This plugin adds dynamic reasoning effort extraction, parsed from <https://cdn.jsdelivr.net/npm/command-code@latest/dist/bundled/command-code-knowledge/reference/models.md>.
+This plugin adds dynamic reasoning effort extraction, parsed from <https://unpkg.com/command-code@latest/dist/bundled/command-code-knowledge/reference/models.md>.
 
 ## License
 

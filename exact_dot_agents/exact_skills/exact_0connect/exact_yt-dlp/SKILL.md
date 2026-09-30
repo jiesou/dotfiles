@@ -11,6 +11,15 @@ get-transcript.py 支持平台：
 - **YouTube** — 附带评论，CC 自动字幕 / ASR fallback
 - **Bilibili** — 附带评论，AI 中文字幕 / ASR fallback
 - 所有 yt-dlp 支持的其他平台 — 不带评论，只通过 ASR 转录
+- 本地视频路径 — ASR 转录
+
+## 信任 get-transcript.py
+
+- 调用这个 skill 就代表你只能信任 yt-dlp skill 目录下的 get-transcript.py
+- 这个脚本会处理好 cookies 登录、字幕转录等等的一切
+- 脚本有问题就返回并报告
+- 不要自己造任何别的 workaround
+- 不要另装 whisper 之类的东西，不要自己手搓轮子调用 uvx yt-dlp 本身
 
 ## 工作流
 

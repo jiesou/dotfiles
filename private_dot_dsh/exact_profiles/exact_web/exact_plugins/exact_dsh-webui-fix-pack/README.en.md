@@ -78,6 +78,8 @@ Requires [lehhair/dsh-mobile](https://github.com/lehhair/dsh-mobile).
 
 The original webui cannot insert a newline from a mobile soft keyboard at all; this extension makes Enter insert a newline on mobile soft keyboards.
 
+> Upstream progress: the running primary button already handles tap-to-queue/steer natively — `primaryStops` only turns it into a stop button while the composer is empty (or blocked); with text it is a send button that queues or steers per the `busyEnter` preference, and the icon switches to the send arrow to match. The sendify shim (icon swap + intercepting the click to replay a synthetic Enter) has therefore been dropped; only the soft-keyboard Enter newline is left.
+
 ### mobile-hide-h-scroll
 
 [plugins/dsh-webui-fix-mobile-hide-h-scroll](plugins/dsh-webui-fix-mobile-hide-h-scroll/)
@@ -86,7 +88,7 @@ A horizontal scrollbar was visible when swiping left/right to open the sidebar i
 
 <img height="600" src="https://github.com/user-attachments/assets/bb0c963b-8cc8-4a9a-baff-db661a8b2e1c" />
 
-> This functionality was submitted as a PR to dsh-mobile and merged there in the 2026-08-24 commit [`49f904c`](https://github.com/lehhair/dsh-mobile/commit/49f904cacdc2979f9d2b186bde7a00e79b1db8a7). It is now only needed for older versions that do not include the implementation.
+> This functionality was submitted as a PR to dsh-mobile and merged there in the 2026-08-24 commit [`49f904c`](https://github.com/lehhair/dsh-mobile/commit/49f904cacdc2979f9d2b186bde7a00e79b1db8a7). It is now only needed for older versions that do not include the implementation. It is no longer included in the aggregate pack by default; install `@jiesou/dsh-webui-fix-mobile-hide-h-scroll` individually if you still need it.
 
 ### mobile-stats-line
 
@@ -100,7 +102,7 @@ Upstream wires the tooltip to hover (after a 500ms delay) and focus only, and th
 
 <img height="600" src="https://github.com/user-attachments/assets/194204e3-59ca-434f-a558-8044c072ae45" />
 
-> This functionality was implemented upstream in dsh-mobile by the 2026-09-01 commit [`5c6a90e`](https://github.com/lehhair/dsh-mobile/commit/5c6a90e0878fb7bf827269196279d2ea87b40efb) (shipped in v0.1.4), in a different way: the stats line now scrolls inside a `mask-image`-clipped display window, so a swipe reveals the full readings and the tap-to-tooltip is no longer needed. It is now only needed for older versions that do not include the implementation.
+> This functionality was implemented upstream in dsh-mobile by the 2026-09-01 commit [`5c6a90e`](https://github.com/lehhair/dsh-mobile/commit/5c6a90e0878fb7bf827269196279d2ea87b40efb) (shipped in v0.1.4), in a different way: the stats line now scrolls inside a `mask-image`-clipped display window, so a swipe reveals the full readings and the tap-to-tooltip is no longer needed. It is now only needed for older versions that do not include the implementation. It is no longer included in the aggregate pack by default; install `@jiesou/dsh-webui-fix-mobile-stats-line` individually if you still need it.
 
 ### session-row-context-menu
 
@@ -140,7 +142,7 @@ https://github.com/user-attachments/assets/9d39a220-7933-4902-8f64-38c9ec7978b4
 
 After choosing a command like `/models`, the popup closes and focus leaves the message box, so you have to click the box again to keep typing.
 
-> This functionality was implemented upstream in DSH's [`@deepseek-ai/dsh-client-ui-commands`](https://github.com/deepseek-ai/deepseek-harness/commit/a2d0f7f41121ee81911dd1badbf248edd3f2ab70) by the 2026-08-12 commit [`a2d0f7f`](https://github.com/deepseek-ai/deepseek-harness/commit/a2d0f7f41121ee81911dd1badbf248edd3f2ab70). It is now only needed for older versions that do not include the implementation.
+> This functionality was implemented upstream in DSH's [`@deepseek-ai/dsh-client-ui-commands`](https://github.com/deepseek-ai/deepseek-harness/commit/a2d0f7f41121ee81911dd1badbf248edd3f2ab70) by the 2026-08-12 commit [`a2d0f7f`](https://github.com/deepseek-ai/deepseek-harness/commit/a2d0f7f41121ee81911dd1badbf248edd3f2ab70). It is now only needed for older versions that do not include the implementation. It is no longer included in the aggregate pack by default; install `@jiesou/dsh-webui-fix-composer-focus-restore` individually if you still need it.
 
 ### subagent-panel
 
@@ -168,7 +170,7 @@ When there are queued messages, pressing Enter again writes the queued messages 
 
 On touch (soft-keyboard) devices, entering a session could focus the composer and pop the keyboard unexpectedly.
 
-> This functionality was implemented upstream by the 2026-08-20 commit [`e06625d`](https://github.com/deepseek-ai/deepseek-harness/commit/e06625d202ba53836a16865e0f779a44a85ec167). It is now only needed for older versions that do not include the implementation.
+> This functionality was implemented upstream by the 2026-08-20 commit [`e06625d`](https://github.com/deepseek-ai/deepseek-harness/commit/e06625d202ba53836a16865e0f779a44a85ec167). It is now only needed for older versions that do not include the implementation. It is no longer included in the aggregate pack by default; install `@jiesou/dsh-webui-fix-mobile-keyboard-blur` individually if you still need it.
 
 ## Dependency strategy
 

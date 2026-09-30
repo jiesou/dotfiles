@@ -1,6 +1,6 @@
 {
   "name": "@jiesou/dsh-timeout-auto-reject",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Auto-reject unanswered permission requests with a model-visible timeout notice",
   "type": "module",
   "main": "lib/index.js",
@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "release": "npm run build && npm version patch && git push --follow-tags && npm publish"
+    "release": "npm run build && npm version patch && git push --follow-tags"
   },
   "keywords": [
     "dsh",

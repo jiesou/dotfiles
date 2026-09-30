@@ -4,30 +4,22 @@ import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter, type ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
-import type {} from '@deepseek-ai/dsh-settings'
+// Augments Context with `fiber.entry` and the `loader/volatile-update` event.
+import type {} from '@deepseek-ai/cordis-plugin-loader'
 import z from '@deepseek-ai/schemastery'
 import { createHash } from 'node:crypto'
-import { createProvider, type AuthContext, type Context as PiContext, type CredentialStore, type Model, type SimpleStreamOptions, type ThinkingLevelMap, type ProviderStreams } from '@earendil-works/pi-ai'
+import { createProvider, type AuthContext, type Context as PiContext, type CredentialStore, type Model, type SimpleStreamOptions, type ThinkingLevelMap, type ProviderStreams, type Tool } from '@earendil-works/pi-ai'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
-// Cloned (and minimized) from @earendil-works/pi-ai's openai-completions module.
-// See src/openai-completions.ts for the source URL + the only change (zenFetch).
-// The cloned copy re-declares AssistantMessageEventStream as a separate class
-// identity, so its stream functions are cast back to the package's types here.
-// Runtime behavior is identical; only the (private) class identity differs.
-import { stream as _piAgentStream, streamSimple as _piAgentStreamSimple, installZenUserAgent } from './openai-completions.js'
-import { stream as _piResponsesStream, streamSimple as _piResponsesStreamSimple, installZenUserAgent as installZenUserAgentResponses } from './openai-responses.js'
-const piAgentStream = _piAgentStream as unknown as ProviderStreams['stream']
-const piAgentStreamSimple = _piAgentStreamSimple as unknown as ProviderStreams['streamSimple']
-const piResponsesStream = _piResponsesStream as unknown as ProviderStreams['stream']
-const piResponsesStreamSimple = _piResponsesStreamSimple as unknown as ProviderStreams['streamSimple']
+import { stream as piAgentStream, streamSimple as piAgentStreamSimple } from '@earendil-works/pi-ai/api/openai-completions'
+import { stream as piResponsesStream, streamSimple as piResponsesStreamSimple } from '@earendil-works/pi-ai/api/openai-responses'
 
 export const name = 'opencode-zen-free-provider'
 export const inject = ['llm']
 
 const PROVIDER = name
 const DISPLAY_NAME = 'OpenCode Zen Free'
-const NS = 'opencode-zen-free-provider'
-const OPENCODE_VERSION_URL = 'https://data.jsdelivr.com/v1/packages/npm/opencode-ai/resolved'
+/** Latest CLI version, read off unpkg's `@latest` redirect via the package's own `package.json`. */
+const OPENCODE_VERSION_URL = 'https://unpkg.com/opencode-ai@latest/package.json'
 const OPENCODE_VERSION_FALLBACK = '1.18.18'
 
 /** Envelope types that must stay AUTH-classified instead of being rewritten. */
@@ -38,9 +30,26 @@ export interface Config {
   retryPolicy?: RetryPolicyConfig
 }
 
-export const Config: z<Config> = z.object({
-  retryPolicy: RetryPolicySchema,
+export const Config = z.object({
+  retryPolicy: RetryPolicySchema.volatile(),
 })
+
+/**
+ * {@link Config} as the Loader holds it: every field is volatile, so a settings write
+ * reaches the running plugin as a committed reference instead of remounting it, and
+ * the field is one the settings service shows a form for.
+ */
+type LiveConfig = Schemastery.TypeT<typeof Config>
+
+/**
+ * The committed configuration as plain mutable values. Unwrapping the references
+ * yields immutable snapshots; cloning is what makes them workable again.
+ */
+function liveConfig(config: LiveConfig): Config {
+  return structuredClone({
+    retryPolicy: config.retryPolicy.get(),
+  }) as Config
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -90,11 +99,62 @@ const zenApiHeaders = (model: Pick<Model<ZenApi>, 'headers'>, context: PiContext
   }
 }
 
+// Zen's free tier only unlocks for the opencode CLI identity, but the harness
+// merges its own mandatory attribution `user-agent` over model headers
+// (dsh-llm's attributionHeaders, merged after model.headers by pi-ai's client),
+// so the fetch layer is the only place that still wins. Scoped to
+// opencode.ai/zen: every other URL keeps the harness attribution untouched.
+const zenNativeFetch = globalThis.fetch
+let zenUserAgent: string | undefined
+
+const zenFetch: typeof globalThis.fetch = (input, init) => {
+  const url = typeof input === 'string'
+    ? input
+    : input instanceof URL ? input.href : input instanceof Request ? input.url : String(input)
+  if (zenUserAgent === undefined || !url.includes('opencode.ai/zen')) return zenNativeFetch(input, init)
+  const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined))
+  headers.set('user-agent', zenUserAgent)
+  return zenNativeFetch(input, { ...init, headers })
+}
+
+/**
+ * Model-visible description of a tool this harness cannot execute. Both
+ * placeholders take no arguments, so a model that calls one wastes a round trip
+ * at worst — it can never be mistaken for an action that would otherwise run.
+ */
+const ZEN_TOOL_TEXT = 'Requirement placeholder from OpenCode Zen: this harness cannot execute it.'
+
+const zenTool = (name: string): Tool => ({
+  name,
+  description: ZEN_TOOL_TEXT,
+  parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
+})
+
+/**
+ * Zen's free tier is gated on the request fingerprint, and one of the checks is
+ * the tool list: it must offer at least two distinct tools, `bash` among them,
+ * alongside `stream: true` (both transports hardcode that). Requests that carry
+ * fewer tools — compaction, session titles, summaries, or any turn whose
+ * permissions cut the list down — are refused with FreeTierError and the
+ * misleading "free tier can only be used from within OpenCode". Pad such
+ * requests so the shape requirement holds. Declared tools stay first and only
+ * missing ones are appended, so a request that already qualifies is untouched
+ * and the provider's prompt cache is not invalidated.
+ */
+export const requiredZenTools = (tools: readonly Tool[] = []): Tool[] => {
+  const present = new Set(tools.map(tool => tool.name))
+  const filled = [...tools]
+  if (!present.has('bash')) filled.push(zenTool('bash'))
+  if (new Set(filled.map(tool => tool.name)).size < 2) filled.push(zenTool('zen-tool'))
+  return filled
+}
+
 // Replayed thinking blocks carry no wire signature; marking them
 // `reasoning_content` keeps the transport from mangling history. Never gated on
 // `model.reasoning`: a model with no effort control still streams thinking.
 const normalizeReasoningContext = (context: PiContext): PiContext => ({
   ...context,
+  tools: requiredZenTools(context.tools),
   messages: context.messages.map(message => message.role !== 'assistant' ? message : {
     ...message,
     content: message.content.map(block =>
@@ -157,15 +217,15 @@ type ZenApi = 'openai-completions' | 'openai-responses'
 const zenStreamFor = (api: ZenApi): ProviderStreams => api === 'openai-responses'
   ? {
     stream: (model: Model<'openai-responses'>, context: PiContext, options: SimpleStreamOptions) =>
-      sanitizeStream(piResponsesStream({ ...model, headers: zenApiHeaders(model, context, options) }, normalizeReasoningContext(context), options)),
+      sanitizeStream(piResponsesStream({ ...model, headers: zenApiHeaders(model, context, options) }, normalizeReasoningContext(context), { ...options, fetch: zenFetch })),
     streamSimple: (model: Model<'openai-responses'>, context: PiContext, options: SimpleStreamOptions) =>
-      sanitizeStream(piResponsesStreamSimple({ ...model, headers: zenApiHeaders(model, context, options) }, normalizeReasoningContext(context), options)),
+      sanitizeStream(piResponsesStreamSimple({ ...model, headers: zenApiHeaders(model, context, options) }, normalizeReasoningContext(context), { ...options, fetch: zenFetch })),
   } as unknown as ProviderStreams
   : {
     stream: (model: Model<'openai-completions'>, context: PiContext, options: SimpleStreamOptions) =>
-      sanitizeStream(piAgentStream({ ...model, headers: zenApiHeaders(model, context, options) }, normalizeReasoningContext(context), options)),
+      sanitizeStream(piAgentStream({ ...model, headers: zenApiHeaders(model, context, options) }, normalizeReasoningContext(context), { ...options, fetch: zenFetch })),
     streamSimple: (model: Model<'openai-completions'>, context: PiContext, options: SimpleStreamOptions) =>
-      sanitizeStream(piAgentStreamSimple({ ...model, headers: zenApiHeaders(model, context, options) }, normalizeReasoningContext(context), options)),
+      sanitizeStream(piAgentStreamSimple({ ...model, headers: zenApiHeaders(model, context, options) }, normalizeReasoningContext(context), { ...options, fetch: zenFetch })),
   }
 
 const zenApi: Partial<Record<ZenApi, ProviderStreams>> = {
@@ -272,20 +332,22 @@ function buildModels(
     })
 }
 
-export async function apply(ctx: Context, config: Config): Promise<void> {
-  // One-time: the Zen user-agent the cloned transports force on every request.
+export async function apply(ctx: Context, config: LiveConfig): Promise<void> {
+  // One-time: the Zen user-agent the transport forces on every opencode.ai/zen request.
   const opencodeVersion = await resolveOpenCodeVersion()
   const opencodeUserAgent = `opencode/${opencodeVersion}`
-  installZenUserAgent(opencodeUserAgent)
-  installZenUserAgentResponses(opencodeUserAgent)
+  zenUserAgent = opencodeUserAgent
 
-  let current: () => Config = () => config
+  // The Loader owns the settings namespace, so the configuration form is
+  // addressed by the profile entry id that mounted this plugin.
+  const settingsNs = ctx.fiber.entry?.options.id ?? name
+
   // Outside the settings-backed config, so a settings snapshot cannot clobber a
   // scan.
   let scanned: Model<ZenApi>[] = []
 
   const buildProfiles = (): ReadonlyMap<string, ResolvedPiAiProviderProfile> => {
-    const opts = current()
+    const opts = liveConfig(config)
     const piProvider = createProvider<ZenApi>({
       id: PROVIDER,
       name: 'OpenCodeZenFree',
@@ -307,6 +369,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       requestImageMaxBytes: 1_048_576,
       retryPolicy: resolveRetryPolicy(opts.retryPolicy, `${name}: retryPolicy`),
       piProvider,
+      modelErrors: new Map(),
       configuredMaxTokens: new Map(),
     }]])
     return profiles
@@ -332,19 +395,14 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   })
 
   ctx.llm.registerConfigurableProviders([
-    { provider: PROVIDER, displayName: DISPLAY_NAME, settingsNs: NS, settingsPath: [] },
+    { provider: PROVIDER, displayName: DISPLAY_NAME, settingsNs, settingsPath: [] },
   ])
   ctx.llm.registerAdapter([PROVIDER], adapter)
 
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, NS, Config, config, {
-      setSource: (source) => {
-        current = source
-      },
-      onChange: () => {
-        profiles = buildProfiles()
-      },
-    })
+  // Every field is volatile, so the Loader commits a settings write into this
+  // fiber and announces it here instead of remounting; re-derive the profiles.
+  ctx.on('loader/volatile-update', () => {
+    profiles = buildProfiles()
   })
 
   // The catalog is fetched once at mount. Mount never awaits it: an unreachable

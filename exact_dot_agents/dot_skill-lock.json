@@ -307,18 +307,27 @@
       "skillFolderHash": "ed3a4157901d0894c9e0eb69dc1930665452cde9",
       "installedAt": "2026-08-18T08:48:23.532Z",
       "updatedAt": "2026-08-18T08:48:23.532Z"
+    },
+    "wait-what": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/productivity/wait-what/SKILL.md",
+      "skillFolderHash": "c119d66111cc1bac94cbc51322cd34ed21aa0446",
+      "pluginName": "mattpocock-skills",
+      "installedAt": "2026-09-12T15:19:49.114Z",
+      "updatedAt": "2026-09-12T15:19:49.114Z"
     }
   },
   "lastSelectedAgents": [
     "amp",
-    "antigravity",
-    "antigravity-cli",
     "cline",
     "codex",
     "cursor",
-    "deepagents",
+    "droid",
     "gemini-cli",
     "github-copilot",
+    "kilo",
     "kimi-code-cli",
     "opencode",
     "warp",

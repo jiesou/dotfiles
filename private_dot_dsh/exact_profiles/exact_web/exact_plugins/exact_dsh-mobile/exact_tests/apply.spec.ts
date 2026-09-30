@@ -3,9 +3,18 @@
 import { Context } from 'cordis'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '../src/client/index.ts'
+
+// The renderer's SlotRegistry (the testbench service) arrives from
+// ui-renderer, whose client index also mounts the React boot kernel — more
+// than this jsdom suite needs. A minimal local stand-in provides the
+// 'slots' service the plugin graph expects; the apply world never touches it.
+class SlotRegistry {
+  constructor(_ctx: unknown) {}
+  async start(): Promise<void> {}
+  stop(): void {}
+}
 
 /** A MediaQueryList stub (jsdom has none) with a controllable fire(). */
 function stubMatchMedia(matches: boolean): { fire: (next: boolean) => void } {

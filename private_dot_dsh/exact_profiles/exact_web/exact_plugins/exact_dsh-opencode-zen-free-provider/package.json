@@ -1,6 +1,6 @@
 {
   "name": "@jiesou/dsh-opencode-zen-free-provider",
-  "version": "0.1.17",
+  "version": "0.1.20",
   "description": "OpenCode Zen free models provider for dsh",
   "type": "module",
   "main": "lib/index.js",
@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "release": "npm run build && npm version patch && git push --follow-tags && npm publish"
+    "release": "npm run build && npm version patch && git push --follow-tags"
   },
   "keywords": [
     "dsh",
@@ -45,18 +45,37 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "compatibility": {
+      "dsh": ">=0.1.7-alpha.1 <0.2.0",
+      "dshReleases": {
+        "0.1.7-rc.2": "compatible"
+      },
+      "profiles": [
+        "web",
+        "headless"
+      ]
     }
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.1 <5",
-    "@deepseek-ai/dsh-credentials": ">=0.1.2-alpha.3 <0.2",
-    "@deepseek-ai/dsh-llm": ">=0.1.2-alpha.3 <0.2",
-    "@deepseek-ai/dsh-llm-pi-ai": ">=0.1.2-alpha.3 <0.2",
-    "@earendil-works/pi-ai": "^0.84.2",
-    "@deepseek-ai/dsh-util-values": ">=0.1.2-alpha.3 <0.2",
-    "@deepseek-ai/dsh-settings": ">=0.1.2-alpha.3 <0.2"
+    "@deepseek-ai/cordis-plugin-loader": "~1.0.5",
+    "@deepseek-ai/dsh-credentials": ">=0.1.7-alpha.1 <0.2",
+    "@deepseek-ai/dsh-llm": ">=0.1.7-alpha.1 <0.2",
+    "@deepseek-ai/dsh-llm-pi-ai": ">=0.1.7-alpha.1 <0.2",
+    "@deepseek-ai/dsh-util-values": ">=0.1.7-alpha.1 <0.2",
+    "@deepseek-ai/schemastery": "^3.18.3",
+    "@earendil-works/pi-ai": "^0.85.1"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "~4.0.4",
+    "@deepseek-ai/cordis-plugin-loader": "~1.0.5",
+    "@deepseek-ai/dsh-credentials": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-llm": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-util-values": "0.1.7-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.4",
+    "@earendil-works/pi-ai": "^0.85.1",
     "@types/node": "^22.20.1",
     "typescript": "^5.9.3"
   }

@@ -104,6 +104,20 @@ export default [
 | `prompt` | ✅   | 用于 steering 的提示语                                           |
 | `reject` |      | 若为 `true`，则先阻止第一次工具调用，而不仅仅是 steering         |
 
+## 兼容性
+
+声明在 `package.json` 的 `dsh.compatibility`：DSH `>=0.1.7-alpha.1 <0.2`，Node.js `^22.19.0 || >=24.0.0`，Profile `web` / `headless`。
+
+`>=0.1.7-alpha.1` 是硬下限，不是偏好：该版本起 session format v4 拒绝已废弃的 `{ kind: 'plugin', plugin: … }` 消息来源，插件改为自带 `MessageSourceMap` 条目。
+
+逐版本证据（每个版本都用 `dsh plugin add <tarball>` 装进一次性 Profile）：Profile 能组合并冷启动；再针对该版本的 `tools/pre-execute` waterfall 与 `agent.inject()` 直接验证工具调用钩子（steering 通知送达、`reject: true` 拒绝第一次调用并放行重试）；最后卸载插件，Profile 仍能启动。下表是 `>=0.1.0-rc.6` 那次声明的证据；上面新声明的范围尚未逐版本重新实测。
+
+| DSH 版本 | 安装 | 启动 | 钩子 | 卸载 |
+| --- | --- | --- | --- | --- |
+| 0.1.5-alpha.1 | 通过 | 通过 | 通过 | 通过 |
+| 0.1.5-alpha.2 | 通过 | 通过 | 通过 | 通过 |
+| 0.1.5-rc.1 | 通过 | 通过 | 通过 | 通过 |
+
 ## 实现说明
 
 - 单个 `src/index.ts`（约 60 行）。

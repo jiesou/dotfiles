@@ -1,0 +1,9 @@
+✓ Lockfile passes supply-chain policies (verified 4h ago)
+Already up to date
+Progress: resolved 0, reused 15, downloaded 0, added 0, done
+[WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
+
+dependencies:
++ @local/dsh-focus-preset link:plugins/dsh-focus-preset
+
+Done in 174ms using pnpm v12.6.0

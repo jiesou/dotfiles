@@ -11,11 +11,20 @@
  * renders completely untouched, and the pager starts on the chat page —
  * swiping reveals the always-open sidebar.
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-// Type-only: pulls the layout plugin's Context merge (ctx.layout) and the
-// sessions service surface into this compilation unit.
+// The client context type: cordis' Context merged with the plugin surfaces
+// referenced below (ui-layout's ctx.layout via the type-only import; the
+// sessions service merge comes from the session-controller contract). The
+// old `@deepseek-ai/dsh-client-runtime/client` module was removed upstream
+// (dsh 0.1.2+); plugins now type the apply parameter as the plain cordis
+// Context and pull each service's Context merge with type-only imports.
+import type { Context as ClientContext } from 'cordis'
+// Type-only: pulls the layout plugin's Context merge (ctx.layout) into this
+// compilation unit.
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import type {} from '@deepseek-ai/dsh-client-runtime/client'
+// Type-only: pulls the ISessions Context merge (ctx.sessions) — the sessions
+// service now lives in the session-controller package (moved out of the
+// removed client-runtime).
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import { MobileController } from './controller.ts'
 // Plugin-owned global mobile sheet (injected as a <style data-plugin> tag).
 import './mobile.css'

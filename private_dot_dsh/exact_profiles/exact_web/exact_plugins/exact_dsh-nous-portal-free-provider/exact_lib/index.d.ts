@@ -35,5 +35,15 @@ export interface Config {
     /** Provider-owned model-request retry policy; omission retries every failure. */
     retryPolicy?: RetryPolicyConfig;
 }
-export declare const Config: z<Config>;
-export declare function apply(ctx: Context, config: Config): Promise<void>;
+export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+    retryPolicy: z<NoInfer<RetryPolicyConfig>, NoInfer<RetryPolicyConfig>, "volatile-defined">;
+}>>, Schemastery.ObjectT<NoInfer<{
+    retryPolicy: z<NoInfer<RetryPolicyConfig>, NoInfer<RetryPolicyConfig>, "volatile-defined">;
+}>>, "plain">;
+/**
+ * {@link Config} as the Loader holds it: every field is volatile, so a settings write
+ * reaches the running plugin as a committed reference instead of remounting it, and
+ * the field is one the settings service shows a form for.
+ */
+type LiveConfig = Schemastery.TypeT<typeof Config>;
+export declare function apply(ctx: Context, config: LiveConfig): Promise<void>;

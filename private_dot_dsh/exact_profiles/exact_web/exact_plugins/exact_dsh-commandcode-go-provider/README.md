@@ -50,6 +50,7 @@ echo 'COMMANDCODE_API_KEY: [your key, be like user_xxxx]' >> ~/.dsh/.credentials
     baseURL: https://api.commandcode.ai
     maxTokens: 64000
     defaultContextWindow: 1000000
+    maxRequestImageBytes: 4194304
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -58,7 +59,9 @@ echo 'COMMANDCODE_API_KEY: [your key, be like user_xxxx]' >> ~/.dsh/.credentials
 | `baseURL` | `string` | `"https://api.commandcode.ai"` | Command Code 网关 base URL，`/alpha/generate` 自动追加 |
 | `maxTokens` | `number` | `64000` | 单次请求输出 token 上限 |
 | `defaultContextWindow` | `number` | `1000000` | 模型无精确 contextWindow 时的兜底值 |
+| `maxRequestImageBytes` | `number` | `4194304`（4 MiB） | 单次请求允许内联的 base64 图片字节上限 |
 | `accounts` | `object` | `{}` | 多账号字典：每个 key 是一个独立 provider 路由。缺省或空 = 单账号模式，直接使用顶层字段 |
+| `http1` | `boolean` | `false` | 用 HTTP/1.1 发网关请求。Node ≥ 26 的 `fetch` 默认协商 HTTP/2 并把请求多路复用到一条连接上，网关边缘（Cloudflare）在高并发下会用 `ENHANCE_YOUR_CALM` 重置流；HTTP/1.1 把同一个限流变成可读的 429 |
 
 ### 多账号
 
@@ -87,17 +90,44 @@ echo 'COMMANDCODE_API_KEY: [your key, be like user_xxxx]' >> ~/.dsh/.credentials
 | `baseURL` | `string` | 顶层 `baseURL` | 覆盖该账号的网关地址 |
 | `maxTokens` | `number` | 顶层 `maxTokens` | 覆盖该账号的输出上限 |
 | `defaultContextWindow` | `number` | 顶层 `defaultContextWindow` | 覆盖该账号的兜底容量 |
+| `maxRequestImageBytes` | `number` | 顶层 `maxRequestImageBytes` | 覆盖该账号的图片字节上限 |
 | `retryPolicy` | `object` | 顶层 `retryPolicy` | 覆盖该账号的重试策略 |
 
 模型目录只扫描一次、所有账号共享；改动设置后下个请求即生效，无需重启。把 `accounts` 清空或删掉即回到单账号模式。
 
 Reasoning effort 不需要配置：档位来自官方 CLI catalog，模型只暴露它真正接受的档位（`low`/`medium`/`high`/`xhigh`/`max`），加一个显式 `Off` 入口。**Default** 表示"不发送 `reasoning_effort`"字段，由上游自行决定深度。**Off** 与 Default 的 wire 形态一致，但显式声明"不推理"的意图。catalog 里档位为空的模型干脆不显示档位选择器。
 
+## 图片
+
+`/alpha/generate` 是无状态的：网关不保存图片，也没有上传接口（官方 CLI 同样把整段历史里的图片每轮内联重发一次）。所以本插件按 DSH 的路由标准处理图片：
+
+- 单张图片重编码到 512 KiB 以内（2048×2048 像素总预算）。
+- 一轮请求内联的 base64 图片总量超过 `maxRequestImageBytes`（默认 4 MiB）时，不发请求，而是抛出 `IMAGE_OFFLOAD_REQUIRED` 并报出需要 offload 的张数。DSH 会据此把**最旧**的图片记入 `image/offload` 事件并重试；之后每轮都以占位文本代替这些图片的字节，模型仍能从占位文本里读到图片身份和可读路径。
+- 已经 offload 的图片不再读取字节、不再编码、不再上传。
+
+想更省流量就调小 `maxRequestImageBytes`；想给模型更多图就调大。注意它必须大于单张上限（512 KiB），否则一张图也放不下。
+
+## 兼容性
+
+声明在 `package.json` 的 `dsh.compatibility`：DSH `>=0.1.7-alpha.1 <0.2.0`，Node.js `^22.19.0 || >=24.0.0`，Profile `web` / `headless`。
+
+`>=0.1.7-alpha.1` 是硬下限，不是偏好：该版本起 dsh-llm 把工具结果改成独立的 `role: 'tool'` 消息（`toolCallId` 移到消息层），并重写了 dsh-settings 的表单模型（`installSection` 被 `SettingsForms` 取代、配置字段需标记 `volatile()` 才会出现在设置页）。本插件按新模型实现，0.1.6 及更早的 `role: 'user'` + `tool-result` block 形态不再支持。
+
+逐版本证据（每个版本都用 `dsh plugin add <tarball>` 装进一次性 Profile，冷启动到发出真实请求，再卸载）：
+
+| DSH 版本 | 安装 | 启动 | 卸载 |
+| --- | --- | --- | --- |
+| 0.1.7-rc.2 | 通过 | 通过 | 通过 |
+
+0.1.7-alpha.1 / alpha.2 / rc.1 满足声明下限，但未逐版本实测。
+
+复现方式：`DSH_HOME=<空目录> dsh --profile compat --from-default-profile headless`，装入对应版本的 `@deepseek-ai/dsh-base` / 依赖与插件 tarball，`dsh --profile compat --dump-config` 检查插件行，冷启动用真实网关请求校验 provider 与模型目录，最后 `dsh plugin --profile compat remove` 复查卸载后仍能启动。
+
 ## Credit
 
 移植自 [brent-weatherall/opencode-commandcode-provider](https://github.com/brent-weatherall/opencode-commandcode-provider) 到 DSH。
 
-本 plugin 加入了动态 reasoning effort 提取功能，从 <https://cdn.jsdelivr.net/npm/command-code@latest/dist/bundled/command-code-knowledge/reference/models.md> 解析。
+本 plugin 加入了动态 reasoning effort 提取功能，从 <https://unpkg.com/command-code@latest/dist/bundled/command-code-knowledge/reference/models.md> 解析。
 
 ## License
 

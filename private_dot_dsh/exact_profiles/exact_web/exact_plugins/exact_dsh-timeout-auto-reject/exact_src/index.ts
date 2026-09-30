@@ -17,7 +17,18 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
+
+// Session format v4 refuses the retired `{ kind: 'plugin', plugin: … }` source
+// wrapper, so this producer declares an attribution of its own.
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'timeout-auto-reject': {
+      kind: 'timeout-auto-reject'
+    } & ContextFormed
+  }
+}
 
 export const name = 'timeout-auto-reject'
 
@@ -72,7 +83,7 @@ export function apply(ctx: Context): void {
           request.agent?.steer?.(
             createUserMessage({
               content: [{ type: 'text', text: TIMEOUT_MESSAGE }],
-              source: { kind: 'plugin', plugin: name },
+              source: { kind: 'timeout-auto-reject' },
             }),
           )
         } catch {}

@@ -54,7 +54,7 @@ if (( rc >= 2 )); then
 fi
 [[ -n "$grep_warn" ]] && echo "note: $grep_warn (matching per line; \\n never matches a newline)" >&2
 
-sleep 0.1  # fix timing issue
+sleep 0.01  # fix timing issue
 start_history_size=$("${tmux_cmd[@]}" display-message -p -t "$target" "#{history_size}")
 start_cursor=$("${tmux_cmd[@]}" display-message -p -t "$target" '#{cursor_y}')
 start_time=$(date +%s%N)

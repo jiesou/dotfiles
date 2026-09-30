@@ -1,6 +1,6 @@
 {
   "name": "@jiesou/dsh-stream-rules",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "description": "Inject rules when needed, without wasting context. DSH port of opencode-stream-rules.",
   "type": "module",
   "main": "lib/index.js",
@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "release": "npm run build && npm version patch && git push --follow-tags && npm publish"
+    "release": "npm run build && npm version patch && git push --follow-tags"
   },
   "keywords": [
     "dsh",
@@ -42,18 +42,34 @@
   "publishConfig": {
     "access": "public"
   },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "compatibility": {
+      "dsh": ">=0.1.7-alpha.1 <0.2",
+      "dshReleases": {
+        "0.1.7-rc.2": "compatible"
+      },
+      "profiles": [
+        "web",
+        "headless"
+      ]
     }
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.1 <5",
-    "@deepseek-ai/dsh-llm": ">=0.1.0-rc.6 <0.2.0",
-    "@deepseek-ai/schemastery": "^3.18.1"
+    "@deepseek-ai/dsh-llm": ">=0.1.7-alpha.1 <0.2",
+    "@deepseek-ai/schemastery": "^3.18.3"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6 <0.2.0",
+    "@deepseek-ai/cordis": "~4.0.4",
+    "@deepseek-ai/dsh-llm": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-tools": "0.1.7-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.4",
     "@types/node": "^22.20.1",
     "typescript": "^5.9.3"
   }

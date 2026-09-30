@@ -68,7 +68,7 @@ export default [
       "Users must explicitly confirm before `git push --force`. Is it irreversible? If user's confirmation is given, call the same command again.",
   },
   {
-    match: (v) => +v.match(/\bsleep\s+(\d+)/)?.[1] > 9,
+    match: (v) => +v.match(/\bsleep\s+(\d+)/)?.[1] > 20,
     reject: true,
     prompt: `Correctly await via script/target matching—instead of using \`sleep [long duration]\` to poll (invalid). Tip: Don't "poll" the subagent settle, just return and it will notify`,
   },
@@ -121,6 +121,11 @@ export default [
 // - ~/.dsh
 // - ~/.dsh/profiles/web`,
 //   },
+  {
+    match: (v) => v.includes("Error: UNKNOWN: unknown error, write"),
+    prompt:
+      "The bash toolcall is broken; the /tmp directory might be full.",
+  },
   {
     match: (v) => v.includes("opencode-ai/opencode"),
     prompt:

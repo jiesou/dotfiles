@@ -43,7 +43,8 @@ import {
 import { stream as openAiStream, streamSimple as openAiStreamSimple } from '@earendil-works/pi-ai/api/openai-completions'
 import z from '@deepseek-ai/schemastery'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
-import type {} from '@deepseek-ai/dsh-settings'
+// Augments Context with `fiber.entry` and the `loader/volatile-update` event.
+import type {} from '@deepseek-ai/cordis-plugin-loader'
 import { DEFAULT_INFERENCE_URL, DEFAULT_MODELS_URL, DEFAULT_PORTAL_URL, deviceCodeLogin, NousTokenManager, refreshAccessToken } from './oauth.js'
 import type { NousPortalGrant } from './oauth.js'
 import { fetchFreeModels } from './models.js'
@@ -65,18 +66,32 @@ const RECORD_KEY = credentialKey(name, 'portal')
 
 const DEFAULT_API_KEY_ENV = 'NOUS_PORTAL_API_KEY'
 
-/** Settings section this plugin owns; its only key is the retry policy. */
-const NS = 'nous-portal-free-provider'
-
 /** Plugin configuration, validated by the same-named schemastery schema. */
 export interface Config {
   /** Provider-owned model-request retry policy; omission retries every failure. */
   retryPolicy?: RetryPolicyConfig
 }
 
-export const Config: z<Config> = z.object({
-  retryPolicy: RetryPolicySchema.default({ mode: 'always' }),
+export const Config = z.object({
+  retryPolicy: RetryPolicySchema.default({ mode: 'always' }).volatile(),
 })
+
+/**
+ * {@link Config} as the Loader holds it: every field is volatile, so a settings write
+ * reaches the running plugin as a committed reference instead of remounting it, and
+ * the field is one the settings service shows a form for.
+ */
+type LiveConfig = Schemastery.TypeT<typeof Config>
+
+/**
+ * The committed configuration as plain mutable values. Unwrapping the references
+ * yields immutable snapshots; cloning is what makes them workable again.
+ */
+function liveConfig(config: LiveConfig): Config {
+  return structuredClone({
+    retryPolicy: config.retryPolicy.get(),
+  }) as Config
+}
 
 /** pi-ai's standard ladder keys (off = explicit close; the rest are depths). */
 const PI_LEVEL_KEYS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -210,8 +225,12 @@ function grantOf(record: unknown): NousPortalGrant | undefined {
   return payload as unknown as NousPortalGrant
 }
 
-export async function apply(ctx: Context, config: Config): Promise<void> {
+export async function apply(ctx: Context, config: LiveConfig): Promise<void> {
   const apiKeyRefName = DEFAULT_API_KEY_ENV
+
+  // The Loader owns the settings namespace, so the configuration form is
+  // addressed by the profile entry id that mounted this plugin.
+  const settingsNs = ctx.fiber.entry?.options.id ?? name
 
   /** Resolve one named secret through the credentials service, then ambient env. */
   const resolveSecretValue = async (envName: string): Promise<string | undefined> => {
@@ -299,15 +318,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // an empty catalog and the first refresh fills it, so an unreachable upstream
   // never throws and kills the plugin.
   let scanned: NousPortalModel[] = []
-  let current: () => Config = () => config
-
-  // PiAiAdapter.current() memoizes its snapshot by the identity of the Map this
-  // returns, rebuilding the whole pi-ai collection on every change — so hand
-  // back the same instance until the config or the scanned catalog actually
-  // changes .
 
   const buildProfiles = (): ReadonlyMap<string, ResolvedPiAiProviderProfile> => {
-    const opts = current()
+    const opts = liveConfig(config)
     const piProvider = createProvider<'openai-completions'>({
       id: PROVIDER,
       name: DISPLAY_NAME,
@@ -353,6 +366,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       requestImageMaxBytes: 1_048_576,
       retryPolicy: resolveRetryPolicy(opts.retryPolicy, `${name}: retryPolicy`),
       piProvider,
+      modelErrors: new Map(),
       configuredMaxTokens: new Map(),
     }]])
     return profiles
@@ -383,18 +397,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     },
   })
 
-  ctx.llm.registerConfigurableProviders([{ provider: PROVIDER, displayName: DISPLAY_NAME, settingsNs: NS, settingsPath: [] }])
+  ctx.llm.registerConfigurableProviders([{ provider: PROVIDER, displayName: DISPLAY_NAME, settingsNs, settingsPath: [] }])
   ctx.llm.registerAdapter([PROVIDER], adapter)
 
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, NS, Config, config, {
-      setSource: (source) => {
-        current = source
-      },
-      onChange: () => {
-        profiles = buildProfiles()
-      },
-    })
+  // Every field is volatile, so the Loader commits a settings write into this
+  // fiber and announces it here instead of remounting; re-derive the profiles.
+  ctx.on('loader/volatile-update', () => {
+    profiles = buildProfiles()
   })
 
   async function sync(): Promise<void> {

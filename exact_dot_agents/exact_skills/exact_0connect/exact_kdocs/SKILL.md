@@ -1,6 +1,6 @@
 ---
 name: kdocs
-description: "操作金山文档（WPS 云文档 / Kdocs / 365.kdocs.cn / www.kdocs.cn）云文档的官方 Skill。核心能力覆盖云端新建、读取、编辑、搜索、分享、整理在线文档（智能文档、Word、Excel、PDF、PPT、演示文稿、智能表格、多维表格）及个人知识库。当用户的任务涉及云文档操作时使用，包括但不限于：写周报/日报/工作汇报、处理合同/发票、创建报名表/登记表、网页剪藏、接龙转表格、信息收集、文档总结与内容生成、改写仿写、翻译、AI PPT生成、PDF拆分导出、标签分类归档、收藏管理、碎片笔记整理、表格美化、回收站还原、知识库管理。"
+description: "操作 WPS 云文档的官方 Skill"
 homepage: https://www.kdocs.cn/latest
 version: 2.6.6
 metadata: {"requires":{"bins":["kdocs-cli"],"cliHelp":"kdocs-cli --help"},"openclaw":{"category":"kdocs","tokenUrl":"https://www.kdocs.cn/latest","emoji":"📝","keywords":["金山文档","金山表格","金山收藏","WPS","WPS文档","云文档","在线文档","kdocs","WPS云文档","接龙转表格","接龙","群接龙","报名表","信息收集","收集表","登记表","网页剪藏","剪藏","保存网页","网页保存到文档","保存文章","收藏文章","总结","帮我总结","帮我整理","帮我写","帮我翻译","帮我做PPT","翻译文档 - 做PPT - 生成PPT - 培训课件 - 方案展示 - 项目展示","文档总结","内容生成","改写","仿写","翻译","文档翻译","PPT","演示文稿","幻灯片","PDF","拆分PDF","导出PDF","Word","Excel","表格","Markdown","碎片整理","笔记整理","表格优化","文档处理","文件处理","办公助手","文档助手","周报","日报","工作汇报","合同","发票"]},"file_types":["pdf","doc","docx","xlsx","xls","pptx","ppt","otl","ksheet","dbt","form","jpg","jpeg","png","bmp","gif","webp","url","md","txt","html"],"category":"productivity"}
@@ -11,21 +11,20 @@ disable-model-invocation: true
 
 金山文档 CLI Skill 提供了一套完整的在线文档操作工具，通过 `kdocs-cli` 命令行工具与金山文档 API 交互。支持创建、查询、读取、编辑、分享、移动多种类型的在线文档。
 
-
 ## 严格规则
 
 ### 禁止（NEVER）
 
-- 禁止将 Token 明文出现在对话、日志、命令输出、代码注释或任何文件中；Token 仅允许通过 `kdocs-cli auth set-token` 或 `kdocs-cli auth login` 保存到系统密钥链
-- 上传写入等接口需传入的 `content_base64` 可能非常大（编码后 >1 MB），禁止在对话中逐 token 生成 Base64 字符串，用脚本完成文件读取、编码和传参
-- 权限不足时禁止重试或绕过，立即告知用户无权限
+- 权限不足时禁止重试或绕过，必须立即告知用户无权限，并结束会话
+- API 有额度上限，节约用量，不要反复调用 kdocs-cli 来“试探”API，而应该始终相信 skill 的 `references/`。
+  - 如果 `.md` 描述和实际情况冲突，则立即停止，这是你的责任
 
 ### 必须（MUST）
 
+- 除 SKILL.md 已给出最小可用示例的主路径工具外，其他工具调用前 **必须先阅读** 对应的 `references/` 详细参考文档；参数细节（类型、可选值、约束）以工具参考文档为准。
+  - 即每个 kdocs-cli 的参数，都至少应该是从一个 `.md` 里来的，而不是你自己臆造的
 - 不可逆操作（delete/close 类）执行前必须向用户确认
-- 创建云文档文件并验证通过后，必须向用户展示可访问链接。若响应包含 `data.link_url` 则直接展示；若响应无链接时，调用 `get_file_link` 获取并展示。
-- 除 SKILL.md 已给出最小可用示例的主路径工具外，其他工具调用前必须先阅读对应的 `references/` 详细参考文档；参数细节（类型、可选值、约束）以工具参考文档为准
-- 满足「问题反馈」章节触发条件时，必须运行 feedback 命令并展示完整反馈链接，并遵守该章节的防重复规则；禁止仅口头告知联系客服或仅以「暂不支持」结束对话
+- 创建云文档文件并验证通过后，需要向用户展示可访问链接。若响应包含 `data.link_url` 则直接展示；若响应无链接时，调用 `get_file_link` 获取并展示。
 
 ---
 

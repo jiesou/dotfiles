@@ -1,0 +1,496 @@
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: commandcode-2
+    model: deepseek/deepseek-v4.1-flash
+    reasoningEffort: max
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      antigravity-cpa:
+        api: openai-completions
+        apiKeyEnv: ANTIGRAVITY_CPA_API_KEY
+        baseURL: http://127.0.0.1:8317/v1
+        displayName: Antigravity
+        models:
+          - contextWindow: 1048576
+            id: gemini-3.8-flash-high
+            input:
+              - text
+              - image
+            maxTokens: 65536
+            name: Gemini 3.8 Flash (High)
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+          - contextWindow: 1048576
+            id: gemini-3.7-flash-high
+            input:
+              - text
+              - image
+            maxTokens: 65536
+            name: Gemini 3.7 Flash (High)
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+          - contextWindow: 1048576
+            id: gemini-3.6-flash-high
+            input:
+              - text
+              - image
+            maxTokens: 65536
+            name: Gemini 3.6 Flash (High)
+            reasoningEfforts:
+              off: null
+              minimal: minimal
+              low: low
+              medium: medium
+              high: high
+          - contextWindow: 1048576
+            id: gemini-3-flash
+            input:
+              - text
+              - image
+            maxTokens: 65536
+            name: Gemini 3 Flash
+            reasoningEfforts:
+              off: null
+              minimal: minimal
+              low: low
+              medium: medium
+              high: high
+          - contextWindow: 1048576
+            id: gemini-3.1-flash-lite
+            input:
+              - text
+              - image
+            maxTokens: 65536
+            name: Gemini 3.1 Flash Lite
+            reasoningEfforts:
+              off: null
+              minimal: minimal
+              low: low
+              medium: medium
+              high: high
+          - contextWindow: 1048576
+            id: gemini-3.1-flash-image
+            input:
+              - text
+              - image
+            maxTokens: 65536
+            name: Gemini 3.1 Flash Image
+            reasoningEfforts:
+              off: null
+              minimal: minimal
+              high: high
+          - contextWindow: 1048576
+            id: gemini-pro-agent
+            input:
+              - text
+              - image
+            maxTokens: 65536
+            name: Gemini 3.1 Pro (High)
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+          - contextWindow: 1048576
+            id: gemini-3.1-pro-low
+            input:
+              - text
+              - image
+            maxTokens: 65536
+            name: Gemini 3.1 Pro (Low)
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+          - contextWindow: 200000
+            id: claude-opus-4-6-thinking
+            input:
+              - text
+              - image
+            maxTokens: 64000
+            name: Claude Opus 4.6 (Thinking)
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+          - contextWindow: 200000
+            id: claude-sonnet-4-6
+            input:
+              - text
+              - image
+            maxTokens: 64000
+            name: Claude Sonnet 4.6 (Thinking)
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+          - contextWindow: 114000
+            id: gpt-oss-120b-medium
+            input:
+              - text
+            maxTokens: 32768
+            name: GPT-OSS 120B (Medium)
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+      codebuddy:
+        api: openai-completions
+        apiKeyEnv: CODEBUDDY_API_KEY
+        baseURL: http://127.0.0.1:8787/v1
+        displayName: CodeBuddy Free
+        models:
+          - id: auto
+            name: Auto
+            contextWindow: 168000
+            maxTokens: 32000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - id: hy4-preview
+            name: Hy4 preview (x0.00)
+            contextWindow: 1000000
+            maxTokens: 64000
+            reasoningEfforts:
+              off: null
+              high: high
+          - id: hy3
+            name: Hy3 (x0.00)
+            contextWindow: 192000
+            maxTokens: 64000
+            reasoningEfforts:
+              off: null
+              high: high
+          - id: hy3-x
+            name: Hy3 (x) (x0.05)
+            contextWindow: 192000
+            maxTokens: 64000
+            reasoningEfforts:
+              off: null
+              high: high
+          - id: glm-5.3
+            name: GLM-5.3 (x0.79)
+            contextWindow: 1000000
+            maxTokens: 48000
+            reasoningEfforts:
+              high: high
+              low: low
+              max: max
+          - id: glm-5.3-flash
+            name: GLM-5.3-Flash (x0.06)
+            contextWindow: 1000000
+            maxTokens: 32000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              high: high
+              low: low
+              max: max
+          - id: glm-5.2
+            name: GLM-5.2 (x0.79)
+            contextWindow: 1000000
+            maxTokens: 48000
+            reasoningEfforts:
+              off: null
+              low: high
+              high: high
+              max: max
+          - id: glm-5.1
+            name: GLM-5.1 (x0.79)
+            contextWindow: 200000
+            maxTokens: 48000
+            reasoningEfforts:
+              off: null
+              high: high
+          - id: glm-5v-turbo
+            name: GLM-5v-Turbo (x0.71)
+            contextWindow: 200000
+            maxTokens: 64000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              high: high
+          - id: kimi-k3-1
+            name: Kimi-K3 (x1.62)
+            contextWindow: 1000000
+            maxTokens: 32000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - id: kimi-k2.7
+            name: Kimi-K2.7-Code (x0.57)
+            contextWindow: 256000
+            maxTokens: 32000
+            reasoningEfforts:
+              off: null
+              high: high
+          - id: kimi-k2.6
+            name: Kimi-K2.6 (x0.52)
+            contextWindow: 256000
+            maxTokens: 32000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - id: minimax-m3
+            name: MiniMax-M3 (x0.25)
+            contextWindow: 512000
+            maxTokens: 128000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - id: deepseek-v4-flash
+            name: Deepseek-V4-Flash (x0.17)
+            contextWindow: 1000000
+            maxTokens: 50000
+            reasoningEfforts:
+              off: null
+              high: high
+              max: max
+          - id: deepseek-v4-pro
+            name: Deepseek-V4-Pro (x0.51)
+            contextWindow: 1000000
+            maxTokens: 50000
+            reasoningEfforts:
+              off: null
+              high: high
+              max: max
+          - id: deepseek-v4.1-flash
+            name: Deepseek-V4.1-Flash (x0.06)
+            contextWindow: 1000000
+            maxTokens: 128000
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+            input:
+              - text
+              - image
+        retryPolicy:
+          mode: always
+      ramalama:
+        api: openai-completions
+        apiKeyEnv: WEBHOOK_SITE_TEST_API_KEY
+        baseURL: http://localhost:8080/v1
+        displayName: Ramalama
+        models:
+          - contextWindow: 262144
+            id: qwen3.5-9b
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+        retryPolicy:
+          mode: always
+      sui-xiang-claude-kiro:
+        api: openai-completions
+        apiKeyEnv: SUIXIANG_CLAUDE_API_KEY
+        baseURL: https://sui-xiang.com
+        displayName: SuiXiang Claude Kiro
+        models:
+          - contextWindow: 1048576
+            id: claude-opus-5
+            input:
+              - text
+              - image
+            maxTokens: 131072
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+        retryPolicy:
+          mode: always
+      sui-xiang-gpt-pro:
+        api: openai-responses
+        apiKeyEnv: SUIXIANG_GPT_API_KEY
+        baseURL: https://sui-xiang.com
+        compat:
+          supportsStrictMode: true
+        displayName: SuiXiang GPT Pro
+        models:
+          - contextWindow: 272000
+            id: gpt-5.6-luna
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+          - contextWindow: 272000
+            id: gpt-5.6-sol
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+          - contextWindow: 272000
+            id: gpt-5.6-terra
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+        retryPolicy:
+          mode: always
+      sui-xiang-host:
+        api: openai-responses
+        apiKeyEnv: SUIXIANG_HOST_API_KEY
+        baseURL: https://sui-xiang.com
+        displayName: SuiXiang Host
+        models:
+          - contextWindow: 1000000
+            id: deepseek-v4-flash
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - contextWindow: 1000000
+            id: deepseek-v4-pro
+            input:
+              - text
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - contextWindow: 1000000
+            id: qwen3.8-max-0902
+            input:
+              - text
+              - image
+            maxTokens: 131072
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+          - contextWindow: 1000000
+            id: qwen3.8-flash
+            input:
+              - text
+              - image
+            maxTokens: 131072
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+        retryPolicy:
+          mode: always
+      sui-xiang-grok:
+        api: openai-completions
+        apiKeyEnv: SUIXIANG_GROK_API_KEY
+        baseURL: https://sui-xiang.com
+        displayName: SuiXiang Grok
+        models:
+          - contextWindow: 500000
+            id: grok-4.6
+            maxTokens: 131072
+            reasoningEfforts:
+              high: high
+              low: low
+              medium: medium
+              xhigh: xhigh
+        retryPolicy:
+          mode: always
+      sui-xiang-kimi:
+        api: openai-completions
+        apiKeyEnv: SUIXIANG_KIMI_API_KEY
+        baseURL: https://sui-xiang.com
+        displayName: SuiXiang Kimi
+        models:
+          - contextWindow: 1048576
+            id: k3
+            input:
+              - text
+              - image
+            maxTokens: 131072
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+        retryPolicy:
+          mode: always
+      wangy-local:
+        api: openai-completions
+        apiKeyEnv: WANGY_LOCAL_API_KEY
+        baseURL: http://192.168.100.98:8080/v1
+        displayName: WY Local
+        models:
+          - id: Qwen3.5-0.8B
+          - id: Qwen3.5-9B
+        retryPolicy:
+          mode: always
+- id: bash-sandbox
+  name: "@deepseek-ai/dsh-bash-sandbox"
+  config:
+    timeoutMs: 20000
