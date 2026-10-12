@@ -1,7 +1,8 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 /** General Settings row for the desktop-notification permission. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import css from './NotificationSettingsRow.module.css';
+import { disableWebPush, enableWebPush, pushSupported, restoreWebPush, webPushEnabled } from "./push.js";
 /** Read the current browser permission state (safe outside browsers). */
 export function permissionState() {
     if (typeof Notification === 'undefined')
@@ -26,11 +27,28 @@ function statusKey(state) {
  */
 export function NotificationSettingsRow({ t }) {
     const [state, setState] = useState(permissionState);
+    const [pushEnabled, setPushEnabled] = useState(webPushEnabled);
+    const [error, setError] = useState('');
+    useEffect(() => { void restoreWebPush(); }, []);
+    const toggle = async () => {
+        setError('');
+        try {
+            if (pushEnabled)
+                await disableWebPush();
+            else
+                await enableWebPush();
+            setPushEnabled(!pushEnabled);
+            setState(permissionState());
+        }
+        catch (cause) {
+            setError(cause instanceof Error ? cause.message : String(cause));
+        }
+    };
     const request = async () => {
         if (typeof Notification === 'undefined')
             return;
         const next = await Notification.requestPermission();
         setState(next);
     };
-    return (_jsxs("div", { className: css.row, children: [_jsxs("div", { className: css.rowText, children: [_jsx("div", { className: css.title, children: t('settings.title') }), _jsx("div", { className: css.desc, children: t('settings.description') }), _jsx("div", { className: css.status, children: t(statusKey(state)) })] }), state === 'granted' || state === 'unsupported' ? null : (_jsx("button", { type: "button", className: css.button, onClick: () => { void request(); }, children: t('settings.request') }))] }));
+    return (_jsxs("div", { className: css.row, children: [_jsxs("div", { className: css.rowText, children: [_jsx("div", { className: css.title, children: t('settings.title') }), _jsx("div", { className: css.desc, children: t('settings.description') }), _jsx("div", { className: css.status, children: t(statusKey(state)) }), error === '' ? null : _jsx("div", { className: css.status, role: "alert", children: error })] }), state === 'granted' || state === 'unsupported' ? null : (_jsx("button", { type: "button", className: css.button, onClick: () => { void request(); }, children: t('settings.request') })), pushSupported() ? (_jsx("button", { type: "button", className: css.button, "aria-pressed": pushEnabled, onClick: () => { void toggle(); }, children: pushEnabled ? t('settings.push.disable') : t('settings.push.enable') })) : null] }));
 }

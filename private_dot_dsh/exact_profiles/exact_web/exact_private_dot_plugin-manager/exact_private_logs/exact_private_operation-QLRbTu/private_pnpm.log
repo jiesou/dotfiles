@@ -1,0 +1,13 @@
+✓ Lockfile passes supply-chain policies (verified 4s ago)
+Update available! 12.6.0 → 12.8.1.
+Changelog: https://pnpm.io/v/12.8.1
+To update, run: curl -fsSL https://get.pnpm.io/install.sh | sh -
+Packages: +4 -3
+++++---
+Progress: resolved 4, reused 21, downloaded 3, added 4, done
+[WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
+
+dependencies:
++ dsh-context 0.62.2
+
+Done in 597ms using pnpm v12.6.0

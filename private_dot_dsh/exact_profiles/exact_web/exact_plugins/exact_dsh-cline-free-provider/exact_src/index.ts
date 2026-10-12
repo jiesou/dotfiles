@@ -20,11 +20,17 @@ const DISPLAY_NAME = 'Cline'
 /** Envelope types that must stay AUTH-classified instead of being rewritten. */
 const AUTH_ERROR_TYPES = new Set(['AuthError', 'authentication_error', 'invalid_api_key', 'unauthorized'])
 
-const EXTRA_FREE_MODELS: Readonly<Record<string, string>> = {
-  'deepseek/deepseek-v4-flash': 'DeepSeek V4 Flash (free)',
-  'z-ai/glm-5.3-flash': 'GLM 5.3 Flash (free)',
-  'meta/muse-spark-1.3': 'Muse Spark 1.3 (free)',
-}
+/**
+ * Cline-designated free models the catalog feed does not mark itself. The
+ * authoritative source is the recommended-models `free` bucket (fetched live
+ * in `sync`); this list covers designations the feed's `pricing` field does
+ * not reflect, which rotates over time.
+ */
+const EXTRA_FREE_MODEL_IDS: ReadonlySet<string> = new Set([
+  'deepseek/deepseek-v4-flash',
+  'z-ai/glm-5.3-flash',
+  'meta/muse-spark-1.3',
+])
 
 interface ReasoningMetadata {
   /** Effort ids the OpenRouter secondary scan credits this model with. */
@@ -46,11 +52,27 @@ interface ClineModel {
   reasoning?: ReasoningMetadata
 }
 
+/**
+ * Request image budget: 2 MiB of base64 per request, 1 MiB per image.
+ *
+ * The budget is compared against the base64 length the wire carries (×4/3), so
+ * one full-size image is ~1.4 MB and fits with room for a second at ~700 KB. A
+ * third occurrence makes the harness offload the oldest one to a text
+ * placeholder that still names its local normalized copy. This wire is
+ * stateless, so every retained image rides every turn again.
+ */
+const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 2_097_152
+const DEFAULT_REQUEST_IMAGE_MAX_BYTES = 1_048_576
+
 export interface Config {
   apiKeyEnv?: string
   baseURL?: string
   defaultMaxTokens?: number
   defaultContextWindow?: number
+  /** Base64 image payload one request accepts before older images are offloaded (default 2 MiB). */
+  maxRequestImageBytes?: number
+  /** Per-image request budget after re-encoding (default 1 MiB). */
+  requestImageMaxBytes?: number
   /** Provider-owned model-request retry policy; omission uses normal defaults. */
   retryPolicy?: RetryPolicyConfig
 }
@@ -60,6 +82,8 @@ export const Config = z.object({
   baseURL: z.string().default('https://api.cline.bot/api/v1').volatile(),
   defaultMaxTokens: z.number().step(1).min(1).default(32_768).volatile(),
   defaultContextWindow: z.number().step(1).min(1).default(262_144).volatile(),
+  maxRequestImageBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES).volatile(),
+  requestImageMaxBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_REQUEST_IMAGE_MAX_BYTES).volatile(),
   retryPolicy: RetryPolicySchema.volatile(),
 })
 
@@ -80,6 +104,8 @@ function liveConfig(config: LiveConfig): Config {
     baseURL: config.baseURL.get(),
     defaultMaxTokens: config.defaultMaxTokens.get(),
     defaultContextWindow: config.defaultContextWindow.get(),
+    maxRequestImageBytes: config.maxRequestImageBytes.get(),
+    requestImageMaxBytes: config.requestImageMaxBytes.get(),
     retryPolicy: config.retryPolicy.get(),
   }) as Config
 }
@@ -101,17 +127,38 @@ async function fetchJson(url: string, timeoutMs: number, label: string, fetchImp
 export async function fetchFreeModels(
   url: string = 'https://api.cline.bot/api/v1/ai/cline/models',
   fetchImpl: typeof fetch = fetch,
+  freeBucketIds: ReadonlySet<string> = new Set(),
 ): Promise<ClineModel[]> {
   const payload = await fetchJson(url, 30_000, 'Cline models', fetchImpl)
   if (!isRecord(payload) || !Array.isArray(payload.data)) {
     throw new Error('Cline models endpoint returned an unexpected shape')
   }
+  // Bucket ids may use Cline's own cline-free/ namespace; map them onto feed
+  // ids (exact id first, then an unambiguous slug match) so their metadata
+  // comes from the feed entry for the same underlying model.
+  const feedIds = new Set<string>()
+  for (const raw of payload.data) {
+    if (isRecord(raw) && typeof raw.id === 'string') feedIds.add(raw.id)
+  }
+  const freeFeedIds = new Set<string>()
+  for (const id of feedIds) {
+    if (id.endsWith(':free') || EXTRA_FREE_MODEL_IDS.has(id)) freeFeedIds.add(id)
+  }
+  for (const bucketId of freeBucketIds) {
+    if (feedIds.has(bucketId)) {
+      freeFeedIds.add(bucketId)
+      continue
+    }
+    const slug = bucketId.split('/').at(-1)
+    if (slug === undefined) continue
+    const matches = [...feedIds].filter(id => id.split('/').at(-1) === slug)
+    if (matches.length === 1) freeFeedIds.add(matches[0])
+  }
   const models: ClineModel[] = []
   for (const raw of payload.data) {
     if (!isRecord(raw) || typeof raw.id !== 'string') continue
-    const extraName = EXTRA_FREE_MODELS[raw.id]
-    if (!raw.id.endsWith(':free') && extraName === undefined) continue
-    const name = extraName ?? (typeof raw.name === 'string' && raw.name.length > 0 ? raw.name : undefined)
+    if (!freeFeedIds.has(raw.id)) continue
+    const name = typeof raw.name === 'string' && raw.name.length > 0 ? raw.name : undefined
     const contextWindow = positiveNumber(raw.context_length)
     const maxTokens = positiveNumber(isRecord(raw.top_provider) ? raw.top_provider.max_completion_tokens : undefined)
     const supportedParameters = Array.isArray(raw.supported_parameters)
@@ -131,6 +178,27 @@ export async function fetchFreeModels(
   }
   models.sort((a, b) => a.id.localeCompare(b.id))
   return models
+}
+
+/**
+ * Cline's own free-tier designation, straight from the feed the Cline client
+ * uses to tag FREE in its model picker (and the CLI uses to zero billing).
+ * The catalog feed's `pricing` field is the upstream market price and does
+ * not reflect this list, which rotates.
+ */
+export async function fetchFreeModelIds(
+  url: string = 'https://api.cline.bot/api/v1/ai/cline/recommended-models',
+  fetchImpl: typeof fetch = fetch,
+): Promise<Set<string>> {
+  const payload = await fetchJson(url, 30_000, 'Cline recommended models', fetchImpl)
+  if (!isRecord(payload) || !Array.isArray(payload.free)) {
+    throw new Error('Cline recommended-models endpoint returned an unexpected shape')
+  }
+  const ids = new Set<string>()
+  for (const entry of payload.free) {
+    if (isRecord(entry) && typeof entry.id === 'string' && entry.id.length > 0) ids.add(entry.id)
+  }
+  return ids
 }
 
 export async function fetchOpenRouterReasoning(
@@ -397,9 +465,9 @@ export async function apply(ctx: Context, config: LiveConfig): Promise<void> {
           displayName: DISPLAY_NAME,
           apiKeyEnv: credentialRef(opts.apiKeyEnv ?? 'CLINE_API_KEY'),
           streamIdleTimeoutMs: 300_000,
-          maxRequestImageBytes: 20_971_520,
+          maxRequestImageBytes: opts.maxRequestImageBytes ?? DEFAULT_MAX_REQUEST_IMAGE_BYTES,
           requestImagePixelBudget: 4_194_304,
-          requestImageMaxBytes: 1_048_576,
+          requestImageMaxBytes: opts.requestImageMaxBytes ?? DEFAULT_REQUEST_IMAGE_MAX_BYTES,
           retryPolicy: resolveRetryPolicy(opts.retryPolicy, 'cline-free-provider: retryPolicy'),
           piProvider,
           modelErrors: new Map(),
@@ -453,8 +521,15 @@ export async function apply(ctx: Context, config: LiveConfig): Promise<void> {
   // The catalog is fetched once at mount. Mount never awaits it: an unreachable
   // upstream must not kill the plugin.
   async function sync(): Promise<void> {
+    // Optional designation feed: a failure must not disable the suffix+extra
+    // catalog, so it degrades to the previous behavior instead of throwing.
+    const freeBucketIds = await fetchFreeModelIds().catch((error: unknown) => {
+      ctx.logger.warn('[%s] recommended-models scan failed; falling back to suffix+extra list: %s',
+        name, errorChain(error))
+      return new Set<string>()
+    })
     const [entries, reasoningById] = await Promise.all([
-      fetchFreeModels(),
+      fetchFreeModels('https://api.cline.bot/api/v1/ai/cline/models', fetch, freeBucketIds),
       // Optional metadata: a failed secondary scan must not disable models.
       fetchOpenRouterReasoning().catch((error: unknown) => {
         ctx.logger.warn('[%s] OpenRouter reasoning scan failed; falling back to Cline-only metadata: %s',

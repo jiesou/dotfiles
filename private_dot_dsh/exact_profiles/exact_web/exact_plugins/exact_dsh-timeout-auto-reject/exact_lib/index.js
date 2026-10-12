@@ -21,6 +21,33 @@ const DEADLINE_REASON_PREFIX = 'dsh-timeout:';
 const TIMEOUT_MESSAGE = 'SYSTEM: This specific tool call was auto-rejected, ' +
     'because the user is off-screen now. ' +
     'Follow SAFETY & BOUNDARIES guidelines; break your large commands down into multiple auditable actions; or try a different approach.';
+/**
+ * Append the deadline marker to the fields the Client approval card renders.
+ * `displayReason` (localized presentation copy) wins over `reason` in the card
+ * headline, so both need the marker; the audit log already holds the pristine
+ * `reason` either way. The marker is a trailing suffix, so any active locale's
+ * variant carries it intact.
+ * @param request - pending approval request borrowed by this answerer.
+ * @param deadline - epoch milliseconds this request settles at.
+ */
+function markDeadline(request, deadline) {
+    const mark = (text) => text.includes(DEADLINE_REASON_PREFIX) ? text : `${text}${DEADLINE_REASON_PREFIX}${deadline}`;
+    Object.defineProperty(request, 'reason', {
+        configurable: true,
+        enumerable: true,
+        value: mark(request.reason ?? ''),
+    });
+    if (request.displayReason === undefined)
+        return;
+    const displayReason = {};
+    for (const [locale, text] of Object.entries(request.displayReason))
+        displayReason[locale] = mark(text);
+    Object.defineProperty(request, 'displayReason', {
+        configurable: true,
+        enumerable: true,
+        value: displayReason,
+    });
+}
 export function apply(ctx) {
     // Prepend so this answerer runs before the human (api-proxy) answerer.
     ctx.on('approval/request', (req, next) => {
@@ -30,11 +57,7 @@ export function apply(ctx) {
         const controller = new AbortController();
         const onAbort = () => controller.abort();
         originalSignal?.addEventListener('abort', onAbort, { once: true });
-        Object.defineProperty(request, 'reason', {
-            configurable: true,
-            enumerable: true,
-            value: `${request.reason ?? ''}${DEADLINE_REASON_PREFIX}${deadline}`,
-        });
+        markDeadline(request, deadline);
         Object.defineProperty(request, 'signal', {
             configurable: true,
             enumerable: true,

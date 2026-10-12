@@ -83,15 +83,19 @@
    `100%` resolves against the body content box in BOTH cases: with the host
    padding it is the remaining height; in a plain PWA body itself is 100dvh,
    so the root fills the viewport the same way. Browsers without dvh get the
-   same 100%/100vh pairing from the fallback below. */
+   same 100%/100vh pairing from the base rule below.
+   The base rule MUST come first: both selectors have the same specificity, so
+   a later `height: 100vh` wins outright — while dvh is supported the shell
+   would then be pinned to the LARGE viewport, i.e. taller than the visible
+   area whenever the mobile URL bar is shown, and the page would scroll. */
+[data-dsh-mobile] body {
+  height: 100vh;
+}
+
 @supports (height: 100dvh) {
   [data-dsh-mobile] body {
     height: 100dvh;
   }
-}
-
-[data-dsh-mobile] body {
-  height: 100vh;
 }
 
 [data-dsh-mobile] #root {

@@ -59,12 +59,20 @@ Fullscreen PWA on mobile hides the top status bar and bottom navigation bar; you
 
 https://github.com/user-attachments/assets/433a9dfe-202e-4e25-a784-9bccf6243c2a
 
-Now the PWA is switched to `standalone` instead of `fullscreen`, and the correct colors are injected from the design tokens.
+Now the PWA is switched to `standalone` instead of `fullscreen`, and the manifest gets a `background-color` for the scheme the browser actually resolved (deliberately no `theme_color` — see the note below).
 
 <img height="400" src="https://github.com/user-attachments/assets/ae2d5e9b-a774-4818-9b80-8026de07f412" /><img height="400" src="https://github.com/user-attachments/assets/7cbaf353-a184-4520-9782-b14ae4863927" />
 <img height="300" src="https://github.com/user-attachments/assets/7579df75-cca5-474c-8f5c-7c56e6c6ed60" />
 
 The PWA icon is also generated separately: it no longer blends into a black background.
+
+The iOS half (upstream ships no `apple-mobile-web-app-*` tag and no `viewport-fit=cover`) is covered too: standalone-capable metas plus the notch-safe viewport.
+
+> Upstream progress: the page-side `theme-color` meta is now implemented upstream — `dsh-client-ui-layout`'s `ThemePresenter` owns one `<meta name="theme-color">` and repaints it from the rendered body background on every `theme/change`. This plugin therefore no longer injects a competing meta (which used to delete the upstream one); only the scheme cookie that feeds the manifest remains client-side.
+
+`start_url` is still not overridden and stays upstream's `./`. But the premise that an installed app and the browser share one session cookie is wrong: upstream `dsh-client-connection` mints it as `HttpOnly; SameSite=Strict`, and a cold start from the desktop/app launcher is a top-level navigation Chromium gives an opaque initiator, so the Strict cookie is withheld. That is deliberate — it closes the `intent://` `SameSite=Strict` bypass in crbug 40061152, and upstream has explicitly declined to change it. The installed app therefore never gets a session and only ever sees `dsh web authentication required`; neither reload nor reinstall helps, since a reinstall just repeats the same broken cold start.
+
+So this plugin relaxes the session cookie to `SameSite=Lax`, which still rides a top-level GET navigation — exactly what `start_url` is. The cookie stays `HttpOnly`, still authority-bound, still HMAC-signed, with the same value and lifetime. `/api` does not lean on the cookie's SameSite for CSRF anyway: `isTrustedApiRequest()` keeps its own `Sec-Fetch-Site` and Origin fence.
 
 Note: an already installed PWA's `display` will not change with a manifest update — re-add/reinstall it.
 
@@ -168,9 +176,19 @@ When there are queued messages, pressing Enter again writes the queued messages 
 
 [plugins/dsh-webui-fix-mobile-keyboard-blur](plugins/dsh-webui-fix-mobile-keyboard-blur/)
 
-On touch (soft-keyboard) devices, entering a session could focus the composer and pop the keyboard unexpectedly.
+On touch (soft-keyboard) devices, entering a session could focus the composer and pop the keyboard unexpectedly. The model picker is covered too: the search field it now renders above the model list focused itself (`searchRef.current?.focus()`) when that pane opened, so a phone popped the soft keyboard up before the user asked for it. Touch devices no longer take that focus either; tapping the field still types, since a real tap focuses it natively without going through the patch.
 
-> This functionality was implemented upstream by the 2026-08-20 commit [`e06625d`](https://github.com/deepseek-ai/deepseek-harness/commit/e06625d202ba53836a16865e0f779a44a85ec167). It is now only needed for older versions that do not include the implementation. It is no longer included in the aggregate pack by default; install `@jiesou/dsh-webui-fix-mobile-keyboard-blur` individually if you still need it.
+> Not implemented upstream: this note previously attributed the fix to the 2026-08-20 commit [`e06625d`](https://github.com/deepseek-ai/deepseek-harness/commit/e06625d202ba53836a16865e0f779a44a85ec167), but that commit is "running drafts switch to Send" (`primaryStops = running && subagent === null && (empty || blocked !== undefined)`) — it only touched `InputBar`'s primary button and has nothing to do with this plugin. On dsh `0.2.0-rc.2`, `InputBar` still calls `focusDraftEditor(editor)` unconditionally from its `useEffect([locked, sessionId, editor])`, so entering a session still focuses the composer and pops the soft keyboard. The plugin therefore stays, and the aggregate pack installs it by default.
+
+### ime-multiline-commit
+
+[plugins/dsh-webui-fix-ime-multiline-commit](plugins/dsh-webui-fix-ime-multiline-commit/)
+
+When an input method commits multi-line text in one go (Wayland text-input-v3's `commit_string`, IBus' `CommitText` — fcitx5-vinput, dictation tools), only the first line survives; the rest are dropped.
+
+Blink delivers the whole multi-line string as **one** `beforeinput` (`inputType: "insertText"`, `data: "A\nB\nC"`), and lexical's plain-text insert only takes that over when the caret sits on an empty paragraph. With the caret inside a line that already has text, lexical hands the insert back to the browser; the browser then inserts segment by segment and fires one `input` per segment, so lexical reads its model back from the first segment, re-renders, and wipes the paragraphs still being added.
+
+This plugin takes the multi-line insert over and replays it line by line — one trusted `insertText` per line, a synthetic `insertLineBreak` between lines — exactly what typing each line and pressing Shift+Enter does. Composing text (`insertCompositionText`), paste (`insertFromPaste`) and single-line inserts stay untouched.
 
 ## Dependency strategy
 

@@ -21,6 +21,14 @@
  *    rests on the sidebar page; this mirrors that behaviour so the pack also
  *    works without dsh-mobile (and across its matcher changes).
  *
+ * 3. Model menu search: the composer's model seat (ui-model-selection) renders a
+ *    search field above large catalogs and focuses it when the model pane is
+ *    drilled into (`searchRef.current?.focus()`), so a desktop keyboard can
+ *    filter right away. On touch that pops the IME while the user only meant to
+ *    pick a model, so those focus calls are dropped too — tapping the field stays
+ *    a trusted tap that reaches it without the patched method. It is the only
+ *    `[role="searchbox"]` in dsh-webui.
+ *
  * Hard-keyboard devices are untouched (the whole plugin is coarse-pointer
  * gated; auto-focus is harmless there).
  */
@@ -28,6 +36,7 @@ window.__ModuleLoader__.load({
   id: '@jiesou/dsh-webui-fix-mobile-keyboard-blur',
   factory: () => {
     const CARD = '[data-composer-card]'
+    const MODEL_SEARCH = '[role="searchbox"]'
 
     const isEditable = (el) =>
       el instanceof HTMLTextAreaElement ||
@@ -63,14 +72,16 @@ window.__ModuleLoader__.load({
           }
           document.addEventListener('pointerdown', onPointerDown, true)
           HTMLElement.prototype.focus = function (options) {
-            if (!engaged && this instanceof Element && this.closest(CARD) !== null) return
+            if (!(this instanceof Element)) return focus.call(this, options)
+            if (this.closest(MODEL_SEARCH) !== null) return
+            if (!engaged && this.closest(CARD) !== null) return
             return focus.call(this, options)
           }
           return () => {
             HTMLElement.prototype.focus = focus
             document.removeEventListener('pointerdown', onPointerDown, true)
           }
-        }, '@jiesou/dsh-webui-fix-mobile-keyboard-blur: drop programmatic composer focus while the pointer is not engaged with the card')
+        }, '@jiesou/dsh-webui-fix-mobile-keyboard-blur: drop the programmatic composer and model-search focus no tap asked for')
       },
     }
   },

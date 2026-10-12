@@ -6,23 +6,12 @@ window.__ModuleLoader__.load({
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 		//#region src/client/index.ts
 		const name = "dsh-ya-simple-shortcuts";
-		/**
-		* Keep this list to packages that still exist as installable client bundles.
-		* `@deepseek-ai/dsh-client-runtime` was removed in alpha1 — listing it here is
-		* what broke every shortcut.
-		*/
 		const inject = [
+			"shortcuts",
 			"sessions",
 			"modelDirectories",
-			"uiWorkspace",
-			"workspaces"
+			"uiWorkspace"
 		];
-		/**
-		* Composer input hosts. alpha1 renders a Lexical contenteditable
-		* (`[data-composer-input]`); pre-alpha rendered a `<textarea>` inside the input
-		* scroller. Both are matched, plus the generic contenteditable form so a future
-		* shell that drops the data attribute still resolves.
-		*/
 		const COMPOSER_INPUT_SELECTOR = [
 			"[data-composer-input]",
 			"[data-input-scroll] textarea",
@@ -30,10 +19,7 @@ window.__ModuleLoader__.load({
 			"[contenteditable=\"true\"]",
 			"[contenteditable][data-phase]"
 		].join(", ");
-		/** Access-mode (permission) trigger: the composer chip carries this aria-label. */
 		const ACCESS_MODE_ARIA_PREFIXES = ["访问模式", "Access mode"];
-		/** Session-search trigger aria-labels (zh + en). */
-		const SESSION_SEARCH_ARIA = ["搜索会话", "Search sessions"];
 		function flatModelList(groups) {
 			const flat = [];
 			for (const group of groups) {
@@ -73,13 +59,6 @@ window.__ModuleLoader__.load({
 				directory.select(selection).catch(() => {});
 			} catch {}
 		}
-		/**
-		* Index of the menu row DSH marks as current.
-		*
-		* alpha1's primitive draws a check-mark SVG for the selected row and sets no
-		* `aria-checked` / `aria-selected`. Pre-alpha shells used those attributes.
-		* Both spellings are probed, and a trailing check icon counts as well.
-		*/
 		function markedIndex(items) {
 			const byAria = items.findIndex((item) => item.getAttribute("aria-checked") === "true" || item.getAttribute("aria-selected") === "true");
 			if (byAria >= 0) return byAria;
@@ -87,15 +66,6 @@ window.__ModuleLoader__.load({
 			if (byClass >= 0) return byClass;
 			return items.findIndex((item) => item.querySelectorAll("svg").length > 1);
 		}
-		/**
-		* Click the next row of the menu attached to `anchor`.
-		*
-		* @param anchor - the trigger button that opens the menu.
-		* @param direction - +1 for next, -1 for previous.
-		* @param fallbackLabel - text of the current row, used when the menu marks
-		*   nothing (keeps cycle position sane across locales).
-		* @returns whether the anchor was clicked.
-		*/
 		function cycleMenu(anchor, direction, fallbackLabel) {
 			anchor.click();
 			requestAnimationFrame(() => {
@@ -111,11 +81,6 @@ window.__ModuleLoader__.load({
 			});
 			return true;
 		}
-		/**
-		* Full-access is gated behind a `RiskConfirmation` dialog. It auto-focuses its
-		* acknowledge checkbox on open, so after the click the user is already one
-		* Space + Enter away from confirming — no extra focus juggling required.
-		*/
 		function accessModeButton() {
 			return Array.from(document.querySelectorAll("[data-composer-card] button")).find((button) => {
 				const label = button.getAttribute("aria-label") ?? "";
@@ -127,31 +92,6 @@ window.__ModuleLoader__.load({
 			if (button === null) return false;
 			return cycleMenu(button, 1, (button.getAttribute("aria-label") ?? "").replace(/^[^：:]*[：:]\s*/, "").trim());
 		}
-		function openSessionSearch() {
-			const button = Array.from(document.querySelectorAll("button")).find((candidate) => {
-				const label = candidate.getAttribute("aria-label") ?? "";
-				return SESSION_SEARCH_ARIA.some((text) => label === text);
-			});
-			if (button === void 0) return;
-			button.click();
-			requestAnimationFrame(() => {
-				document.querySelector("input[placeholder=\"搜索会话…\"], input[placeholder=\"Search sessions...\"]")?.focus({ preventScroll: true });
-			});
-		}
-		/**
-		* Page the conversation between user messages.
-		*
-		* Two traps in alpha1's transcript DOM that the naive version fell into:
-		* 1. `[data-chat-anchor-key]` rows are NOT in visual order (turn-process and
-		*    subagent groups interleave), so "last matching row" must be picked by
-		*    measured offset, not by DOM index.
-		* 2. After a jump the target row's top lands exactly on the marker, so a plain
-		*    `< marker` / `> marker` test keeps re-selecting that same row and every
-		*    repeat press stalls. The comparison is anchored on the row's top with a
-		*    one-pixel epsilon so the parked row is excluded.
-		*
-		* @param direction - -1 to page up, +1 to page down.
-		*/
 		function scrollToUser(direction) {
 			const scrollport = document.querySelector("[data-conversation-scroll]");
 			if (scrollport === null) return;
@@ -194,13 +134,6 @@ window.__ModuleLoader__.load({
 			if (seat === null) return false;
 			return cycleMenu(seat, direction, seat.textContent?.trim() ?? "");
 		}
-		/**
-		* Whether the key press belongs to the composer.
-		*
-		* Lexical keeps focus on the contenteditable root itself, so `event.target` is
-		* the input — but popup shells and some mobile keyboards blur it, leaving
-		* `document.activeElement` as the only witness. Both are checked.
-		*/
 		function isComposerTarget(target) {
 			return [target instanceof Element ? target : null, document.activeElement instanceof Element ? document.activeElement : null].some((candidate) => {
 				if (candidate === null) return false;
@@ -208,65 +141,107 @@ window.__ModuleLoader__.load({
 				return input !== null && input.closest("[data-composer-card]") !== null;
 			});
 		}
-		/**
-		* Start a new session, preferring the alpha1 `uiWorkspace` service (which owns
-		* navigation and blank-session reuse) and falling back to the pre-alpha
-		* controller method so older hosts keep working unchanged.
-		*/
+		function isAltOnly(gesture) {
+			return gesture.alt && !gesture.control && !gesture.shift && !gesture.meta;
+		}
 		function startSession(scope) {
-			const ui = scope.uiWorkspace?.startSession;
-			if (typeof ui === "function") {
-				ui.call(scope.uiWorkspace);
-				return;
+			if (scope.uiWorkspace === void 0) return false;
+			try {
+				scope.uiWorkspace.startSession();
+				return true;
+			} catch {
+				return false;
 			}
-			const legacy = scope.workspaces?.startSession;
-			if (typeof legacy === "function") legacy.call(scope.workspaces);
+		}
+		function status() {
+			return globalThis.__dshGapShortcuts ?? (globalThis.__dshGapShortcuts = {
+				fixed: [],
+				last: "",
+				calls: 0
+			});
+		}
+		function onFixedInput(scope, input) {
+			if (input.type === "reset") return;
+			const { gesture, context } = input;
+			status().calls += 1;
+			status().last = gesture.code;
+			if (gesture.defaultPrevented || gesture.composing || gesture.repeat) return;
+			if (context.modal !== null || context.region === "terminal") return;
+			if (!isAltOnly(gesture)) return;
+			if (gesture.code === "KeyA") {
+				if (cyclePermission()) input.consume();
+			} else if (gesture.code === "KeyX") {
+				if (startSession(scope)) input.consume();
+			} else if (gesture.code === "ArrowUp") {
+				input.consume();
+				scrollToUser(-1);
+			} else if (gesture.code === "ArrowDown") {
+				input.consume();
+				scrollToUser(1);
+			} else if (gesture.code === "ArrowLeft") {
+				input.consume();
+				cycleEffort(scope, -1);
+			} else if (gesture.code === "ArrowRight") {
+				input.consume();
+				cycleEffort(scope, 1);
+			}
 		}
 		function onKeyDown(scope, event) {
 			if (event.isComposing || event.keyCode === 229 || event.repeat) return;
-			const key = (event.key || event.code).toLowerCase();
-			const alt = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
-			const ctrl = event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
-			if (alt && key === "a") {
-				if (cyclePermission()) event.preventDefault();
-				return;
-			}
-			if (alt && key === "x") {
-				event.preventDefault();
-				startSession(scope);
-				return;
-			}
-			if (ctrl && key === "k") {
-				event.preventDefault();
-				openSessionSearch();
-				return;
-			}
-			if (alt && (key === "arrowup" || key === "arrowdown")) {
-				event.preventDefault();
-				scrollToUser(key === "arrowup" ? -1 : 1);
-				return;
-			}
-			if (alt && key === "arrowright") {
-				event.preventDefault();
-				cycleEffort(scope, 1);
-				return;
-			}
-			if (alt && key === "arrowleft") {
-				event.preventDefault();
-				cycleEffort(scope, -1);
-				return;
-			}
-			if (key === "tab" && isComposerTarget(event.target)) {
+			if ((event.key || event.code).toLowerCase() === "tab" && isComposerTarget(event.target)) {
 				if (cyclePreset(event.shiftKey ? -1 : 1)) event.preventDefault();
 			}
 		}
 		function apply(ctx) {
 			ctx.inject(inject, (scope) => {
 				scope.effect(() => {
+					const fixed = (id, label, keys, bindings) => {
+						const dispose = scope.shortcuts.registerFixed({
+							id,
+							label: () => label,
+							keys,
+							bindings,
+							group: "application"
+						});
+						status().fixed.push(id);
+						return dispose;
+					};
+					const disposePermission = fixed("permission.cycle", "切换访问模式", ["Alt+A"], [{
+						code: "KeyA",
+						modifiers: ["alt"]
+					}]);
+					const disposeSession = fixed("gap.session.new", "新建会话", ["Alt+X"], [{
+						code: "KeyX",
+						modifiers: ["alt"]
+					}]);
+					const disposePaging = fixed("conversation.page", "按用户消息翻页", ["Alt+↑", "Alt+↓"], [{
+						code: "ArrowUp",
+						modifiers: ["alt"]
+					}, {
+						code: "ArrowDown",
+						modifiers: ["alt"]
+					}]);
+					const disposeEffort = fixed("reasoning-effort.cycle", "切换推理强度", ["Alt+←", "Alt+→"], [{
+						code: "ArrowLeft",
+						modifiers: ["alt"]
+					}, {
+						code: "ArrowRight",
+						modifiers: ["alt"]
+					}]);
+					const offFixed = scope.shortcuts.observeFixedInput((input) => {
+						onFixedInput(scope, input);
+					});
 					const handler = (event) => onKeyDown(scope, event);
 					document.addEventListener("keydown", handler, true);
-					return () => document.removeEventListener("keydown", handler, true);
-				}, "dsh-ya-simple-shortcuts: keydown");
+					return () => {
+						disposePermission();
+						disposeSession();
+						disposePaging();
+						disposeEffort();
+						offFixed();
+						document.removeEventListener("keydown", handler, true);
+					};
+				}, "dsh-ya-simple-shortcuts: gap shortcuts");
 			});
 		}
 		//#endregion

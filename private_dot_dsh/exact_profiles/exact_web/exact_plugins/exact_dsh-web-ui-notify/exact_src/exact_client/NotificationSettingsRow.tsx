@@ -1,8 +1,9 @@
 /** General Settings row for the desktop-notification permission. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { NotifyKey } from './locales.ts'
 import css from './NotificationSettingsRow.module.css'
+import { disableWebPush, enableWebPush, pushSupported, restoreWebPush, webPushEnabled } from './push.ts'
 
 /** Full Settings-row props. */
 export type NotificationSettingsRowProps =
@@ -37,6 +38,20 @@ function statusKey(state: NotificationPermissionState): NotifyKey {
  */
 export function NotificationSettingsRow({ t }: NotificationSettingsRowProps) {
   const [state, setState] = useState<NotificationPermissionState>(permissionState)
+  const [pushEnabled, setPushEnabled] = useState(webPushEnabled)
+  const [error, setError] = useState('')
+  useEffect(() => { void restoreWebPush() }, [])
+  const toggle = async () => {
+    setError('')
+    try {
+      if (pushEnabled) await disableWebPush()
+      else await enableWebPush()
+      setPushEnabled(!pushEnabled)
+      setState(permissionState())
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    }
+  }
   const request = async () => {
     if (typeof Notification === 'undefined') return
     const next = await Notification.requestPermission()
@@ -48,16 +63,18 @@ export function NotificationSettingsRow({ t }: NotificationSettingsRowProps) {
         <div className={css.title}>{t('settings.title')}</div>
         <div className={css.desc}>{t('settings.description')}</div>
         <div className={css.status}>{t(statusKey(state))}</div>
+        {error === '' ? null : <div className={css.status} role="alert">{error}</div>}
       </div>
       {state === 'granted' || state === 'unsupported' ? null : (
-        <button
-          type="button"
-          className={css.button}
-          onClick={() => { void request() }}
-        >
+        <button type="button" className={css.button} onClick={() => { void request() }}>
           {t('settings.request')}
         </button>
       )}
+      {pushSupported() ? (
+        <button type="button" className={css.button} aria-pressed={pushEnabled} onClick={() => { void toggle() }}>
+          {pushEnabled ? t('settings.push.disable') : t('settings.push.enable')}
+        </button>
+      ) : null}
     </div>
   )
 }

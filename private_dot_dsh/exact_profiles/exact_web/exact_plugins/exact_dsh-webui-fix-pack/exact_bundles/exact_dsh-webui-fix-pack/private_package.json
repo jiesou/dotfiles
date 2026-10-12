@@ -1,6 +1,6 @@
 {
   "name": "@jiesou/dsh-webui-fix-pack",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "main": "./package.json",
   "publishConfig": {
     "access": "public"
@@ -14,7 +14,9 @@
     "@jiesou/dsh-webui-fix-double-enter-to-steer": "latest",
     "@jiesou/dsh-webui-fix-hide-like-dislike": "latest",
     "@jiesou/dsh-webui-fix-hide-session-log-btn": "latest",
+    "@jiesou/dsh-webui-fix-ime-multiline-commit": "latest",
     "@jiesou/dsh-webui-fix-mobile-enter-newline": "latest",
+    "@jiesou/dsh-webui-fix-mobile-keyboard-blur": "latest",
     "@jiesou/dsh-webui-fix-subagent-panel": "latest",
     "@jiesou/dsh-webui-fix-pwa": "latest",
     "@jiesou/dsh-webui-fix-session-row-context-menu": "latest"

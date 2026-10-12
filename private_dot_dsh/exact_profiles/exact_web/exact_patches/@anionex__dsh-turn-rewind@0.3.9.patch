@@ -1,0 +1,46 @@
+diff --git a/lib/rewind-host.js b/lib/rewind-host.js
+index 7b36eb8..f730bbc 100644
+--- a/lib/rewind-host.js
++++ b/lib/rewind-host.js
+@@ -470,7 +470,9 @@ async function createConversationRestart(ctx, sourceId, checkpoint) {
+         const created = checkpoint.previousTurnEndSeq === undefined
+             ? await controller.create(workspace === undefined ? { cwd: checkpoint.cwd } : { workspaceId: workspace.id })
+             : await controller.fork({ sessionId: sourceId, atSeq: checkpoint.previousTurnEndSeq });
+-        return { sessionId: requiredText(created.sessionId, 'sessionController sessionId') };
++        const sessionId = requiredText(created.sessionId, 'sessionController sessionId');
++        discardInheritedInbox(ctx, sessionId);
++        return { sessionId };
+     }
+     const apiProxy = ctx.get('apiProxy');
+     if (apiProxy === undefined) {
+@@ -488,7 +490,29 @@ async function createConversationRestart(ctx, sourceId, checkpoint) {
+     if (!response.result.ok) {
+         throw new ChangeLedgerError('CONVERSATION_REWIND_FAILED', response.result.error.message);
+     }
+-    return { sessionId: requiredText(response.result.value.sessionId, 'fork sessionId') };
++    const sessionId = requiredText(response.result.value.sessionId, 'fork sessionId');
++    discardInheritedInbox(ctx, sessionId);
++    return { sessionId };
++}
++/**
++ * Drop the pending input a fork inherited from the tail it cut away.
++ *
++ * The fork cut runs from the boundary `turn/end` forward to the next
++ * `turn/start`, so a child seeded that way can end on the `agent/inbox/spliced`
++ * insert that queued the discarded turn's own message. Rebuilt from the seed
++ * alone, that insert reads as input still awaiting its turn: the child then
++ * runs the pre-rewind message ahead of whatever the user sends next. A rewind
++ * child must start with an empty inbox - the whole point is that the discarded
++ * turn never happened.
++ * @param ctx - host context carrying the agent registry.
++ * @param sessionId - the freshly created child session.
++ */
++function discardInheritedInbox(ctx, sessionId) {
++    const agent = typeof ctx.agents?.get === 'function' ? ctx.agents.get(sessionId) : undefined;
++    const inbox = agent?.inbox;
++    if (inbox !== undefined && typeof inbox.clear === 'function' && inbox.hasPending === true) {
++        inbox.clear();
++    }
+ }
+ function messageTarget(session, messageSeq) {
+     const cwd = session.header.cwd;

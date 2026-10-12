@@ -3,12 +3,14 @@
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'settings.title': '桌面通知',
-  'settings.description': '当工具需要审批、向你提问、或轮次完成，而你正在浏览其他标签页时，弹出系统通知提醒你。',
+  'settings.description': '桌面通知适用于浏览器后台；手机推送需在 HTTPS/PWA 支持的浏览器中单独开启。',
   'settings.status.granted': '已开启',
   'settings.status.denied': '已被浏览器阻止',
   'settings.status.default': '未授权',
   'settings.status.unsupported': '浏览器不支持',
   'settings.request': '开启桌面通知',
+  'settings.push.enable': '开启手机推送',
+  'settings.push.disable': '关闭手机推送',
   'notify.approval.title': '需要审批',
   'notify.approval.body': '工具 {toolName} 请求越权执行',
   'notify.question.title': '需要你的回答',
@@ -37,12 +39,14 @@ export type NotifyKey = keyof typeof zh
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'settings.title': 'Desktop notifications',
-  'settings.description': 'Show a system notification when a tool needs approval, asks you a question, or a turn finishes while you are on another tab.',
+  'settings.description': 'Desktop alerts work in background tabs; phone push needs a supported HTTPS/PWA browser and must be enabled separately.',
   'settings.status.granted': 'On',
   'settings.status.denied': 'Blocked by the browser',
   'settings.status.default': 'Not granted',
   'settings.status.unsupported': 'Not supported',
   'settings.request': 'Enable desktop notifications',
+  'settings.push.enable': 'Enable phone push',
+  'settings.push.disable': 'Disable phone push',
   'notify.approval.title': 'Approval required',
   'notify.approval.body': 'Tool {toolName} requests privileged execution',
   'notify.question.title': 'Your answer is needed',

@@ -17,6 +17,9 @@
       name: dsh-tool-deny
       config:
         denyTools:
+          # 只留 mcp__tinyfish__search 与 mcp__tinyfish__fetch_content，其余 MCP 工具
+          # 一律不可见。停用中的 server（linkup / firecrawl / tavily）保留名字：
+          # 重新启用时其工具一注册就自动补掩码。
           - mcp__linkup__linkup-research
           - mcp__linkup__linkup-get-research
           - mcp__firecrawl__firecrawl_parse
@@ -25,23 +28,32 @@
           - mcp__tavily__tavily_map
           - mcp__tavily__tavily_crawl
           - mcp__tavily__tavily_research
-          - mcp__tinyfish__create_monitor
-          - mcp__tinyfish__get_search_usage
-          - mcp__tinyfish__get_fetch_usage
-          - mcp__tinyfish__get_wallet
-          - mcp__tinyfish__list_fetch_usage
-          - mcp__tinyfish__list_search_usage
-          - mcp__tinyfish__list_runs
-          - mcp__tinyfish__get_run
-          - mcp__tinyfish__batch_status
           - mcp__tinyfish__batch_cancel
+          - mcp__tinyfish__batch_status
+          - mcp__tinyfish__cancel_monitor
+          - mcp__tinyfish__cancel_profile_setup_session
           - mcp__tinyfish__cancel_run
-          - mcp__tinyfish__run_web_automation_async
-          - mcp__tinyfish__list_browser_sessions
-          - mcp__tinyfish__create_browser_session
           - mcp__tinyfish__close_browser_session
-          - mcp__tinyfish__run_web_automation
+          - mcp__tinyfish__create_browser_session
+          - mcp__tinyfish__create_monitor
+          - mcp__tinyfish__create_profile
+          - mcp__tinyfish__get_monitor
+          - mcp__tinyfish__get_run
+          - mcp__tinyfish__get_search_usage
+          - mcp__tinyfish__get_wallet
           - mcp__tinyfish__guide_next_step
+          - mcp__tinyfish__list_browser_sessions
+          - mcp__tinyfish__list_fetch_usage
+          - mcp__tinyfish__list_monitors
+          - mcp__tinyfish__list_profiles
+          - mcp__tinyfish__list_runs
+          - mcp__tinyfish__pause_monitor
+          - mcp__tinyfish__resume_monitor
+          - mcp__tinyfish__run_monitor
+          - mcp__tinyfish__run_web_automation
+          - mcp__tinyfish__run_web_automation_async
+          - mcp__tinyfish__save_profile_setup_session
+          - mcp__tinyfish__start_profile_setup_session
     - id: subagent-background-only
       name: 'dsh-subagent-background-only'
 - id: session-query-sqlite
@@ -51,8 +63,8 @@
 - id: agent-default-model
   name: "@deepseek-ai/dsh-agent-default-model"
   config:
-    provider: commandcode-2
-    model: deepseek/deepseek-v4.1-flash
+    provider: cpa
+    model: deepseek-v4.1-flash
 - id: ui-settings-general
   name: "@deepseek-ai/dsh-client-ui-settings-general"
   config:
@@ -61,167 +73,73 @@
   name: "@deepseek-ai/dsh-llm-pi-ai"
   config:
     providers:
-      antigravity-cpa:
+      cpa:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
         api: openai-completions
-        apiKeyEnv: ANTIGRAVITY_CPA_API_KEY
+        apiKeyEnv: CPA_API_KEY
         baseURL: http://127.0.0.1:8317/v1
-        displayName: Antigravity
+        displayName: CPA
         models:
-          - contextWindow: 1048576
-            id: gemini-3.8-flash-high
-            input:
-              - text
-              - image
-            maxTokens: 65536
+          - id: gemini-3.8-flash-high
             name: Gemini 3.8 Flash (High)
+            contextWindow: 1048576
+            maxTokens: 65536
+            input:
+              - text
+              - image
             reasoningEfforts:
               off: null
               low: low
               medium: medium
               high: high
-          - contextWindow: 1048576
-            id: gemini-3.7-flash-high
-            input:
-              - text
-              - image
-            maxTokens: 65536
-            name: Gemini 3.7 Flash (High)
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
-          - contextWindow: 1048576
-            id: gemini-3.6-flash-high
-            input:
-              - text
-              - image
-            maxTokens: 65536
-            name: Gemini 3.6 Flash (High)
-            reasoningEfforts:
-              off: null
-              minimal: minimal
-              low: low
-              medium: medium
-              high: high
-          - contextWindow: 1048576
-            id: gemini-3-flash
-            input:
-              - text
-              - image
-            maxTokens: 65536
-            name: Gemini 3 Flash
-            reasoningEfforts:
-              off: null
-              minimal: minimal
-              low: low
-              medium: medium
-              high: high
-          - contextWindow: 1048576
-            id: gemini-3.1-flash-lite
-            input:
-              - text
-              - image
-            maxTokens: 65536
-            name: Gemini 3.1 Flash Lite
-            reasoningEfforts:
-              off: null
-              minimal: minimal
-              low: low
-              medium: medium
-              high: high
-          - contextWindow: 1048576
-            id: gemini-3.1-flash-image
-            input:
-              - text
-              - image
-            maxTokens: 65536
-            name: Gemini 3.1 Flash Image
-            reasoningEfforts:
-              off: null
-              minimal: minimal
-              high: high
-          - contextWindow: 1048576
-            id: gemini-pro-agent
-            input:
-              - text
-              - image
-            maxTokens: 65536
-            name: Gemini 3.1 Pro (High)
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
-          - contextWindow: 1048576
-            id: gemini-3.1-pro-low
-            input:
-              - text
-              - image
-            maxTokens: 65536
+          - id: gemini-3.1-pro-low
             name: Gemini 3.1 Pro (Low)
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
-          - contextWindow: 200000
-            id: claude-opus-4-6-thinking
-            input:
-              - text
-              - image
-            maxTokens: 64000
-            name: Claude Opus 4.6 (Thinking)
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
-              max: max
-          - contextWindow: 200000
-            id: claude-sonnet-4-6
-            input:
-              - text
-              - image
-            maxTokens: 64000
-            name: Claude Sonnet 4.6 (Thinking)
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
-              max: max
-          - contextWindow: 114000
-            id: gpt-oss-120b-medium
-            input:
-              - text
-            maxTokens: 32768
-            name: GPT-OSS 120B (Medium)
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
-      codebuddy:
-        api: openai-completions
-        apiKeyEnv: CODEBUDDY_API_KEY
-        baseURL: http://127.0.0.1:8787/v1
-        displayName: CodeBuddy Free
-        models:
-          - id: auto
-            name: Auto
-            contextWindow: 168000
-            maxTokens: 32000
+            contextWindow: 1048576
+            maxTokens: 65536
             input:
               - text
               - image
             reasoningEfforts:
               off: null
               low: low
+              medium: medium
+              high: high
+          - id: claude-sonnet-5-5-high
+            name: Claude Sonnet 5.5 (High)
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
               high: high
               max: max
-          - id: hy4-preview
+          - id: claude-opus-5-5-high
+            name: Claude Opus 5.5 (High)
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+          - id: hy4-preview-f
             name: Hy4 preview (x0.00)
+            contextWindow: 1000000
+            maxTokens: 64000
+            reasoningEfforts:
+              off: null
+              high: high
+          - id: hy4-preview
+            name: Hy4 preview (x0.29)
             contextWindow: 1000000
             maxTokens: 64000
             reasoningEfforts:
@@ -329,14 +247,6 @@
               low: low
               high: high
               max: max
-          - id: deepseek-v4-flash
-            name: Deepseek-V4-Flash (x0.17)
-            contextWindow: 1000000
-            maxTokens: 50000
-            reasoningEfforts:
-              off: null
-              high: high
-              max: max
           - id: deepseek-v4-pro
             name: Deepseek-V4-Pro (x0.51)
             contextWindow: 1000000
@@ -349,14 +259,222 @@
             name: Deepseek-V4.1-Flash (x0.06)
             contextWindow: 1000000
             maxTokens: 128000
+            input:
+              - text
+              - image
             reasoningEfforts:
               off: null
               low: low
               high: high
               max: max
+          - id: deepseek-v4.1-flash-sg
+            name: Deepseek-V4.1-Flash (sg)
+            contextWindow: 1000000
+            maxTokens: 128000
             input:
               - text
               - image
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - id: qfmodel
+            name: Qwen3.8-Flash
+            contextWindow: 1000000
+            maxTokens: 131072
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+        retryPolicy:
+          mode: always
+      jiji-luna:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
+        api: openai-responses
+        apiKeyEnv: JIJI_LUNA_API_KEY
+        baseURL: https://api-slb.jiji.cc/v1
+        compat:
+          supportsStrictMode: true
+        displayName: JiJi Luna
+        models:
+          - contextWindow: 1050000
+            id: gpt-6-luna
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+        retryPolicy:
+          mode: always
+      jiji-gptlim:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
+        api: openai-responses
+        apiKeyEnv: JIJI_GPTLIM_API_KEY
+        baseURL: https://api-slb.jiji.cc/v1
+        compat:
+          supportsStrictMode: true
+        displayName: JiJi GPT Lim
+        models:
+          - contextWindow: 1050000
+            id: gpt-6.1-sol
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            reasoningEfforts:
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+          - contextWindow: 1050000
+            id: gpt-6-astra
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            reasoningEfforts:
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+        retryPolicy:
+          mode: always
+      jiji-kiro:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
+        api: anthropic-messages
+        apiKeyEnv: JIJI_KIRO_API_KEY
+        baseURL: https://api-slb.jiji.cc
+        displayName: JiJi Claude Kiro
+        models:
+          - contextWindow: 1000000
+            id: claude-opus-5-5
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            compat:
+              forceAdaptiveThinking: true
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+          - contextWindow: 1000000
+            id: claude-fable-5-1
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            compat:
+              forceAdaptiveThinking: true
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+        retryPolicy:
+          mode: always
+      jiji-grok:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
+        api: openai-completions
+        apiKeyEnv: JIJI_GROK_API_KEY
+        baseURL: https://api-slb.jiji.cc
+        displayName: JiJi Grok
+        models:
+          - contextWindow: 500000
+            id: grok-4.7
+            maxTokens: 131072
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              high: high
+              low: low
+              medium: medium
+              xhigh: xhigh
+      jiji-dpsk:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
+        api: openai-responses
+        apiKeyEnv: JIJI_DPSK_API_KEY
+        baseURL: https://api-slb.jiji.cc
+        compat:
+          supportsStrictMode: true
+        displayName: JiJi DPSK
+        models:
+          - contextWindow: 1000000
+            id: deepseek-v4.1-flash
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - contextWindow: 1000000
+            id: deepseek-v4-pro
+            input:
+              - text
+            reasoningEfforts:
+              off: null
+              low: low
+              high: high
+              max: max
+          - contextWindow: 1000000
+            id: qwen3.8-max-0902
+            input:
+              - text
+              - image
+            maxTokens: 131072
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+          - contextWindow: 1000000
+            id: qwen3.8-flash
+            input:
+              - text
+              - image
+            maxTokens: 131072
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+          - id: glm-5.3-flash
+            contextWindow: 1000000
+            maxTokens: 131072
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              high: high
+              low: low
+              max: max
         retryPolicy:
           mode: always
       ramalama:
@@ -378,16 +496,31 @@
         retryPolicy:
           mode: always
       sui-xiang-claude-kiro:
-        api: openai-completions
+        api: anthropic-messages
         apiKeyEnv: SUIXIANG_CLAUDE_API_KEY
         baseURL: https://sui-xiang.com
         displayName: SuiXiang Claude Kiro
         models:
           - id: claude-opus-5-5
             name: claude-opus-5-5
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            compat:
+              forceAdaptiveThinking: true
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
         retryPolicy:
           mode: always
       sui-xiang-gpt-pro:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
         api: openai-responses
         apiKeyEnv: SUIXIANG_GPT_API_KEY
         baseURL: https://sui-xiang.com
@@ -437,13 +570,17 @@
         retryPolicy:
           mode: always
       sui-xiang-host:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
         api: openai-responses
         apiKeyEnv: SUIXIANG_HOST_API_KEY
         baseURL: https://sui-xiang.com
+        compat:
+          supportsStrictMode: true
         displayName: SuiXiang Host
         models:
           - contextWindow: 1000000
-            id: deepseek-v4-flash
+            id: deepseek-v4.1-flash
             input:
               - text
               - image
@@ -494,8 +631,11 @@
         displayName: SuiXiang Grok
         models:
           - contextWindow: 500000
-            id: grok-4.6
+            id: grok-4.7
             maxTokens: 131072
+            input:
+              - text
+              - image
             reasoningEfforts:
               high: high
               low: low
@@ -504,6 +644,8 @@
         retryPolicy:
           mode: always
       sui-xiang-kimi:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
         api: openai-completions
         apiKeyEnv: SUIXIANG_KIMI_API_KEY
         baseURL: https://sui-xiang.com
@@ -542,6 +684,53 @@
               - image
         retryPolicy:
           mode: always
+      zai-coding-cn:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
+        models:
+          - id: glm-5.3
+            name: GLM-5.3
+            contextWindow: 1000000
+            maxTokens: 131072
+            reasoningEfforts:
+              high: high
+              low: low
+              max: max
+            input:
+              - text
+          - id: glm-5.3-flash
+            name: GLM-5.3-Flash
+            contextWindow: 1000000
+            maxTokens: 131072
+            reasoningEfforts:
+              high: high
+              low: low
+              max: max
+            input:
+              - text
+              - image
+          - id: glm-5.3-highspeed
+            name: GLM-5.3 Highspeed
+            contextWindow: 1000000
+            maxTokens: 131072
+            reasoningEfforts:
+              high: high
+              low: low
+              max: max
+            input:
+              - text
+          - id: glm-5.3-flashx
+            name: GLM-5.3-FlashX
+            contextWindow: 1000000
+            maxTokens: 131072
+            reasoningEfforts:
+              high: high
+              low: low
+              max: max
+            input:
+              - text
+              - image
+        apiKeyEnv: ZAI_CODING_CN_API_KEY
 - id: bash-sandbox
   name: "@deepseek-ai/dsh-bash-sandbox"
   config:
@@ -549,7 +738,8 @@
 - id: ui-chat
   name: "@deepseek-ai/dsh-client-ui-chat"
   config:
-    transcriptView: verbose
+    transcriptView: detailed
+    performanceUsage: detailed
 - id: ui-theme
   name: "@deepseek-ai/dsh-client-ui-theme"
   config:
@@ -571,3 +761,20 @@
   name: "@deepseek-ai/dsh-session-log-deepseek"
   config:
     enabled: false
+- id: subagent-panel
+  disabled: true
+- id: session-row-context-menu
+  disabled: false
+- id: hide-session-log
+  disabled: true
+- id: pwa
+  disabled: false
+- id: dsh-context
+  name: dsh-context
+  config:
+    insightsEntry: hide
+    defaultPlacement: tab
+- id: hide-like-dislike
+  disabled: false
+- id: ime-multiline-commit
+  disabled: false

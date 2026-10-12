@@ -1,9 +1,9 @@
 /**
- * Pure notification helpers: visibility check, permission gate, and the
- * Notification construction for one pending wait, one completed turn, or one
- * background-session event. Kept side-effect-free (beyond constructing
- * Notification) so the browser-plugin spec can drive them with a stub
- * Notification and a fake visibilityState.
+ * Notification render helpers for one pending wait, one completed turn, or one
+ * background-session event, over the desktop `Notification` constructor — the
+ * only display path this half owns. Browsers that refuse the constructor (every
+ * mobile one) are served by the host's Web Push channel instead; showing a
+ * Service Worker notification here as well would deliver the same event twice.
  */
 import type { SessionPendingInteraction } from '@deepseek-ai/dsh-client-ui-session/client'
 import type { NotifyKey } from './locales.ts'
@@ -60,9 +60,30 @@ function titled(kindTitle: string, label: string): string {
   return label === '' ? kindTitle : `${label} · ${kindTitle}`
 }
 
-/** The one rendering path every notification kind funnels through. */
+/** Whether the constructor refusal was already reported this session. */
+let ctorUnavailableReported = false
+
+/**
+ * The one rendering path every notification kind funnels through. A browser
+ * without the constructor gets nothing here: the host pushes the same events to
+ * the device that opted into Web Push, and a local display on top of that push
+ * is what showed every event twice on a phone.
+ */
 function show(title: string, body: string, tag: string, target: NotifyTarget): Notification {
-  return withClickFocus(new Notification(title, { body, tag, requireInteraction: true }), target.onOpen)
+  const options: NotificationOptions = { body, tag, requireInteraction: true }
+  try {
+    return withClickFocus(new Notification(title, options), target.onOpen)
+  } catch (error) {
+    if (!ctorUnavailableReported) {
+      ctorUnavailableReported = true
+      console.warn(
+        '[web-ui-notify] this browser cannot construct a Notification; ' +
+          'notifications are delivered by Web Push instead.',
+        error,
+      )
+    }
+    return { close() {}, onclick: null } as Notification
+  }
 }
 
 /** Notification-body cap for a plan under review: keep the system notification compact. */
@@ -77,9 +98,8 @@ function excerptOf(text: string | undefined, max: number): string | undefined {
 }
 
 /**
- * Build and show the desktop notification for one pending wait. The caller
- * gates on {@link hiddenNow} / {@link notificationUsable} and dedupes by
- * wait key; this function only renders.
+ * Build and show the notification for one pending wait. The caller gates on
+ * {@link hiddenNow} / {@link notificationUsable} and dedupes by wait key.
  *
  * Three wait kinds reach this renderer: `approval`, `question`, and the
  * `plan-review` intent of a question. A plan review is its own thing — its
@@ -146,7 +166,7 @@ const TURN_OUTCOME_COPY: Record<Exclude<TurnOutcome, 'completed'>, { title: Noti
 }
 
 /**
- * Build and show the desktop notification for a finished turn. A turn that
+ * Build and show the notification for a finished turn. A turn that
  * produced no final assistant text is normal — a concluding tool
  * (`concludesTurn`), a structured-output subagent, a PTC script that ends the
  * loop — so only the outcome decides the copy, never the absence of text. The
@@ -182,7 +202,7 @@ export function fireTurnNotification(
 }
 
 /**
- * Build and show the desktop notification for a whole background session
+ * Build and show the notification for a whole background session
  * finishing ("done" reminder). The caller gates on {@link hiddenNow} /
  * {@link notificationUsable} and dedupes per session; this function only
  * renders.

@@ -19,6 +19,20 @@ const SESSION_LABEL_MAX = 40;
 function mainSessionId(list) {
     return Object.values(list.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)?.id;
 }
+function isRootSession(list, sid) {
+    const session = list.byId[sid];
+    return session !== undefined && session.parentId === undefined && session.origin !== 'subagent';
+}
+function hasSubagentSettlement(nodes, end) {
+    if (end === undefined)
+        return false;
+    const settlement = nodes.find(node => {
+        if (node.kind !== 'context' || typeof node.source !== 'object' || node.source === null)
+            return false;
+        return node.source.kind === 'subagent-settled';
+    });
+    return settlement !== undefined && nodes.some(node => node.kind === 'user' && node.seq > settlement.seq && node.seq < end);
+}
 /**
  * Extract a compact excerpt of one turn's final assistant text for the
  * notification body: the LAST assistant node of that turn, text blocks joined
@@ -173,7 +187,7 @@ export function apply(ctx, options) {
     const scan = () => {
         try {
             const current = mainSessionId(sessions.list.getSnapshot());
-            if (current === undefined)
+            if (current === undefined || !isRootSession(sessions.list.getSnapshot(), current))
                 return;
             const snapshot = ctx.uiConversation.binding(current).target('chat').getSnapshot();
             // No Chat snapshot yet: the view is not materialized during boot. Transient.
@@ -194,9 +208,9 @@ export function apply(ctx, options) {
                 if (turns.has(turn))
                     continue;
                 turns.add(turn);
-                const facts = turnFactsOf(snapshot.timeline?.turns.get(turn)?.end?.data.reason);
-                // Nothing to announce (a synthetic fork closer): stay silent.
-                if (facts === undefined)
+                const turnLocation = snapshot.timeline?.turns.get(turn);
+                const facts = turnFactsOf(turnLocation?.end?.data.reason);
+                if (facts === undefined || hasSubagentSettlement(snapshot.legacy.nodes, turnLocation?.end?.seq))
                     continue;
                 // Only a page bound to this session can see its turns, so the election
                 // runs among those pages alone.
@@ -233,7 +247,10 @@ export function apply(ctx, options) {
         try {
             const statuses = ctx.uiSession.sessionStatus.getSnapshot();
             const current = mainSessionId(sessions.list.getSnapshot());
+            const sessionList = sessions.list.getSnapshot();
             for (const [sid, status] of statuses) {
+                if (!isRootSession(sessionList, sid))
+                    continue;
                 const wait = status.pendingInteraction;
                 if (wait !== undefined) {
                     const key = `${sid}:${wait.key}`;
@@ -295,7 +312,7 @@ export function apply(ctx, options) {
     };
     // Moving the main view changes what this page is "watching" — and therefore
     // what its siblings may announce — so every list move is re-announced.
-    const unsubList = sessions.list.subscribe(() => { watchCurrent(); syncView(); });
+    const unsubList = sessions.list.subscribe(() => { watchCurrent(); syncView(); scanStatus(); });
     const unsubStatus = ctx.uiSession.sessionStatus.subscribe(scanStatus);
     const onVisibilityChange = () => syncView();
     if (typeof document !== 'undefined') {

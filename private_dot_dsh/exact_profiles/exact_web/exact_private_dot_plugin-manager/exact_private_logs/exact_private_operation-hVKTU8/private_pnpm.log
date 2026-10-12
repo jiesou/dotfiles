@@ -1,0 +1,9 @@
+✓ Lockfile passes supply-chain policies (verified 12m ago)
+Lockfile is up to date, resolution step is skipped
+Packages: -76
+----------------------------------------------------------------------------
+
+dependencies:
+- dsh-web-mobile https://codeload.github.com/mexiaosqwq/dsh-web-mobile/tar.gz/ac61ff3b2729e3ba921b4ef5ee6eb11a2971bf78
+
+Done in 515ms using pnpm v12.6.0

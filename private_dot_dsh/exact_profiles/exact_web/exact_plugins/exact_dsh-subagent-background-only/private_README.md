@@ -10,7 +10,8 @@
 把 agent 实际解析到的那个工具定义**原地改写**：
 
 - schema：删掉 `run_in_background`（连同 `required` 里的同名项）。
-- description：去掉教模型传 `false` 的引导，改成"always runs in the background"。
+- description：把 "runs in the background by default" 改成 "always runs in the
+  background"；教模型传 `false` 的那句在**参数自己的** description 里，随参数一起消失。
 - `execute`：包一层，强制注入 `run_in_background: true` 再调原 body——模型就算
   幻觉出 `false` 也照样进后台。
 - `agent/created` 到达即改写，`tools/change` 做 top-up；靠 `Symbol` 标记幂等。
@@ -63,11 +64,11 @@ preset 行（如 `focus`）则是注册进 **preset standing layer**，同样盖
 
 `backgroundMode: continuable` 时，参数缺省本就是后台，删掉参数只是拿掉模型"退出
 后台"的能力，默认路由不变。但 **`one-shot` 模式下删参数会把默认路由翻成前台**，
-所以插件先认声明：只有工具描述承诺 durable subagent id、且参数自述
+所以插件先认声明：只有工具描述承诺可续用的 subagent id、且参数自述
 `Defaults to true.` 时才剥离；任一信号不符就**拒改并告警**。
 
-同理，**改 description 的锚点改不动也拒改**：判定与改写同源，若上游只改了那句
-"Set `run_in_background: false`…"的措辞，插件会拒改并告警，而不是留下一个删了参数、
+同理，**改完 description 还在提 `run_in_background` 就拒改**：判定与改写同源，若上游
+把教 `false` 的话搬回工具 description，插件会拒改并告警，而不是留下一个删了参数、
 提示词却还在教模型传它的半成品。
 
 > 实测：dsh-headless 的 `subagent_fork` 配的是 `backgroundMode: one-shot`，
@@ -75,28 +76,28 @@ preset 行（如 `focus`）则是注册进 **preset standing layer**，同样盖
 
 | 调用 | 模型看到 | 结果 |
 |---|---|---|
-| `subagent`（continuable） | 无 `run_in_background` 参数 | 后台执行，返回 durable id |
+| `subagent`（continuable） | 无 `run_in_background` 参数 | 后台执行，返回可续用的 subagent id |
 | `subagent_fork`（one-shot 配置时） | 原样 | 拒改 + 告警，行为不变 |
 | `subagent_codex` / `subagent_claude_code` | 原样 | 拒绝：one-shot run denied |
 | `send_message` / `interrupt_agent` / `job_*` | 原样 | 放行 |
 
-### 已知残留：system prompt 里还有一句在教 `false`
+### 上游 0.2.0-rc.2 的文案变更（2026-10-03 修复）
 
-`tool-subagent` 在 continuable 时另外注册一段 system prompt
-（`name: 'tool:<toolName>'`），文案仍是 "Set `run_in_background: false` only when
-your next action depends on that subagent's result."——而那个参数已经不在 schema 里了。
-插件没有覆盖它，因为覆盖不了：
+`@deepseek-ai/dsh-tool-subagent` 0.2.0-rc.2 重写了整套模型可见文案，两个判定锚点
+一个不剩：
 
-- 该段与工具一起注册进**同一个 layer**。带 `modelSelectionSettings: true` 的行
-  （shipped standard/ptc/cordis 三个 preset 的 `subagent` 都是）走 `installScoped()`，
-  工具和段落都进 **agent 自己的 layer**；插件再从 `agent.ctx` 注册同名段落会抛
-  `prompt section "tool:subagent" is already registered in this scope`。
-- 只有在 preset standing layer 里的行（如 `subagent_fork`）才盖得住——但那样插件就得
-  依赖 `tool:<toolName>` 段名与 `TOOL_SUBAGENT` order 常量，等于把上游内部结构抄进来。
+| | ≤ 0.1.x | 0.2.0-rc.2 |
+|---|---|---|
+| continuable 工具 description | "…immediately returns a durable subagent id… Set `run_in_background: false` only when your next action depends on receiving the result." | "It runs in the background by default and returns a subagent id you can continue with `send_message`; …" |
+| continuable 参数 description | "Whether to run in the background and return a durable subagent id immediately. Defaults to true. Set false to wait for the result when your next action depends on it." | "Defaults to true. Set false only when your next action depends on the result." |
+| system prompt 段（`tool:<toolName>`） | 含 "Set `run_in_background: false` only when your next action depends on that subagent's result." | 只有 "Start independent … delegations together in one assistant message…"，不再提参数 |
 
-所以现状是：**schema 层已彻底删掉参数，提示词层还剩一句陈旧引导**。模型仍可能试传
-一次 `run_in_background: false`，收到参数校验错误（该参数已不存在），随后照 schema 走。
-要根治得靠上游给一个"只允许后台"的 `backgroundMode`。
+于是插件认不出 continuable，只留下那句
+`declaration is not backgroundMode: continuable … refusing to strip` 的告警，参数照旧
+发给模型——9/30 起就是这样（`decisions/implemented/2026-10-03-upstream-0-2-0-reword.md`）。
+
+> 顺带的好消息：以前那个"删不掉 system prompt 里陈旧引导"的残留，被上游自己删了；
+> 教 `false` 的话现在只活在参数的 description 里，参数一删就随之消失。
 
 ## 安装
 
@@ -136,13 +137,13 @@ systemctl --user restart dsh-web.service
 漏传 scope）。要 100% 确认，去看会话日志里模型真实收到的目录：
 
 ```sh
-zstd -dc ~/.dsh/sessions/<slug>/<session-id>/session.v3.jsonl.zstd \
-  | grep -o '"type": "request/header".*' | head -c 2000
+zstd -dc ~/.dsh/sessions/<slug>/<session-id>/session.v*.jsonl.zstd \
+  | grep -o '"type":"request/header".*' | head -c 2000
 ```
 
 `request/header.tools` 就是发给模型的 tools 数组；`subagent` 的 `parameters`
-里不该再有 `run_in_background`。description 里原来那句 false 引导会被
-`This tool always runs in the background.` 替换掉——注意它**不总在结尾**：带
+里不该再有 `run_in_background`，description 里那句 "runs in the background by default"
+会变成 "always runs in the background"——注意它**不总在结尾**：带
 `modelSelectionSettings: true` 的行（shipped preset 的 `subagent`）后面还接着一段
 child LLM selection 文案，只有不带该配置的行才是结尾。
 

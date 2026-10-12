@@ -40,7 +40,20 @@ const DISPLAY_NAME = 'Nous Portal Free';
 /** The one credential record this plugin owns: `<scope>/portal`. */
 const RECORD_KEY = credentialKey(name, 'portal');
 const DEFAULT_API_KEY_ENV = 'NOUS_PORTAL_API_KEY';
+/**
+ * Request image budget: 2 MiB of base64 per request, 1 MiB per image.
+ *
+ * The budget is compared against the base64 length the wire carries (×4/3), so
+ * one full-size image is ~1.4 MB and fits with room for a second at ~700 KB. A
+ * third occurrence makes the harness offload the oldest one to a text
+ * placeholder that still names its local normalized copy. This wire is
+ * stateless, so every retained image rides every turn again.
+ */
+const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 2_097_152;
+const DEFAULT_REQUEST_IMAGE_MAX_BYTES = 1_048_576;
 export const Config = z.object({
+    maxRequestImageBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES).volatile(),
+    requestImageMaxBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_REQUEST_IMAGE_MAX_BYTES).volatile(),
     retryPolicy: RetryPolicySchema.default({ mode: 'always' }).volatile(),
 });
 /**
@@ -49,6 +62,8 @@ export const Config = z.object({
  */
 function liveConfig(config) {
     return structuredClone({
+        maxRequestImageBytes: config.maxRequestImageBytes.get(),
+        requestImageMaxBytes: config.requestImageMaxBytes.get(),
         retryPolicy: config.retryPolicy.get(),
     });
 }
@@ -313,9 +328,9 @@ export async function apply(ctx, config) {
                     displayName: DISPLAY_NAME,
                     apiKeyEnv: credentialRef(apiKeyRefName),
                     streamIdleTimeoutMs: 300_000,
-                    maxRequestImageBytes: 20 * 1_048_576,
+                    maxRequestImageBytes: opts.maxRequestImageBytes ?? DEFAULT_MAX_REQUEST_IMAGE_BYTES,
                     requestImagePixelBudget: 4_194_304,
-                    requestImageMaxBytes: 1_048_576,
+                    requestImageMaxBytes: opts.requestImageMaxBytes ?? DEFAULT_REQUEST_IMAGE_MAX_BYTES,
                     retryPolicy: resolveRetryPolicy(opts.retryPolicy, `${name}: retryPolicy`),
                     piProvider,
                     modelErrors: new Map(),

@@ -56,7 +56,9 @@ node ~/.dsh/profiles/web/node_modules/@jiesou/dsh-nous-portal-free-provider/lib/
 存储完全走 `ctx.credentials` 统一接口：refresh token 是 grant record，
 token 轮换通过 `modifyRecord` 写回（跨进程锁）；access token 只存内存。
 
-本插件只有一个 settings 配置项 `retryPolicy`（模型请求重试策略），默认 `always`（每次失败都重试）；其余端点、目录均来自上游 `/v1/models` 动态发现，硬编码为免费层的合理默认值；唯一的登录入口是上面的 CLI。
+本插件的 settings 配置项：`retryPolicy`（模型请求重试策略），默认 `always`（每次失败都重试）；`maxRequestImageBytes`（单次请求内联的 base64 图片上限），默认 `2097152`（2 MiB）；`requestImageMaxBytes`（单张图片重编码后的上限），默认 `1048576`（1 MiB）。其余端点、目录均来自上游 `/v1/models` 动态发现，硬编码为免费层的合理默认值；唯一的登录入口是上面的 CLI。
+
+图片按 DSH 的路由标准处理：这张 wire 是无状态的，留在上下文里的图片每轮都会重传一次；超过 `maxRequestImageBytes` 时不发请求，而是抛出 `IMAGE_OFFLOAD_REQUIRED`，由 DSH 把**最旧**的图片记入 `image/offload` 并重试，之后用占位文本代替（占位文本里仍带图片身份和可读路径）。两个值都是 base64 口径（约等于原图字节 ×4/3），所以 `maxRequestImageBytes` 必须大于单张的 base64 长度，否则一张图也放不下。
 
 ## Reasoning effort（推理深度）
 

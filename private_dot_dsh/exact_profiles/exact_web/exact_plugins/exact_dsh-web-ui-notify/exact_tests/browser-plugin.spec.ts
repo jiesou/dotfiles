@@ -102,6 +102,8 @@ function observable<T>(initial: T) {
 interface ScriptedSummary {
   id: SessionId
   displayTitle: string
+  parentId?: SessionId
+  origin?: 'subagent'
   retainedBy?: { mainView?: number }
 }
 
@@ -109,7 +111,7 @@ interface ScriptedSummary {
 function scriptedSessions() {
   const listeners = new Set<() => void>()
   let summaries: Record<string, ScriptedSummary> = {
-    [SID]: { id: SID, displayTitle: '主会话', retainedBy: { mainView: 1 } },
+    [SID]: { id: SID, displayTitle: '主会话', parentId: undefined, origin: undefined, retainedBy: { mainView: 1 } },
   }
   const fire = (): void => { for (const fn of [...listeners]) fn() }
   return {
@@ -119,18 +121,18 @@ function scriptedSessions() {
         return () => { listeners.delete(fn) }
       },
       getSnapshot(): { ids: SessionId[]; byId: Record<string, ScriptedSummary> } {
-        return { ids: Object.keys(summaries) as SessionId[], byId: summaries }
+        return { ids: Object.keys(summaries) as SessionId[], byId: summaries } as never
       },
     },
     /** Move the main view: rc.2 marks the shown session through retainedBy.mainView. */
     setCurrent(next: SessionId | undefined): void {
       for (const id of Object.keys(summaries)) {
-        summaries[id] = { ...summaries[id]!, retainedBy: id === next ? { mainView: 1 } : {} }
+        summaries[id] = { parentId: undefined, origin: undefined, ...summaries[id]!, retainedBy: id === next ? { mainView: 1 } : {} }
       }
       fire()
     },
     setSummary(id: string, patch: Partial<ScriptedSummary>): void {
-      summaries[id] = { ...(summaries[id] ?? { id: id as SessionId, displayTitle: id }), ...patch }
+      summaries[id] = { parentId: undefined, origin: undefined, ...(summaries[id] ?? { id: id as SessionId, displayTitle: id }), ...patch }
       fire()
     },
   }
@@ -147,10 +149,11 @@ interface ScriptedReason {
 function scriptedChat() {
   const source = observable<{
     legacy: { nodes: readonly unknown[]; turnEnds: ReadonlyMap<number, number> }
-    timeline: { turns: ReadonlyMap<number, { end: { seq: number; data: { reason: ScriptedReason } } }> }
+    timeline: { turns: ReadonlyMap<number, { start?: { seq: number }; end: { seq: number; data: { reason: ScriptedReason } } }> }
   } | undefined>(undefined)
   let nodes: readonly unknown[] = []
   let turnEnds: ReadonlyMap<number, number> = new Map()
+  let turnStarts: ReadonlyMap<number, number> = new Map()
   let reasons: ReadonlyMap<number, ScriptedReason> = new Map()
   const publish = (): void => {
     source.set({
@@ -158,7 +161,10 @@ function scriptedChat() {
       timeline: {
         turns: new Map([...turnEnds].map(([turn, seq]) => [
           turn,
-          { end: { seq, data: { reason: reasons.get(turn) ?? { kind: 'completed' } } } },
+          {
+            ...(turnStarts.get(turn) === undefined ? {} : { start: { seq: turnStarts.get(turn)! } }),
+            end: { seq, data: { reason: reasons.get(turn) ?? { kind: 'completed' } } },
+          },
         ])),
       },
     })
@@ -168,6 +174,7 @@ function scriptedChat() {
     /** The window opens with history already present: the first scan absorbs it as baseline. */
     openWithHistory(next: ReadonlyMap<number, number>, nextNodes: readonly unknown[] = []): void {
       turnEnds = next
+      turnStarts = new Map([...next].map(([turn, seq]) => [turn, seq - 1]))
       nodes = nextNodes
       reasons = new Map()
       publish()
@@ -352,6 +359,17 @@ describe('apply', () => {
     })
   })
 
+  it('ignores waits and completion state belonging to subagent sessions', async () => {
+    const { ctx, notify, sessions, uiSession } = await bench()
+    await ctx.plugin(pluginRow()).await()
+    notify.created.length = 0
+    const child = 'child' as SessionId
+    sessions.setSummary(child, { displayTitle: '子代理', parentId: SID, origin: 'subagent' })
+    uiSession.setWait(child, approvalWait('child:approval', '子代理审批'))
+    uiSession.setCompletionUnread(child, true)
+    expect(notify.created).toHaveLength(0)
+  })
+
   it('notifies a question wait with the first question text', async () => {
     const { ctx, notify, uiSession } = await bench()
     await ctx.plugin(pluginRow()).await()
@@ -423,7 +441,7 @@ describe('apply', () => {
     await ctx.plugin(pluginRow()).await()
     notify.created.length = 0
     const other = 's2' as SessionId
-    sessions.setSummary('s2', { displayTitle: '会话二' })
+    sessions.setSummary('s2', { displayTitle: '会话二', parentId: undefined, origin: undefined })
     sessions.setCurrent(other)
     uiSession.setWait(other, {
       kind: 'question', key: 'q:rpc-8', questions: [{ id: 'q8', question: '新会话的问题' }], sessionId: other,
@@ -436,6 +454,22 @@ describe('apply', () => {
     chatOf(other).setTurnEnds(new Map([[1, 10]]))
     expect(notify.created).toHaveLength(2)
     expect(notify.created[1]).toMatchObject({ title: '会话二 · 轮次完成', options: { body: '第 1 轮已完成' } })
+  })
+
+  it('suppresses a root turn notification after a subagent settlement result', async () => {
+    const { ctx, notify, chatOf } = await bench()
+    await ctx.plugin(pluginRow()).await()
+    notify.created.length = 0
+    chatOf('s1').openWithHistory(new Map())
+    chatOf('s1').setNodes([{ kind: 'context', seq: 20, source: { kind: 'subagent-settled' } }])
+    chatOf('s1').setTurnEnds(new Map([[1, 30], [2, 40]]))
+    expect(notify.created).toHaveLength(0)
+    chatOf('s1').setNodes([
+      { kind: 'context', seq: 20, source: { kind: 'subagent-settled' } },
+      { kind: 'user', seq: 35, source: { kind: 'agent-message' } },
+    ])
+    chatOf('s1').setTurnEnds(new Map([[1, 30], [2, 40]]))
+    expect(notify.created).toHaveLength(1)
   })
 
   it('baselines an opened session history, then notifies only new turns', async () => {
@@ -510,16 +544,13 @@ describe('apply', () => {
     })
   })
 
-  it('reports a stopped turn instead of claiming it finished', async () => {
+  it('stays silent for a turn the user stopped themselves', async () => {
     const { ctx, notify, chatOf } = await bench()
     await ctx.plugin(pluginRow()).await()
     notify.created.length = 0
     chatOf('s1').openWithHistory(new Map())
     chatOf('s1').setTurnEnds(new Map([[1, 10]]), new Map([[1, { kind: 'aborted', reason: { kind: 'user' } }]]))
-    expect(notify.created[0]).toMatchObject({
-      title: '主会话 · 轮次已中止',
-      options: { body: '第 1 轮被中止', tag: 's1:turn:1' },
-    })
+    expect(notify.created).toHaveLength(0)
   })
 
   it('prefers a hook stop reason over the generic stopped copy', async () => {
@@ -546,6 +577,21 @@ describe('apply', () => {
     expect(notify.created).toHaveLength(0)
   })
 
+  it('displays nothing locally where the constructor is unavailable', async () => {
+    const { ctx, notify, chatOf } = await bench()
+    await ctx.plugin(pluginRow()).await()
+    notify.created.length = 0
+    // Every mobile browser: permission is granted, the constructor still refuses.
+    class UnconstructibleNotification {
+      static permission: NotificationPermission = 'granted'
+      constructor() { throw new TypeError('Illegal constructor') }
+    }
+    Object.assign(globalThis, { Notification: UnconstructibleNotification })
+    chatOf('s1').openWithHistory(new Map([[1, 10]]))
+    chatOf('s1').setTurnEnds(new Map([[1, 10], [2, 20]]))
+    expect(notify.created).toHaveLength(0)
+  })
+
   it('does not notify a new turn while the page is visible', async () => {
     const { ctx, notify, chatOf } = await bench()
     pageHidden(false)
@@ -560,7 +606,7 @@ describe('apply', () => {
     const { ctx, notify, sessions, workspace, uiSession } = await bench()
     await ctx.plugin(pluginRow()).await()
     notify.created.length = 0
-    sessions.setSummary('s2', { displayTitle: '后台会话' })
+    sessions.setSummary('s2', { displayTitle: '后台会话', parentId: undefined, origin: undefined })
     uiSession.setWait('s2' as SessionId, {
       kind: 'approval', key: 'a:rpc-10', toolName: 'bash', reason: '需要越权执行', sessionId: 's2',
     })
@@ -578,7 +624,7 @@ describe('apply', () => {
     const { ctx, notify, sessions, uiSession } = await bench()
     await ctx.plugin(pluginRow()).await()
     notify.created.length = 0
-    sessions.setSummary('s2', { displayTitle: '后台会话' })
+    sessions.setSummary('s2', { displayTitle: '后台会话', parentId: undefined, origin: undefined })
     uiSession.setCompletionUnread('s2' as SessionId, true)
     expect(notify.created).toHaveLength(1)
     expect(notify.created[0]).toMatchObject({
@@ -608,7 +654,7 @@ describe('apply', () => {
     const { ctx, notify, sessions, uiSession } = await bench()
     await ctx.plugin(pluginRow()).await()
     notify.created.length = 0
-    sessions.setSummary('s2', { displayTitle: '后台会话' })
+    sessions.setSummary('s2', { displayTitle: '后台会话', parentId: undefined, origin: undefined })
     uiSession.setWait('s2' as SessionId, approvalWait('a:rpc-11', '越权执行'))
     expect(notify.created).toHaveLength(1)
     // The user opens s2; the same still-pending wait must not re-fire.
@@ -675,7 +721,7 @@ describe('apply', () => {
     const b = await bench({ bus, memory, pageId: 'b' })
     await a.ctx.plugin(pluginRow(a.pages)).await()
     await b.ctx.plugin(pluginRow(b.pages)).await()
-    a.sessions.setSummary('x', { displayTitle: '另一个会话' })
+    a.sessions.setSummary('x', { displayTitle: '另一个会话', parentId: undefined, origin: undefined })
     // Tab a is visible but reads session x, so nobody is watching s1.
     a.pages.announce({ visible: true, sessionId: 'x' as SessionId, granted: true })
     b.pages.announce({ visible: false, sessionId: SID, granted: true })
@@ -692,9 +738,10 @@ describe('apply', () => {
   })
 
   it('never lets two sessions replace each other', async () => {
-    const { ctx, notify, uiSession } = await bench()
+    const { ctx, notify, sessions, uiSession } = await bench()
     await ctx.plugin(pluginRow()).await()
     notify.created.length = 0
+    sessions.setSummary('s2', { displayTitle: '第二个根会话', parentId: undefined, origin: undefined })
     uiSession.setWait(SID, approvalWait('a:rpc-23', 's1 的审批'))
     uiSession.setWait('s2' as SessionId, {
       kind: 'question', key: 'q:rpc-24', questions: [{ id: 'q24', question: 's2 的问题' }], sessionId: 's2',

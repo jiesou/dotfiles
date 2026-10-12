@@ -7,8 +7,13 @@
 - id: llm-pi-ai
   name: "@deepseek-ai/dsh-llm-pi-ai"
   config:
+    # Image budget for every route below: 2 MiB of base64 image payload per
+    # request, 1 MiB per image. These wires are stateless, so every retained
+    # image rides every turn; past the budget the oldest become placeholders.
     providers:
       antigravity-cpa:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
         api: openai-completions
         apiKeyEnv: ANTIGRAVITY_CPA_API_KEY
         baseURL: http://127.0.0.1:8317/v1
@@ -149,7 +154,11 @@
               low: low
               medium: medium
               high: high
+        retryPolicy:
+          mode: always
       codebuddy:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
         api: openai-completions
         apiKeyEnv: CODEBUDDY_API_KEY
         baseURL: http://127.0.0.1:8787/v1
@@ -346,6 +355,8 @@
         retryPolicy:
           mode: always
       sui-xiang-gpt-pro:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
         api: openai-responses
         apiKeyEnv: SUIXIANG_GPT_API_KEY
         baseURL: https://sui-xiang.com
@@ -395,9 +406,13 @@
         retryPolicy:
           mode: always
       sui-xiang-host:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
         api: openai-responses
         apiKeyEnv: SUIXIANG_HOST_API_KEY
         baseURL: https://sui-xiang.com
+        compat:
+          supportsStrictMode: true
         displayName: SuiXiang Host
         models:
           - contextWindow: 1000000
@@ -462,6 +477,8 @@
         retryPolicy:
           mode: always
       sui-xiang-kimi:
+        maxRequestImageBytes: 2097152
+        requestImageMaxBytes: 1048576
         api: openai-completions
         apiKeyEnv: SUIXIANG_KIMI_API_KEY
         baseURL: https://sui-xiang.com

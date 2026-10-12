@@ -9,6 +9,8 @@ afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
   delete (globalThis as { Notification?: unknown }).Notification
+  delete (window as Window & { PushManager?: unknown }).PushManager
+  delete (navigator as Navigator & { serviceWorker?: unknown }).serviceWorker
 })
 
 /** Stub Notification with a scripted permission state. */
@@ -33,12 +35,14 @@ function mount() {
 }
 
 describe('NotificationSettingsRow', () => {
-  it('shows the granted state without a request button', () => {
+  it('shows the granted state and phone push toggle when supported', () => {
     stubNotification('granted')
+    Object.defineProperty(window, 'PushManager', { value: class PushManager {}, configurable: true })
+    Object.defineProperty(navigator, 'serviceWorker', { value: {}, configurable: true })
     mount()
     expect(screen.getByText('Desktop notifications')).toBeDefined()
     expect(screen.getByText('On')).toBeDefined()
-    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Enable phone push' })).toBeDefined()
   })
 
   it('shows the request button on the default state and requests permission', async () => {

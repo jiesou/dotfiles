@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -75,6 +75,47 @@ describe('缺失目录', () => {
     const wrapped2 = confine2(['bash', '-c', 'echo hi'], { mode: 'workspace-write', workspaceRoot: workspace })
     expect(wrapped2.argv).not.toContain(missing)
     expect(wrapped2.argv).toContain('/tmp')
+  })
+})
+
+describe('devicePaths', () => {
+  const devDir = join(tmpdir(), 'dsl-spec-devices')
+  mkdirSync(devDir, { recursive: true })
+  const present = ['ttyUSB0', 'ttyUSB1'].map((name) => {
+    const path = join(devDir, name)
+    writeFileSync(path, '')
+    return path
+  })
+  const nested = join(devDir, 'ttyUSB-hub')
+  mkdirSync(nested, { recursive: true })
+
+  it('通配符在每次 confine 时展开，命中的设备进 rw 面', async () => {
+    const provided3 = new Map<string, unknown>()
+    await apply(
+      { provide: (id, service) => { provided3.set(id, service) } },
+      { devicePaths: [`${devDir}/ttyUSB*`, '/dev/null'] },
+    )
+    const confine3 = (provided3.get('sandbox') as { confine: typeof confine }).confine
+    const wrapped3 = confine3(['bash', '-c', 'echo hi'], { mode: 'workspace-write', workspaceRoot: workspace })
+    for (const path of present) expect(wrapped3.argv).toContain(path)
+    expect(wrapped3.argv).not.toContain(nested)
+    expect(wrapped3.argv.filter((x) => x === '/dev/null')).toHaveLength(1)
+  })
+
+  it('缺席的设备不进授权面（launcher 对打不开的授权根 exit 125）', async () => {
+    const provided3 = new Map<string, unknown>()
+    await apply(
+      { provide: (id, service) => { provided3.set(id, service) } },
+      { devicePaths: [`${devDir}/ttyACM*`] },
+    )
+    const confine3 = (provided3.get('sandbox') as { confine: typeof confine }).confine
+    const wrapped3 = confine3(['bash', '-c', 'echo hi'], { mode: 'workspace-write', workspaceRoot: workspace })
+    expect(wrapped3.argv.some((x) => x.startsWith(`${devDir}/ttyACM`))).toBe(false)
+  })
+
+  it('read-only 模式不授设备', () => {
+    const ro = confine(['bash', '-c', 'echo hi'], { mode: 'read-only', workspaceRoot: workspace })
+    for (const path of present) expect(ro.argv).not.toContain(path)
   })
 })
 

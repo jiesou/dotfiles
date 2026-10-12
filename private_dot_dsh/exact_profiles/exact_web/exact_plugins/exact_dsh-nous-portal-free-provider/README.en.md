@@ -58,10 +58,22 @@ Storage rides the unified `ctx.credentials` seam entirely: the refresh token is 
 grant record, rotation written back through `modifyRecord` (cross-process lock);
 access tokens stay in memory only.
 
-The plugin exposes exactly one settings key, `retryPolicy` (per-request retry
-policy), defaulting to `always` (retry every failure); every endpoint and the
-catalog are discovered dynamically from the upstream `/v1/models`, hardcoded to
-sane free-tier defaults, and the CLI above is the only sign-in entry.
+The plugin's settings keys: `retryPolicy` (per-request retry policy), defaulting
+to `always` (retry every failure); `maxRequestImageBytes` (inline base64 image
+budget for one request), defaulting to `2097152` (2 MiB); and
+`requestImageMaxBytes` (per-image budget after re-encoding), defaulting to
+`1048576` (1 MiB). Every endpoint and the catalog are discovered dynamically
+from the upstream `/v1/models`, hardcoded to sane free-tier defaults, and the
+CLI above is the only sign-in entry.
+
+Images follow the DSH route standard: this wire is stateless, so every image
+left in context is uploaded again on every turn. Past `maxRequestImageBytes` no
+request is sent; the adapter throws `IMAGE_OFFLOAD_REQUIRED` and DSH records the
+**oldest** occurrences in an `image/offload` event and retries, replacing them
+with placeholder text that still names the image identity and a readable path.
+Both values count base64 characters (about 4/3 of the raw bytes), so
+`maxRequestImageBytes` must exceed one image's base64 length or not even one
+image fits.
 
 ## Reasoning effort
 

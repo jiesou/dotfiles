@@ -14,9 +14,14 @@
 
 ## 工作原理
 
-当规则在某个工具调用（工具名 + 序列化后的参数）上 `match` 返回 `true` 时，该规则触发：
+当规则的 `match` 返回 `true` 时触发，匹配对象是：
 
-- **默认** — 通过 `agent.inject()` 向 agent 注入一条 `SYSTEM NOTICE` steering 消息（DSH 的"非唤醒"机制，为下一次 pre-step 排队模型可见上下文）。agent 会从同一位置重试，此时它已经知道了这条规则。
+- **工具调用** — 工具名 + 扁平化后的参数（数字也带上，比如 `timeoutMs`），在 dispatch 之前。
+- **落定的结果** — dispatch 之后，工具的内容、状态标记（`[timed out after 600000ms]`、`[exit code: 1]` 等）和 error message 一起加入匹配，因此描述"结局"（崩溃、磁盘满、超时）的规则也能命中。dispatch 之后命中只能 steering、不能 deny。
+
+命中后：
+
+- **默认** — 向 agent 注入一条 `SYSTEM NOTICE` steering 消息（dispatch 前用 `agent.inject()`，dispatch 后作为 `additionalContexts` 挂在工具结果上——都是 DSH 的"非唤醒"机制，为下一次 pre-step 排队模型可见上下文）。agent 会从同一位置重试，此时它已经知道了这条规则。
 - **`reject: true`** — 拒绝**第一次**工具调用（`{ kind: 'deny' }`）；之后的尝试会被放行。在不至于过度限制的前提下进行 steering，例如在容器内已经允许 `pip install` 通过时。
 
 每条规则在每个会话（每个 agent）中最多触发一次，与原始版本的 `notified` 去重逻辑一致。
@@ -100,7 +105,7 @@ export default [
 
 | 字段     | 必填 | 说明                                                              |
 | -------- | ---- | ----------------------------------------------------------------- |
-| `match`  | ✅   | `(v: string) => boolean`；每次工具调用都会被扁平化为字符串并匹配 |
+| `match`  | ✅   | `(v: string) => boolean`；每次工具调用都会被扁平化为字符串并匹配——dispatch 之后还会带上落定结果的内容、标记与 error message |
 | `prompt` | ✅   | 用于 steering 的提示语                                           |
 | `reject` |      | 若为 `true`，则先阻止第一次工具调用，而不仅仅是 steering         |
 
@@ -120,5 +125,5 @@ export default [
 
 ## 实现说明
 
-- 单个 `src/index.ts`（约 60 行）。
-- 使用 DSH 的 `tools/pre-execute` waterfall（`deny`）和 `agent.inject()`（steering），这些都是官方文档记载的原生扩展点。没有改动核心，没有 monkey-patching。
+- 单个 `src/index.ts`（约 80 行）。
+- 使用 DSH 的 `tools/pre-execute` waterfall（`deny`）、`tools/post-execute`（匹配失败报错 + `additionalContexts`）和 `agent.inject()`（steering），这些都是官方文档记载的原生扩展点。没有改动核心，没有 monkey-patching。

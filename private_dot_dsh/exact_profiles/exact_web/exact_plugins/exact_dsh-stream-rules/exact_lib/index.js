@@ -21,6 +21,8 @@ export async function loadUserRules(dir = DEFAULT_RULES_DIR) {
 function strings(v) {
     if (typeof v === 'string')
         return [v];
+    if (typeof v === 'number')
+        return [String(v)];
     if (Array.isArray(v))
         return v.flatMap(strings);
     if (v && typeof v === 'object')
@@ -38,24 +40,37 @@ export function apply(ctx, config = {}) {
     // Loaded lazily on first tool call, then cached for this plugin instance.
     let rulesPromise = null;
     const rules = () => (rulesPromise ??= loadUserRules(rulesDir));
-    ctx.on('tools/pre-execute', async (exec, next) => {
+    const notice = (prompt) => createUserMessage({
+        content: [{ type: 'text', text: `SYSTEM NOTICE: ${prompt}` }],
+        source: { kind: 'dsh-stream-rules', form: 'notice', summary: prompt.slice(0, 120) },
+    });
+    const take = async (v, agentId) => {
         const RULES = await rules();
-        const i = RULES.findIndex((r) => r.match(strings([exec.name, exec.arguments]).join(' ')));
+        const i = RULES.findIndex((r, i) => r.match(v) && !notified.has(`${agentId ?? ''}#${i}`));
         if (i === -1)
+            return undefined;
+        notified.add(`${agentId ?? ''}#${i}`);
+        return RULES[i];
+    };
+    ctx.on('tools/pre-execute', async (exec, next) => {
+        const rule = await take(strings([exec.name, exec.arguments]).join(' '), exec.agent?.id);
+        if (!rule)
             return next();
-        const key = `${exec.agent?.id ?? ''}#${i}`;
-        if (notified.has(key))
-            return next();
-        notified.add(key);
-        const { reject, prompt } = RULES[i];
-        if (reject)
-            return { kind: 'deny', reason: prompt };
+        if (rule.reject)
+            return { kind: 'deny', reason: rule.prompt };
         // Steering: queue model-facing context for the next pre-step (non-waking).
         const agent = exec.agent && ctx.agents.get(exec.agent.id);
-        agent?.inject(createUserMessage({
-            content: [{ type: 'text', text: `SYSTEM NOTICE: ${prompt}` }],
-            source: { kind: 'dsh-stream-rules', form: 'notice', summary: prompt.slice(0, 120) },
-        }));
+        agent?.inject(notice(rule.prompt));
         return next();
+    });
+    // Status markers ([timed out after 600000ms], [exit code: 1], …) and error
+    // text only exist after dispatch, so rules are matched against the settled
+    // result here — content included, that is intended.
+    ctx.on('tools/post-execute', async (exec, result, next) => {
+        const rule = await take(strings([exec.name, exec.arguments, result.error, result.content]).join(' '), exec.agent?.id);
+        const decision = await next();
+        if (!rule)
+            return decision;
+        return { ...decision, additionalContexts: [notice(rule.prompt), ...decision.additionalContexts ?? []] };
     });
 }

@@ -1,6 +1,6 @@
 {
   "name": "@jiesou/dsh-nous-portal-free-provider",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Nous Portal free-tier provider for dsh: Portal OAuth (device-code) agent-key lifecycle behind an OpenAI-compatible harness route",
   "type": "module",
   "main": "lib/index.js",

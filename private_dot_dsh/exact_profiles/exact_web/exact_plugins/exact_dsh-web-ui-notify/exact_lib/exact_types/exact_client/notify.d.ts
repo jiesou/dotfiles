@@ -1,9 +1,7 @@
 /**
- * Pure notification helpers: visibility check, permission gate, and the
- * Notification construction for one pending wait, one completed turn, or one
- * background-session event. Kept side-effect-free (beyond constructing
- * Notification) so the browser-plugin spec can drive them with a stub
- * Notification and a fake visibilityState.
+ * Notification render helpers for one pending wait, one completed turn, or one
+ * background-session event, preserving desktop Notification and opting into a
+ * Service Worker display fallback when direct construction is unsupported.
  */
 import type { SessionPendingInteraction } from '@deepseek-ai/dsh-client-ui-session/client';
 import type { NotifyKey } from './locales.ts';
@@ -33,9 +31,8 @@ export declare function hiddenNow(): boolean;
  */
 export declare function notificationUsable(): boolean;
 /**
- * Build and show the desktop notification for one pending wait. The caller
- * gates on {@link hiddenNow} / {@link notificationUsable} and dedupes by
- * wait key; this function only renders.
+ * Build and show the notification for one pending wait. The caller gates on
+ * {@link hiddenNow} / {@link notificationUsable} and dedupes by wait key.
  *
  * Three wait kinds reach this renderer: `approval`, `question`, and the
  * `plan-review` intent of a question. A plan review is its own thing — its
@@ -67,7 +64,7 @@ export interface TurnEndFacts {
     readonly detail?: string | undefined;
 }
 /**
- * Build and show the desktop notification for a finished turn. A turn that
+ * Build and show the notification for a finished turn. A turn that
  * produced no final assistant text is normal — a concluding tool
  * (`concludesTurn`), a structured-output subagent, a PTC script that ends the
  * loop — so only the outcome decides the copy, never the absence of text. The
@@ -86,7 +83,7 @@ export declare function fireTurnNotification(turn: number, summary: string | und
     tag: string;
 }): Notification;
 /**
- * Build and show the desktop notification for a whole background session
+ * Build and show the notification for a whole background session
  * finishing ("done" reminder). The caller gates on {@link hiddenNow} /
  * {@link notificationUsable} and dedupes per session; this function only
  * renders.

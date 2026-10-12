@@ -312,7 +312,7 @@ def init_skill(skill_name, path, resources, include_examples):
             print("2. Add resources to scripts/, references/, and assets/ as needed")
     else:
         print("2. Create resource directories only if needed (scripts/, references/, assets/)")
-    print("3. Run the validator when ready to check the skill structure")
+    print("3. Fill in SKILL.md and replace the TODO placeholders")
 
     return skill_dir
 

@@ -26,6 +26,8 @@ window.__ModuleLoader__.load({
       var deadline = deadlineOf(card)
       if (deadline === null) return
 
+      // The card headline shows `displayReason` when the asker supplied one and
+      // `reason` otherwise; strip the marker from whichever of them rendered.
       var walker = card.ownerDocument.createTreeWalker(card, NodeFilter.SHOW_TEXT)
       while (walker.nextNode()) {
         var node = walker.currentNode

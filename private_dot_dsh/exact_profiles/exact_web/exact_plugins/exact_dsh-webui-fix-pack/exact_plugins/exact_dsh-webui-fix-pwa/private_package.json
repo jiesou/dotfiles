@@ -1,8 +1,8 @@
 {
   "name": "@jiesou/dsh-webui-fix-pwa",
-  "version": "0.3.4",
+  "version": "0.3.6",
   "type": "module",
-  "description": "PWA color/mode fix for the DSH Web UI: standalone display plus light/dark theme-color/background-color taken from the design tokens.",
+  "description": "PWA mode fix for the DSH Web UI: a launcher-reachable session cookie, standalone display, manifest colours matching the resolved scheme, and the iOS standalone head tags upstream omits.",
   "license": "MIT",
   "exports": {
     ".": "./index.mjs",

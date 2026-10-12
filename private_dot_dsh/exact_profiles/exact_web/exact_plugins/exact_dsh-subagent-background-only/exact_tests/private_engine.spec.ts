@@ -68,14 +68,13 @@ function continuableSpec(name: string) {
   return {
     name,
     description:
-      'Delegate a task. This tool runs in the background by default, immediately returns a durable subagent id, and keeps the child conversation available for later turns. When that run settles, the runtime sends the parent a notice containing its outcome and any final assistant message; `send_message` steers the child\'s nearest step while it is running and starts a turn while it is idle. Set `run_in_background: false` only when your next action depends on receiving the result.',
+      'Delegate a task. It runs in the background by default and returns a subagent id you can continue with `send_message`; you are notified when the run settles.',
     parameters: {
       description: { type: 'string', required: true },
       prompt: { type: 'string', required: true },
       run_in_background: {
         type: 'boolean',
-        description:
-          'Whether to run in the background and return a durable subagent id immediately. Defaults to true. Set false to wait for the result when your next action depends on it.',
+        description: 'Defaults to true. Set false only when your next action depends on the result.',
       },
     },
     output: { schema: { type: 'string' }, render: () => 'ok' },
@@ -86,10 +85,9 @@ function continuableSpec(name: string) {
 /** The one-shot wording, which must never be stripped. */
 function oneShotSpec(name: string) {
   const spec = continuableSpec(name)
-  spec.description =
-    'Delegate a task. This call waits for the result by default. Set `run_in_background: true` to return a job id; collect with `job_output` and stop with `job_kill`.'
+  spec.description = 'Delegate a task. This call waits for the result by default.'
   spec.parameters.run_in_background.description =
-    'Whether to run as a background job and return its id. Defaults to false; collect with job_output or stop with job_kill.'
+    'Run as a background job and return its id (collect with job_output, stop with job_kill). Defaults to false.'
   return spec
 }
 
@@ -171,7 +169,7 @@ describe.skipIf(MODULES === undefined)('real engine: preset standing scope', () 
     const after = catalog()[0]
     expect(after.properties).toEqual(['description', 'prompt'])
     expect(after.description).toContain('always runs in the background')
-    expect(after.description).not.toContain('run_in_background: false')
+    expect(after.description).not.toContain('run_in_background')
   })
 
   it('leaves a one-shot preset row untouched and warns once', async () => {

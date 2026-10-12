@@ -1,7 +1,7 @@
 /**
- * Approval-notification plugin, browser half: when an approval or question
- * wait lands, or a turn finishes, while the page is hidden (the user is on
- * another tab), show a desktop Notification. Titles name the source session,
+ * Notification plugin, browser half: when an approval or question wait lands,
+ * or a turn finishes while the page is hidden (the user is on another tab),
+ * show a desktop Notification (or opted-in Service Worker notification). Titles name the source session,
  * and clicking a notification jumps to that exact conversation. A
  * General-settings row exposes the permission request button — the
  * user-gesture entry point the browser requires before `new Notification`

@@ -2,6 +2,31 @@
 
 All notable user-facing changes to dsh-web-ui-notify are documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic version tags.
 
+## [0.2.0] - 2026-10-03
+
+### Added
+
+- **Phone notifications over Web Push.** The host half is no longer a no-op plugin: it serves authenticated
+  `subscribe` / `unsubscribe` / `VAPID` routes, keeps the VAPID key pair and the device subscriptions under
+  `$DSH_HOME/web-ui-notify` (dir 0700, files 0600), and pushes approvals, questions and finished turns to every
+  subscribed device — dropping the endpoints the push service reports gone (404/410). The Service Worker ships
+  with the package (`/push/sw.js`, scope `/`) and an existing subscription is re-registered on load. Opt in from
+  **Settings → General → Desktop notifications → Enable phone push**: it needs a foreground user gesture, HTTPS
+  and a browser with Web Push (on iOS an installed PWA, not a Safari tab). A phone has no `Notification`
+  constructor, so this is the only channel there.
+
+### Changed
+
+- Only **root** sessions are announced. A subagent's turn is internal progress, not the end of the work the user
+  asked for: the host pushes `agents.roots()` alone, the browser half skips sessions carrying a `parentId` or
+  `origin: 'subagent'`, and a turn a subagent settlement drove (a `subagent-settled` context node followed by a
+  user node before the turn's end) stays silent too.
+
+### Fixed
+
+- A turn the user stops **themselves** is no longer announced. The stop button cancels the agent as `{ kind: 'aborted', reason: { kind: 'user' } }`, and both halves used to report it back — "turn stopped" on the desktop, `结束原因：aborted` in the Web Push payload. A self-inflicted stop now stays silent everywhere; every other abort (a hook's refusal, a parent or disposal cancel) still notifies, and a hook's own stop reason is still the body.
+- One event, one notification on a phone. The browser half no longer falls back to `ServiceWorkerRegistration.showNotification` when the browser refuses the `Notification` constructor: every mobile browser refuses it, the host's Web Push channel already carries those same events to the device, and the two displays together are what showed each event twice on a phone (sometimes once, when the page had been frozen). Browsers that can construct a `Notification` — the desktop tabs this half exists for — are unchanged.
+
 ## [0.1.6] - 2026-09-25
 
 Requires dsh `0.1.7-rc.2` or newer: the unified `uiSession.sessionStatus` source this

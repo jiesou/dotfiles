@@ -24,19 +24,19 @@ const ONESHOT_TOOLS = ["subagent_codex", "subagent_claude_code"];
 * exists in the installed engine, so a reword fails loudly instead of silently.
 */
 const UPSTREAM_WORDING = {
-	/** Continuable tool description promises a durable id. */
-	durableId: "immediately returns a durable subagent id",
+	/** Continuable tool description promises a subagent id the parent can continue. */
+	continuableId: "It runs in the background by default and returns a subagent id you can continue with `send_message`",
 	/** Continuable parameter defaults to true. */
 	paramDefaultsTrue: "Defaults to true.",
 	/** One-shot parameter defaults to false; one-shot mode has no background form. */
 	paramDefaultsFalse: "Defaults to false",
-	/** The `false`-teaching sentence stripped from the description. */
-	falseTeaching: " Set `run_in_background: false` only when your next action depends on receiving the result."
+	/** The description clause rewritten once the parameter is gone. */
+	byDefault: "runs in the background by default"
 };
 /** What the description says once the parameter is gone. */
-const BACKGROUND_ONLY_SENTENCE = " This tool always runs in the background.";
-const REFUSAL_MODE = "declaration is not backgroundMode: continuable (its parameter does not default to true); refusing to strip `run_in_background`, which would flip its default route to foreground";
-const REFUSAL_WORDING = "the description no longer carries the sentence this plugin replaces, so stripping `run_in_background` would leave the prompt teaching a parameter the schema no longer declares; refusing to strip";
+const BACKGROUND_ONLY = "always runs in the background";
+const REFUSAL_MODE = "declaration is not backgroundMode: continuable (the description lacks the continuable sentence, or the parameter does not default to true); refusing to strip `run_in_background`, which would flip its default route to foreground";
+const REFUSAL_WORDING = "the rewritten description would still name `run_in_background`, which the schema no longer declares; refusing to strip";
 /**
 * Marks a definition this plugin already judged, so repeated `tools/change`
 * top-ups neither re-wrap `execute` nor re-report a refusal. `Symbol.for`, not a
@@ -50,31 +50,33 @@ function propertiesOf(parameters) {
 /**
 * Whether this declaration is `backgroundMode: continuable`, judged from the
 * wording `tool-subagent` itself emits. Both signals must agree: the tool
-* description advertises a durable id, and the parameter says it defaults true.
+* description advertises a continuable id, and the parameter says it defaults
+* true.
 */
 function isContinuableDeclaration(definition) {
 	const description = typeof definition.description === "string" ? definition.description : "";
 	const param = propertiesOf(definition.parameters)?.["run_in_background"];
 	const paramDescription = typeof param?.description === "string" ? param.description : "";
 	if (paramDescription.includes(UPSTREAM_WORDING.paramDefaultsFalse)) return false;
-	return description.includes(UPSTREAM_WORDING.durableId) && paramDescription.includes(UPSTREAM_WORDING.paramDefaultsTrue);
+	return description.includes(UPSTREAM_WORDING.continuableId) && paramDescription.includes(UPSTREAM_WORDING.paramDefaultsTrue);
 }
 /**
-* The description with the `false`-teaching sentence replaced, or `undefined`
-* when that sentence is gone: detection and edit must not diverge, or a reworded
-* upstream would leave a stripped schema beside a prompt that still names the
-* parameter.
+* The description with the "by default" clause rewritten, or `undefined` when
+* the result would still name `run_in_background` — the schema is about to drop
+* it, and the `false`-teaching now lives in the parameter's own description,
+* which disappears with the parameter. Detection and edit must not diverge: a
+* description that names the parameter anyway must refuse the strip.
 */
 function backgroundDescription(description) {
-	if (!description.includes(UPSTREAM_WORDING.falseTeaching)) return void 0;
-	return description.replaceAll(UPSTREAM_WORDING.falseTeaching, BACKGROUND_ONLY_SENTENCE);
+	const rewritten = description.replaceAll(UPSTREAM_WORDING.byDefault, BACKGROUND_ONLY);
+	return rewritten.includes("run_in_background") ? void 0 : rewritten;
 }
 /**
 * Patch one resolved definition in place: schema loses `run_in_background`,
 * the description stops teaching `false`, and `execute` forces it to `true`.
 *
 * Idempotent via {@link JUDGED}. Refuses a definition that is not continuable,
-* or whose description no longer carries the sentence the edit replaces.
+* or whose rewritten description would still name the parameter.
 */
 function patchDefinition(definition) {
 	if (definition[JUDGED] === true) return { patched: false };

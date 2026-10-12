@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Hardcoded basic keyboard shortcuts for the DSH WebUI: new session, agent preset cycle, user-message scrolling, reasoning effort, session search.",
+  "description": "Gap shortcuts for the DSH WebUI, registered via the official ctx.shortcuts fixed-input API: permission mode cycle, user-message paging, reasoning effort cycle, agent preset cycle.",
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
@@ -19,6 +19,7 @@
     },
     "client": {
       "inject": [
+        "@deepseek-ai/dsh-client-shortcuts",
         "@deepseek-ai/dsh-client-ui-session",
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-model-selection",

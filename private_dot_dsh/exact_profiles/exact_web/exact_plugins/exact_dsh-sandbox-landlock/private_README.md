@@ -15,6 +15,7 @@ host, git/ssh checks always pass.
 | Key | Default | Meaning |
 |---|---|---|
 | `writeDirs` | see cordis.patch.yml | extra writable dirs under workspace-write, `~` expanded |
+| `devicePaths` | `[]` | serial-port style device nodes, glob expanded per command; hotplug-safe |
 | `launcherPath` | auto-detect | explicit path to landlock-run binary |
 
 Launcher resolution, grant argv, and the functional probe come from the
@@ -28,6 +29,18 @@ vendor `--probe` verdict becomes the reported enforcement (`full`/`partial`);
 - No private PID namespace / `/proc`: host processes visible
 - Landlock metadata gap: `chmod/chown/utime/setxattr` on owned files not governed
 - Off-Linux: no sandbox service provided
+
+## Devices
+
+`devicePaths` entries are read-write grants (`--rw`), resolved per command rather
+than at mount: Landlock rules bind the inode, not the path, so a replugged serial
+port gets a new inode and a mount-time snapshot would silently stop matching.
+Globs are expanded and directory hits dropped on every `confine`, so a port that
+appears later works on the next command and one that disappears never reaches the
+launcher (an unopenable grant root is exit 125 — the whole command would not run).
+`/dev/serial/by-id/*` may be listed too: `O_PATH` follows the symlink, granting
+exactly the device it currently points at. A port plugged in while a command is
+already running stays denied until the next command.
 
 The plugin also mounts a local `ctx.fs` provider on Linux. It subclasses the upstream
 `dsh-fs-local` implementation, preserving its atomic writes and edits while fencing

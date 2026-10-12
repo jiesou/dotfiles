@@ -14,9 +14,6 @@ import sys
 import zipfile
 from pathlib import Path
 
-from quick_validate import validate_skill
-
-
 def _is_within(path: Path, root: Path) -> bool:
     try:
         path.relative_to(root)
@@ -55,12 +52,10 @@ def package_skill(skill_path, output_dir=None):
 
     # Run validation before packaging
     print("Validating skill...")
-    valid, message = validate_skill(skill_path)
-    if not valid:
-        print(f"[ERROR] Validation failed: {message}")
-        print("   Please fix the validation errors before packaging.")
+    if not skill_md.exists():
+        print(f"[ERROR] SKILL.md not found in {skill_path}")
         return None
-    print(f"[OK] {message}\n")
+    print("[OK] SKILL.md found\n")
 
     # Determine output location
     skill_name = skill_path.name

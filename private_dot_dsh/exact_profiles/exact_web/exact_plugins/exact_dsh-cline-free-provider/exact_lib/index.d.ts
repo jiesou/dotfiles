@@ -26,6 +26,10 @@ export interface Config {
     baseURL?: string;
     defaultMaxTokens?: number;
     defaultContextWindow?: number;
+    /** Base64 image payload one request accepts before older images are offloaded (default 2 MiB). */
+    maxRequestImageBytes?: number;
+    /** Per-image request budget after re-encoding (default 1 MiB). */
+    requestImageMaxBytes?: number;
     /** Provider-owned model-request retry policy; omission uses normal defaults. */
     retryPolicy?: RetryPolicyConfig;
 }
@@ -34,12 +38,16 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     baseURL: z<string, string, "volatile-defined">;
     defaultMaxTokens: z<number, number, "volatile-defined">;
     defaultContextWindow: z<number, number, "volatile-defined">;
+    maxRequestImageBytes: z<number, number, "volatile-defined">;
+    requestImageMaxBytes: z<number, number, "volatile-defined">;
     retryPolicy: z<NoInfer<RetryPolicyConfig>, NoInfer<RetryPolicyConfig>, "volatile">;
 }>>, Schemastery.ObjectT<NoInfer<{
     apiKeyEnv: z<string, string, "volatile-defined">;
     baseURL: z<string, string, "volatile-defined">;
     defaultMaxTokens: z<number, number, "volatile-defined">;
     defaultContextWindow: z<number, number, "volatile-defined">;
+    maxRequestImageBytes: z<number, number, "volatile-defined">;
+    requestImageMaxBytes: z<number, number, "volatile-defined">;
     retryPolicy: z<NoInfer<RetryPolicyConfig>, NoInfer<RetryPolicyConfig>, "volatile">;
 }>>, "plain">;
 /**
@@ -48,7 +56,14 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
  * the field is one the settings service shows a form for.
  */
 type LiveConfig = Schemastery.TypeT<typeof Config>;
-export declare function fetchFreeModels(url?: string, fetchImpl?: typeof fetch): Promise<ClineModel[]>;
+export declare function fetchFreeModels(url?: string, fetchImpl?: typeof fetch, freeBucketIds?: ReadonlySet<string>): Promise<ClineModel[]>;
+/**
+ * Cline's own free-tier designation, straight from the feed the Cline client
+ * uses to tag FREE in its model picker (and the CLI uses to zero billing).
+ * The catalog feed's `pricing` field is the upstream market price and does
+ * not reflect this list, which rotates.
+ */
+export declare function fetchFreeModelIds(url?: string, fetchImpl?: typeof fetch): Promise<Set<string>>;
 export declare function fetchOpenRouterReasoning(url?: string, fetchImpl?: typeof fetch): Promise<Map<string, ReasoningMetadata>>;
 export declare function apply(ctx: Context, config: LiveConfig): Promise<void>;
 export {};

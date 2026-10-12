@@ -6,8 +6,8 @@ window.__ModuleLoader__.load({
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 		let react = require("react");
 		let react_jsx_runtime = require("react/jsx-runtime");
-		//#region \0dsh-css:/Users/zhaowenbo/Downloads/AI项目/dsh-web-ui-notify/src/client/NotificationSettingsRow.module.css.mjs
-		const css = ".W6CegG_row{border-bottom:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;padding:16px 0;display:flex}.W6CegG_rowText{flex-direction:column;flex:1;gap:4px;min-width:0;padding-right:48px;display:flex}.W6CegG_title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:400;line-height:22px}.W6CegG_desc{color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:400;line-height:18px}.W6CegG_status{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400;line-height:18px}.W6CegG_button{background:var(--dsw-alias-bg-module-platform);height:36px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;border:none;border-radius:18px;align-items:center;gap:12px;padding:0 14px;font-size:14px;line-height:22px;display:inline-flex}.W6CegG_button:hover{background:var(--dsw-alias-interactive-bg-hover)}";
+		//#region \0dsh-css:/var/home/chen/.agents/workspace/dsh-web-ui-notify-work/src/client/NotificationSettingsRow.module.css.mjs
+		const css = ".W80KZq_row{border-bottom:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;padding:16px 0;display:flex}.W80KZq_rowText{flex-direction:column;flex:1;gap:4px;min-width:0;padding-right:48px;display:flex}.W80KZq_title{color:var(--dsw-alias-label-primary);font-size:14px;font-weight:400;line-height:22px}.W80KZq_desc{color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:400;line-height:18px}.W80KZq_status{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400;line-height:18px}.W80KZq_button{background:var(--dsw-alias-bg-module-platform);height:36px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;border:none;border-radius:18px;align-items:center;gap:12px;padding:0 14px;font-size:14px;line-height:22px;display:inline-flex}.W80KZq_button:hover{background:var(--dsw-alias-interactive-bg-hover)}";
 		const tagId = "dsh-web-ui-notify/NotificationSettingsRow.module.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
 			const tag = document.createElement("style");
@@ -17,13 +17,86 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		var NotificationSettingsRow_module_css_default = {
-			"button": "W6CegG_button",
-			"desc": "W6CegG_desc",
-			"row": "W6CegG_row",
-			"rowText": "W6CegG_rowText",
-			"status": "W6CegG_status",
-			"title": "W6CegG_title"
+			"button": "W80KZq_button",
+			"desc": "W80KZq_desc",
+			"row": "W80KZq_row",
+			"rowText": "W80KZq_rowText",
+			"status": "W80KZq_status",
+			"title": "W80KZq_title"
 		};
+		//#endregion
+		//#region src/client/push.ts
+		const SW_URL = "/push/sw.js";
+		const VAPID_URL = "/api/push/vapid";
+		const SUBSCRIBE_URL = "/api/push/subscribe";
+		const UNSUBSCRIBE_URL = "/api/push/unsubscribe";
+		const ENABLED_KEY = "dsh-web-ui-notify:web-push-enabled";
+		function pushSupported() {
+			return typeof navigator !== "undefined" && typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && typeof Notification !== "undefined";
+		}
+		function toApplicationKey(value) {
+			const padded = value + "=".repeat((4 - value.length % 4) % 4);
+			const raw = atob(padded.replace(/-/gu, "+").replace(/_/gu, "/"));
+			const bytes = new Uint8Array(raw.length);
+			for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i);
+			return bytes;
+		}
+		async function serviceWorker() {
+			if (!pushSupported()) throw new Error("Web Push is not supported by this browser");
+			return navigator.serviceWorker.register(SW_URL, { scope: "/" });
+		}
+		async function enableWebPush() {
+			if (!pushSupported()) throw new Error("Web Push requires a supported browser and HTTPS");
+			if (await Notification.requestPermission() !== "granted") throw new Error("Notification permission was not granted");
+			const registration = await serviceWorker();
+			const response = await fetch(VAPID_URL);
+			if (!response.ok) throw new Error(`Could not load push configuration (${response.status})`);
+			const { publicKey } = await response.json();
+			const subscription = await registration.pushManager.getSubscription() ?? await registration.pushManager.subscribe({
+				userVisibleOnly: true,
+				applicationServerKey: toApplicationKey(publicKey)
+			});
+			const saved = await fetch(SUBSCRIBE_URL, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ subscription: subscription.toJSON() })
+			});
+			if (!saved.ok) throw new Error(`Could not save push subscription (${saved.status})`);
+			localStorage.setItem(ENABLED_KEY, "on");
+		}
+		async function disableWebPush() {
+			localStorage.setItem(ENABLED_KEY, "off");
+			if (!pushSupported()) return;
+			const subscription = await (await navigator.serviceWorker.getRegistration("/"))?.pushManager.getSubscription();
+			if (subscription === null || subscription === void 0) return;
+			await fetch(UNSUBSCRIBE_URL, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ endpoint: subscription.endpoint })
+			});
+			await subscription.unsubscribe();
+		}
+		async function restoreWebPush() {
+			try {
+				if (!pushSupported() || webPushEnabled() === false || Notification.permission !== "granted") return;
+				const subscription = await (await serviceWorker()).pushManager.getSubscription();
+				if (subscription === null) return;
+				await fetch(SUBSCRIBE_URL, {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ subscription: subscription.toJSON() })
+				});
+			} catch (error) {
+				console.warn("[web-ui-notify] Web Push resubscription failed", error);
+			}
+		}
+		function webPushEnabled() {
+			try {
+				return localStorage.getItem(ENABLED_KEY) === "on";
+			} catch {
+				return false;
+			}
+		}
 		//#endregion
 		//#region src/client/NotificationSettingsRow.tsx
 		/** General Settings row for the desktop-notification permission. */
@@ -50,36 +123,70 @@ window.__ModuleLoader__.load({
 		*/
 		function NotificationSettingsRow({ t }) {
 			const [state, setState] = (0, react.useState)(permissionState);
+			const [pushEnabled, setPushEnabled] = (0, react.useState)(webPushEnabled);
+			const [error, setError] = (0, react.useState)("");
+			(0, react.useEffect)(() => {
+				restoreWebPush();
+			}, []);
+			const toggle = async () => {
+				setError("");
+				try {
+					if (pushEnabled) await disableWebPush();
+					else await enableWebPush();
+					setPushEnabled(!pushEnabled);
+					setState(permissionState());
+				} catch (cause) {
+					setError(cause instanceof Error ? cause.message : String(cause));
+				}
+			};
 			const request = async () => {
 				if (typeof Notification === "undefined") return;
-				setState(await Notification.requestPermission());
+				const next = await Notification.requestPermission();
+				setState(next);
 			};
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: NotificationSettingsRow_module_css_default.row,
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					className: NotificationSettingsRow_module_css_default.rowText,
-					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: NotificationSettingsRow_module_css_default.title,
-							children: t("settings.title")
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: NotificationSettingsRow_module_css_default.desc,
-							children: t("settings.description")
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: NotificationSettingsRow_module_css_default.status,
-							children: t(statusKey(state))
-						})
-					]
-				}), state === "granted" || state === "unsupported" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-					type: "button",
-					className: NotificationSettingsRow_module_css_default.button,
-					onClick: () => {
-						request();
-					},
-					children: t("settings.request")
-				})]
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: NotificationSettingsRow_module_css_default.rowText,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: NotificationSettingsRow_module_css_default.title,
+								children: t("settings.title")
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: NotificationSettingsRow_module_css_default.desc,
+								children: t("settings.description")
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: NotificationSettingsRow_module_css_default.status,
+								children: t(statusKey(state))
+							}),
+							error === "" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: NotificationSettingsRow_module_css_default.status,
+								role: "alert",
+								children: error
+							})
+						]
+					}),
+					state === "granted" || state === "unsupported" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: NotificationSettingsRow_module_css_default.button,
+						onClick: () => {
+							request();
+						},
+						children: t("settings.request")
+					}),
+					pushSupported() ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: NotificationSettingsRow_module_css_default.button,
+						"aria-pressed": pushEnabled,
+						onClick: () => {
+							toggle();
+						},
+						children: pushEnabled ? t("settings.push.disable") : t("settings.push.enable")
+					}) : null
+				]
 			});
 		}
 		//#endregion
@@ -88,12 +195,14 @@ window.__ModuleLoader__.load({
 		/** Simplified Chinese dictionary (the key-set source of truth). */
 		const zh = {
 			"settings.title": "桌面通知",
-			"settings.description": "当工具需要审批、向你提问、或轮次完成，而你正在浏览其他标签页时，弹出系统通知提醒你。",
+			"settings.description": "桌面通知适用于浏览器后台；手机推送需在 HTTPS/PWA 支持的浏览器中单独开启。",
 			"settings.status.granted": "已开启",
 			"settings.status.denied": "已被浏览器阻止",
 			"settings.status.default": "未授权",
 			"settings.status.unsupported": "浏览器不支持",
 			"settings.request": "开启桌面通知",
+			"settings.push.enable": "开启手机推送",
+			"settings.push.disable": "关闭手机推送",
 			"notify.approval.title": "需要审批",
 			"notify.approval.body": "工具 {toolName} 请求越权执行",
 			"notify.question.title": "需要你的回答",
@@ -118,12 +227,14 @@ window.__ModuleLoader__.load({
 		/** English dictionary, checked complete against the zh key set. */
 		const en = {
 			"settings.title": "Desktop notifications",
-			"settings.description": "Show a system notification when a tool needs approval, asks you a question, or a turn finishes while you are on another tab.",
+			"settings.description": "Desktop alerts work in background tabs; phone push needs a supported HTTPS/PWA browser and must be enabled separately.",
 			"settings.status.granted": "On",
 			"settings.status.denied": "Blocked by the browser",
 			"settings.status.default": "Not granted",
 			"settings.status.unsupported": "Not supported",
 			"settings.request": "Enable desktop notifications",
+			"settings.push.enable": "Enable phone push",
+			"settings.push.disable": "Disable phone push",
 			"notify.approval.title": "Approval required",
 			"notify.approval.body": "Tool {toolName} requests privileged execution",
 			"notify.question.title": "Your answer is needed",
@@ -172,13 +283,32 @@ window.__ModuleLoader__.load({
 		function titled(kindTitle, label) {
 			return label === "" ? kindTitle : `${label} · ${kindTitle}`;
 		}
-		/** The one rendering path every notification kind funnels through. */
+		/** Whether the constructor refusal was already reported this session. */
+		let ctorUnavailableReported = false;
+		/**
+		* The one rendering path every notification kind funnels through. A browser
+		* without the constructor gets nothing here: the host pushes the same events to
+		* the device that opted into Web Push, and a local display on top of that push
+		* is what showed every event twice on a phone.
+		*/
 		function show(title, body, tag, target) {
-			return withClickFocus(new Notification(title, {
+			const options = {
 				body,
 				tag,
 				requireInteraction: true
-			}), target.onOpen);
+			};
+			try {
+				return withClickFocus(new Notification(title, options), target.onOpen);
+			} catch (error) {
+				if (!ctorUnavailableReported) {
+					ctorUnavailableReported = true;
+					console.warn("[web-ui-notify] this browser cannot construct a Notification; notifications are delivered by Web Push instead.", error);
+				}
+				return {
+					close() {},
+					onclick: null
+				};
+			}
 		}
 		/** Notification-body cap for a plan under review: keep the system notification compact. */
 		const PLAN_MAX = 160;
@@ -190,9 +320,8 @@ window.__ModuleLoader__.load({
 			return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 		}
 		/**
-		* Build and show the desktop notification for one pending wait. The caller
-		* gates on {@link hiddenNow} / {@link notificationUsable} and dedupes by
-		* wait key; this function only renders.
+		* Build and show the notification for one pending wait. The caller gates on
+		* {@link hiddenNow} / {@link notificationUsable} and dedupes by wait key.
 		*
 		* Three wait kinds reach this renderer: `approval`, `question`, and the
 		* `plan-review` intent of a question. A plan review is its own thing — its
@@ -238,7 +367,7 @@ window.__ModuleLoader__.load({
 			}
 		};
 		/**
-		* Build and show the desktop notification for a finished turn. A turn that
+		* Build and show the notification for a finished turn. A turn that
 		* produced no final assistant text is normal — a concluding tool
 		* (`concludesTurn`), a structured-output subagent, a PTC script that ends the
 		* loop — so only the outcome decides the copy, never the absence of text. The
@@ -263,7 +392,7 @@ window.__ModuleLoader__.load({
 			return show(titled(t("notify.turn.title"), target.label), body, target.tag, target);
 		}
 		/**
-		* Build and show the desktop notification for a whole background session
+		* Build and show the notification for a whole background session
 		* finishing ("done" reminder). The caller gates on {@link hiddenNow} /
 		* {@link notificationUsable} and dedupes per session; this function only
 		* renders.
@@ -284,7 +413,7 @@ window.__ModuleLoader__.load({
 		/** How long a non-winner waits for the winner's "shown" broadcast. */
 		const FALLBACK_MS = 600;
 		/** Persisted "shown" keys older than this are re-announced rather than lost. */
-		const MEMORY_TTL_MS = 1440 * 60 * 1e3;
+		const MEMORY_TTL_MS = 864e5;
 		/** Persisted-memory key prefix, namespaced to this plugin. */
 		const MEMORY_PREFIX = "dsh-web-ui-notify:shown:";
 		/** A random page id, falling back when `crypto.randomUUID` is unavailable. */
@@ -399,10 +528,7 @@ window.__ModuleLoader__.load({
 							cancelFallback(message.key);
 						}
 						break;
-					case "bye":
-						peers.delete(message.id);
-						break;
-					default: break;
+					case "bye": peers.delete(message.id);
 				}
 			});
 			const heartbeat = setInterval(publish, HEARTBEAT_MS);
@@ -484,6 +610,18 @@ window.__ModuleLoader__.load({
 		function mainSessionId(list) {
 			return Object.values(list.byId).find((session) => (session.retainedBy.mainView ?? 0) > 0)?.id;
 		}
+		function isRootSession(list, sid) {
+			const session = list.byId[sid];
+			return session !== void 0 && session.parentId === void 0 && session.origin !== "subagent";
+		}
+		function hasSubagentSettlement(nodes, end) {
+			if (end === void 0) return false;
+			const settlement = nodes.find((node) => {
+				if (node.kind !== "context" || typeof node.source !== "object" || node.source === null) return false;
+				return node.source.kind === "subagent-settled";
+			});
+			return settlement !== void 0 && nodes.some((node) => node.kind === "user" && node.seq > settlement.seq && node.seq < end);
+		}
 		/**
 		* Extract a compact excerpt of one turn's final assistant text for the
 		* notification body: the LAST assistant node of that turn, text blocks joined
@@ -514,6 +652,11 @@ window.__ModuleLoader__.load({
 		* script can close a turn legitimately — and a stop or a failure closes one
 		* without any answer at all. Only the reason distinguishes them, so the
 		* timeline's own `turn/end` event decides the copy.
+		*
+		* A stop the USER asked for is the one outcome with nothing to report: the stop
+		* button already said so, and announcing it only echoes their own click back.
+		* Every other abort — a hook refusing to go on, a parent or disposal cancel —
+		* still announces.
 		* @param reason - the turn's `TurnEndReason`, absent while the end is not loaded.
 		* @returns the facts to render, or undefined to stay silent for this turn.
 		*/
@@ -530,6 +673,7 @@ window.__ModuleLoader__.load({
 				};
 				case "aborted": {
 					const cause = reason.reason;
+					if (cause.kind === "user") return;
 					return cause.kind === "hook" && cause.reason !== "" ? {
 						outcome: "aborted",
 						detail: cause.reason
@@ -628,7 +772,7 @@ window.__ModuleLoader__.load({
 			const scan = () => {
 				try {
 					const current = mainSessionId(sessions.list.getSnapshot());
-					if (current === void 0) return;
+					if (current === void 0 || !isRootSession(sessions.list.getSnapshot(), current)) return;
 					const snapshot = ctx.uiConversation.binding(current).target("chat").getSnapshot();
 					if (snapshot === void 0) return;
 					if (snapshot.legacy === void 0) {
@@ -644,8 +788,9 @@ window.__ModuleLoader__.load({
 					for (const turn of snapshot.legacy.turnEnds.keys()) {
 						if (turns.has(turn)) continue;
 						turns.add(turn);
-						const facts = turnFactsOf(snapshot.timeline?.turns.get(turn)?.end?.data.reason);
-						if (facts === void 0) continue;
+						const turnLocation = snapshot.timeline?.turns.get(turn);
+						const facts = turnFactsOf(turnLocation?.end?.data.reason);
+						if (facts === void 0 || hasSubagentSettlement(snapshot.legacy.nodes, turnLocation?.end?.seq)) continue;
 						const tag = `${current}:turn:${turn}`;
 						pages.elect(tag, current, "showing-session", () => {
 							fireTurnNotification(turn, turnSummaryOf(snapshot.legacy.nodes, turn), facts, t, {
@@ -677,7 +822,9 @@ window.__ModuleLoader__.load({
 				try {
 					const statuses = ctx.uiSession.sessionStatus.getSnapshot();
 					const current = mainSessionId(sessions.list.getSnapshot());
+					const sessionList = sessions.list.getSnapshot();
 					for (const [sid, status] of statuses) {
+						if (!isRootSession(sessionList, sid)) continue;
 						const wait = status.pendingInteraction;
 						if (wait !== void 0) {
 							const key = `${sid}:${wait.key}`;
@@ -732,6 +879,7 @@ window.__ModuleLoader__.load({
 			const unsubList = sessions.list.subscribe(() => {
 				watchCurrent();
 				syncView();
+				scanStatus();
 			});
 			const unsubStatus = ctx.uiSession.sessionStatus.subscribe(scanStatus);
 			const onVisibilityChange = () => syncView();

@@ -32,12 +32,20 @@ export declare const name = "nous-portal-free-provider";
 export declare const inject: string[];
 /** Plugin configuration, validated by the same-named schemastery schema. */
 export interface Config {
+    /** Base64 image payload one request accepts before older images are offloaded (default 2 MiB). */
+    maxRequestImageBytes?: number;
+    /** Per-image request budget after re-encoding (default 1 MiB). */
+    requestImageMaxBytes?: number;
     /** Provider-owned model-request retry policy; omission retries every failure. */
     retryPolicy?: RetryPolicyConfig;
 }
 export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+    maxRequestImageBytes: z<number, number, "volatile-defined">;
+    requestImageMaxBytes: z<number, number, "volatile-defined">;
     retryPolicy: z<NoInfer<RetryPolicyConfig>, NoInfer<RetryPolicyConfig>, "volatile-defined">;
 }>>, Schemastery.ObjectT<NoInfer<{
+    maxRequestImageBytes: z<number, number, "volatile-defined">;
+    requestImageMaxBytes: z<number, number, "volatile-defined">;
     retryPolicy: z<NoInfer<RetryPolicyConfig>, NoInfer<RetryPolicyConfig>, "volatile-defined">;
 }>>, "plain">;
 /**

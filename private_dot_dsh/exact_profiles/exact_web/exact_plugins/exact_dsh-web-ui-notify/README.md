@@ -1,6 +1,6 @@
-# dsh-web-ui-notify — Desktop notifications for approvals / questions / turn completion
+# dsh-web-ui-notify — Desktop and phone notifications for approvals / questions / turn completion
 
-[![Release v0.1.6](https://img.shields.io/badge/release-v0.1.6-5B4CF0?style=flat-square)](https://github.com/omdsh-dev/dsh-web-ui-notify/releases/tag/v0.1.6)
+[![Release v0.1.6](https://img.shields.io/badge/release-v0.2.0-5B4CF0?style=flat-square)](https://github.com/omdsh-dev/dsh-web-ui-notify/releases/tag/v0.2.0)
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-0B7285?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%5E20%20%7C%20%3E%3D22-339933?style=flat-square&logo=nodedotjs&logoColor=white)](package.json)
 [![DSH profiles](https://img.shields.io/badge/DSH-Web-5B4CF0?style=flat-square)](cordis.patch.yml)
@@ -18,8 +18,9 @@ While you browse other pages, DSH needs human confirmation (tool approvals, ques
 ## Features
 
 - **Notify on interaction with the current session**: tool approvals and DSH questions carry context in the body (approvals show the over-permission reason, questions show the question text)
-- **Notify on background sessions too**: sessions you are not looking at also notify when they need approval or a question (same contextual body as the current session); a finished background session notifies as well — click it to jump straight to that session
-- **Notify on turn completion**: every finished turn of the current session notifies, with the first 80 characters of the final answer; tool-only turns without a final answer show the turn number. Completion, interruption, and error turns all notify
+- **Notify on background root sessions too**: sessions you are not looking at notify when they need approval or a question; child/subagent sessions are filtered out — click a notification to jump straight to its session
+- **Phone Web Push**: opt in from Settings on supported HTTPS/PWA browsers; push works while the page is in the background or closed. Phones have no `Notification` constructor, so push is the only channel there — and the only one, never a second copy of the same event
+- **Notify on turn completion**: every finished turn of the current session notifies, with the first 80 characters of the final answer; tool-only turns without a final answer show the turn number. Completion, interruption, and error turns all notify; a stop you asked for yourself does not
 - **Session name in the title**: every notification title names its session, e.g. "Refactor database · needs approval"
 - **Click to jump to the session**: clicking a notification not only returns to the DSH page but also opens that session
 - Notifies only while you are away from the tab; when the page is in the foreground DSH already shows its own prompts, so it does not double-notify
@@ -41,7 +42,7 @@ Internally the command runs `pnpm add <spec>` in the profile directory and autom
 dsh plugin --profile web add /path/to/dsh-web-ui-notify
 ```
 
-The repository ships its build output (`lib/`), so the plugin works right after installing — no build step needed. It has zero runtime dependencies: the browser-side `require`s (react, react/jsx-runtime, ui-slots) resolve through DSH's own frontend module table, not npm.
+The repository ships its build output (`lib/`) and service worker (`sw/`), so the plugin works right after installing — no build step needed. The host uses `web-push`; browser UI dependencies resolve through DSH's frontend module table.
 
 > Older DSH (before the profile system) installed via `pnpm --filter @deepseek-ai/dsh add` + `config.yaml`; since the 20260806 snapshot the profile flow above is the way. If your DSH is still old, use the historical README (visible in git history).
 
@@ -65,13 +66,9 @@ The command runs `pnpm remove <pkg>` in the profile directory and removes it fro
 
 ## Usage
 
-After installation you must also grant browser notification permission, otherwise the plugin stays silent — without permission the browser simply blocks notifications.
+Grant browser notification permission in **Settings → General → Desktop notifications**. To enable phone/background delivery, also click **Enable phone push** from a foreground page. Web Push requires HTTPS and browser support; on iOS it requires an installed PWA, not a regular Safari tab. On macOS, allow your browser under **System Settings → Notifications**.
 
-1. Open **Settings → General → Desktop notifications** and click **Enable**
-2. When the browser asks, choose Allow; the status becomes "Enabled"
-3. On macOS, also allow your browser under **System Settings → Notifications**
-
-Then switch to another tab — approvals, questions, or finished turns produce system notifications, and clicking one brings you back to handle it.
+Desktop notifications continue to work while browsing another tab. Push notifications can arrive while the page is closed; clicking one opens the related session.
 
 The settings row has four states:
 
@@ -86,7 +83,7 @@ The settings row has four states:
 
 | Symptom | Resolution |
 | --- | --- |
-| No notifications appear | Confirm the toggle in Settings → General is Enabled, the browser permission for the DSH site is Allow, and on macOS the browser is allowed under System Settings → Notifications; then switch to another tab — the plugin only notifies while you are away |
+| No notifications appear | Check browser permission; enable phone push separately if needed; verify HTTPS/PWA support and allow browser notifications in system settings |
 | Notifications worked, then stopped after a restart | The browser may have reset site permissions; re-grant, or re-enable the toggle if the settings row shows a different state |
 | "Blocked by browser" | The site permission was previously denied — change it back to Allow in the browser's site settings; clicking Enable alone will not help |
 | "Unsupported" | The environment has no Notification API (e.g. an old or unusual browser); desktop notifications cannot work there |

@@ -61,8 +61,8 @@ describe('patch module contract', () => {
     expect(patchSrc).toMatch(/flip its default route to foreground/)
   })
 
-  it('改写 description 的锚点与判定同源，改不动就拒改', () => {
-    expect(patchSrc).toMatch(/falseTeaching/)
-    expect(patchSrc).toMatch(/leave the prompt teaching/)
+  it('改写 description 的准备与判定同源：改完还提参数就拒改', () => {
+    expect(patchSrc).toMatch(/byDefault/)
+    expect(patchSrc).toMatch(/REFUSAL_WORDING/)
   })
 })

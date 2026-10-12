@@ -1,20 +1,30 @@
 /**
- * Browser half for the hardcoded DSH WebUI keyboard shortcuts.
+ * Browser half for the DSH WebUI gap shortcuts.
  *
- * DSH alpha1 compatibility notes (the reason this file looks defensive):
+ * The official @deepseek-ai/dsh-client-shortcuts system (ctx.shortcuts)
+ * covers new session, session search, and other core actions. This plugin
+ * contributes the actions the official system is missing:
  *
- * 1. `dsh.client.inject` is a HARD activation gate. Cordis only runs a client
- *    plugin's `apply` once every injected service is present. alpha1 deleted
- *    `@deepseek-ai/dsh-client-runtime`, `@deepseek-ai/dsh-client-ui-primitives`
- *    and `@deepseek-ai/dsh-client-ui-slots` as standalone installable packages,
- *    so any plugin still naming them never mounts at all — every shortcut
- *    silently dies. Never list a package here that is not guaranteed to resolve.
- * 2. New session moved from `workspaces.startSession()` (the pure controller)
- *    to the `uiWorkspace` service, which owns navigation + the "reuse the blank
- *    session" policy. Both names are probed so older hosts keep working.
- * 3. The composer is now a Lexical contenteditable (`[data-composer-input]`),
- *    not a `<textarea>`, and menu rows mark the current entry with a check
- *    SVG instead of `aria-checked` / `aria-selected`.
+ * - Alt+A: cycle permission/access mode
+ * - Alt+X: start a new session
+ * - Alt+Up/Down: page the conversation between user messages
+ * - Alt+Left/Right: cycle reasoning effort
+ *
+ * These are registered as fixed inputs (registerFixed + observeFixedInput)
+ * so they appear in the shortcut cheatsheet and participate in conflict
+ * validation. Fixed inputs are required for arrow keys and Alt+A because
+ * the official system reserves them from configurable commands, and Alt+X
+ * because the official web default (Ctrl+Alt+N) is refused on Linux.
+ *
+ * Tab/Shift+Tab preset cycling stays as a local DOM handler: the official
+ * system reserves Tab for focus navigation, so it cannot be registered
+ * without breaking focus traversal. The handler is capture-phase and only
+ * fires inside the composer, so it does not conflict with official
+ * shortcut dispatch (which is bubble-phase and has no Tab binding).
+ *
+ * Fixed ids must not reuse an official command id: registerFixed throws on a
+ * duplicate id, and that throw aborts every later registration in this
+ * effect, which silently kills all of these shortcuts.
  */
 
 interface ModelEffort {
@@ -57,13 +67,42 @@ interface SessionListSnapshot {
   current?: string | null
 }
 
+interface ShortcutGesture {
+  code: string
+  control: boolean
+  alt: boolean
+  shift: boolean
+  meta: boolean
+  repeat: boolean
+  composing: boolean
+  defaultPrevented: boolean
+}
+
+interface ShortcutContext {
+  region: 'page' | 'editable' | 'terminal'
+  modal: string | null
+  target: Element | null
+}
+
+type ShortcutFixedInput =
+  | { type: 'keydown'; gesture: ShortcutGesture; context: ShortcutContext; consume(): void }
+  | { type: 'reset' }
+
+interface ShortcutFixedCommand {
+  id: string
+  label: () => string
+  keys: readonly string[]
+  bindings: readonly { code: string; modifiers: readonly string[] }[]
+  group: 'application' | 'input' | 'menus' | 'approval'
+}
+
+interface Shortcuts {
+  registerFixed(command: ShortcutFixedCommand): () => void
+  observeFixedInput(listener: (input: ShortcutFixedInput) => void): () => void
+}
+
 interface ShortcutScope {
-  workspaces?: {
-    startSession?(workspaceId?: string): unknown
-  }
-  uiWorkspace?: {
-    startSession?(workspaceId?: string): unknown
-  }
+  shortcuts: Shortcuts
   sessions: {
     list: {
       getSnapshot(): SessionListSnapshot
@@ -72,10 +111,13 @@ interface ShortcutScope {
   modelDirectories?: {
     directoryFor(sessionId: string): ModelDirectory
   }
+  uiWorkspace?: {
+    startSession(workspaceId?: string): void
+  }
   effect(callback: () => void | (() => void), name?: string): unknown
 }
 
-interface ClientContext extends ShortcutScope {
+interface ClientContext {
   inject(
     services: readonly string[],
     callback: (scope: ShortcutScope) => void,
@@ -84,24 +126,13 @@ interface ClientContext extends ShortcutScope {
 
 export const name = 'dsh-ya-simple-shortcuts'
 
-/**
- * Keep this list to packages that still exist as installable client bundles.
- * `@deepseek-ai/dsh-client-runtime` was removed in alpha1 — listing it here is
- * what broke every shortcut.
- */
 export const inject = [
+  'shortcuts',
   'sessions',
   'modelDirectories',
   'uiWorkspace',
-  'workspaces',
 ] as const
 
-/**
- * Composer input hosts. alpha1 renders a Lexical contenteditable
- * (`[data-composer-input]`); pre-alpha rendered a `<textarea>` inside the input
- * scroller. Both are matched, plus the generic contenteditable form so a future
- * shell that drops the data attribute still resolves.
- */
 const COMPOSER_INPUT_SELECTOR = [
   '[data-composer-input]',
   '[data-input-scroll] textarea',
@@ -110,11 +141,7 @@ const COMPOSER_INPUT_SELECTOR = [
   '[contenteditable][data-phase]',
 ].join(', ')
 
-/** Access-mode (permission) trigger: the composer chip carries this aria-label. */
 const ACCESS_MODE_ARIA_PREFIXES = ['访问模式', 'Access mode']
-
-/** Session-search trigger aria-labels (zh + en). */
-const SESSION_SEARCH_ARIA = ['搜索会话', 'Search sessions']
 
 function flatModelList(groups: readonly ModelGroup[]): Array<{ provider: string; model: ModelInfo }> {
   const flat: Array<{ provider: string; model: ModelInfo }> = []
@@ -164,13 +191,6 @@ function cycleEffort(scope: ShortcutScope, direction: number): void {
   }
 }
 
-/**
- * Index of the menu row DSH marks as current.
- *
- * alpha1's primitive draws a check-mark SVG for the selected row and sets no
- * `aria-checked` / `aria-selected`. Pre-alpha shells used those attributes.
- * Both spellings are probed, and a trailing check icon counts as well.
- */
 function markedIndex(items: readonly HTMLElement[]): number {
   const byAria = items.findIndex((item) => (
     item.getAttribute('aria-checked') === 'true'
@@ -183,19 +203,9 @@ function markedIndex(items: readonly HTMLElement[]): number {
   )))
   if (byClass >= 0) return byClass
 
-  // Last resort: the marked row is the one carrying a trailing check icon.
   return items.findIndex((item) => item.querySelectorAll('svg').length > 1)
 }
 
-/**
- * Click the next row of the menu attached to `anchor`.
- *
- * @param anchor - the trigger button that opens the menu.
- * @param direction - +1 for next, -1 for previous.
- * @param fallbackLabel - text of the current row, used when the menu marks
- *   nothing (keeps cycle position sane across locales).
- * @returns whether the anchor was clicked.
- */
 function cycleMenu(anchor: HTMLButtonElement, direction: number, fallbackLabel: string): boolean {
   anchor.click()
 
@@ -219,12 +229,6 @@ function cycleMenu(anchor: HTMLButtonElement, direction: number, fallbackLabel: 
   return true
 }
 
-/**
- * Full-access is gated behind a `RiskConfirmation` dialog. It auto-focuses its
- * acknowledge checkbox on open, so after the click the user is already one
- * Space + Enter away from confirming — no extra focus juggling required.
- */
-
 function accessModeButton(): HTMLButtonElement | null {
   const buttons = Array.from(
     document.querySelectorAll<HTMLButtonElement>('[data-composer-card] button'),
@@ -239,44 +243,12 @@ function cyclePermission(): boolean {
   const button = accessModeButton()
   if (button === null) return false
 
-  // The chip reads "访问模式，当前：X" / "Access mode, current: X" — X is the live value.
   const label = (button.getAttribute('aria-label') ?? '')
     .replace(/^[^：:]*[：:]\s*/, '')
     .trim()
   return cycleMenu(button, 1, label)
 }
 
-function openSessionSearch(): void {
-  const button = Array.from(document.querySelectorAll<HTMLButtonElement>('button'))
-    .find((candidate) => {
-      const label = candidate.getAttribute('aria-label') ?? ''
-      return SESSION_SEARCH_ARIA.some((text) => label === text)
-    })
-  if (button === undefined) return
-
-  button.click()
-  requestAnimationFrame(() => {
-    const input = document.querySelector<HTMLInputElement>(
-      'input[placeholder="搜索会话…"], input[placeholder="Search sessions..."]',
-    )
-    input?.focus({ preventScroll: true })
-  })
-}
-
-/**
- * Page the conversation between user messages.
- *
- * Two traps in alpha1's transcript DOM that the naive version fell into:
- * 1. `[data-chat-anchor-key]` rows are NOT in visual order (turn-process and
- *    subagent groups interleave), so "last matching row" must be picked by
- *    measured offset, not by DOM index.
- * 2. After a jump the target row's top lands exactly on the marker, so a plain
- *    `< marker` / `> marker` test keeps re-selecting that same row and every
- *    repeat press stalls. The comparison is anchored on the row's top with a
- *    one-pixel epsilon so the parked row is excluded.
- *
- * @param direction - -1 to page up, +1 to page down.
- */
 function scrollToUser(direction: number): void {
   const scrollport = document.querySelector<HTMLElement>('[data-conversation-scroll]')
   if (scrollport === null) return
@@ -298,7 +270,6 @@ function scrollToUser(direction: number): void {
   const epsilon = 1
   let target: HTMLElement | undefined
   if (direction < 0) {
-    // Nearest row strictly above the marker, excluding the one parked on it.
     let best: { row: HTMLElement; top: number } | undefined
     for (const entry of offsets) {
       if (entry.top >= marker - epsilon) continue
@@ -306,7 +277,6 @@ function scrollToUser(direction: number): void {
     }
     target = best?.row
   } else {
-    // Nearest row strictly below the marker, excluding the one parked on it.
     let best: { row: HTMLElement; top: number } | undefined
     for (const entry of offsets) {
       if (entry.top <= marker + epsilon) continue
@@ -333,13 +303,6 @@ function cyclePreset(direction: number): boolean {
   return cycleMenu(seat, direction, seat.textContent?.trim() ?? '')
 }
 
-/**
- * Whether the key press belongs to the composer.
- *
- * Lexical keeps focus on the contenteditable root itself, so `event.target` is
- * the input — but popup shells and some mobile keyboards blur it, leaving
- * `document.activeElement` as the only witness. Both are checked.
- */
 function isComposerTarget(target: EventTarget | null): boolean {
   const candidates = [
     target instanceof Element ? target : null,
@@ -352,57 +315,69 @@ function isComposerTarget(target: EventTarget | null): boolean {
   })
 }
 
-/**
- * Start a new session, preferring the alpha1 `uiWorkspace` service (which owns
- * navigation and blank-session reuse) and falling back to the pre-alpha
- * controller method so older hosts keep working unchanged.
- */
-function startSession(scope: ShortcutScope): void {
-  const ui = scope.uiWorkspace?.startSession
-  if (typeof ui === 'function') {
-    ui.call(scope.uiWorkspace)
-    return
+function isAltOnly(gesture: ShortcutGesture): boolean {
+  return gesture.alt && !gesture.control && !gesture.shift && !gesture.meta
+}
+
+function startSession(scope: ShortcutScope): boolean {
+  if (scope.uiWorkspace === undefined) return false
+  try {
+    scope.uiWorkspace.startSession()
+    return true
+  } catch {
+    return false
   }
-  const legacy = scope.workspaces?.startSession
-  if (typeof legacy === 'function') legacy.call(scope.workspaces)
+}
+
+interface GapShortcutStatus {
+  fixed: string[]
+  last: string
+  calls: number
+}
+
+declare global {
+  var __dshGapShortcuts: GapShortcutStatus | undefined
+}
+
+function status(): GapShortcutStatus {
+  return globalThis.__dshGapShortcuts
+    ?? (globalThis.__dshGapShortcuts = { fixed: [], last: '', calls: 0 })
+}
+
+function onFixedInput(scope: ShortcutScope, input: ShortcutFixedInput): void {
+  if (input.type === 'reset') return
+  const { gesture, context } = input
+  status().calls += 1
+  status().last = gesture.code
+  if (gesture.defaultPrevented || gesture.composing || gesture.repeat) return
+  if (context.modal !== null || context.region === 'terminal') return
+
+  if (!isAltOnly(gesture)) return
+
+  if (gesture.code === 'KeyA') {
+    if (cyclePermission()) input.consume()
+  } else if (gesture.code === 'KeyX') {
+    if (startSession(scope)) input.consume()
+  } else if (gesture.code === 'ArrowUp') {
+    input.consume()
+    scrollToUser(-1)
+  } else if (gesture.code === 'ArrowDown') {
+    input.consume()
+    scrollToUser(1)
+  } else if (gesture.code === 'ArrowLeft') {
+    input.consume()
+    cycleEffort(scope, -1)
+  } else if (gesture.code === 'ArrowRight') {
+    input.consume()
+    cycleEffort(scope, 1)
+  }
 }
 
 function onKeyDown(scope: ShortcutScope, event: KeyboardEvent): void {
   if (event.isComposing || event.keyCode === 229 || event.repeat) return
 
   const key = (event.key || event.code).toLowerCase()
-  const alt = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
-  const ctrl = event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey
 
-  if (alt && key === 'a') {
-    if (cyclePermission()) event.preventDefault()
-    return
-  }
-  if (alt && key === 'x') {
-    event.preventDefault()
-    startSession(scope)
-    return
-  }
-  if (ctrl && key === 'k') {
-    event.preventDefault()
-    openSessionSearch()
-    return
-  }
-  if (alt && (key === 'arrowup' || key === 'arrowdown')) {
-    event.preventDefault()
-    scrollToUser(key === 'arrowup' ? -1 : 1)
-    return
-  }
-  if (alt && key === 'arrowright') {
-    event.preventDefault()
-    cycleEffort(scope, 1)
-    return
-  }
-  if (alt && key === 'arrowleft') {
-    event.preventDefault()
-    cycleEffort(scope, -1)
-    return
-  }
   if (key === 'tab' && isComposerTarget(event.target)) {
     if (cyclePreset(event.shiftKey ? -1 : 1)) event.preventDefault()
   }
@@ -411,9 +386,48 @@ function onKeyDown(scope: ShortcutScope, event: KeyboardEvent): void {
 export function apply(ctx: ClientContext): void {
   ctx.inject(inject, (scope) => {
     scope.effect(() => {
+      const fixed = (id: string, label: string, keys: string[], bindings: ShortcutFixedCommand['bindings']): (() => void) => {
+        const dispose = scope.shortcuts.registerFixed({
+          id,
+          label: () => label,
+          keys,
+          bindings,
+          group: 'application',
+        })
+        status().fixed.push(id)
+        return dispose
+      }
+
+      const disposePermission = fixed('permission.cycle', '切换访问模式', ['Alt+A'], [
+        { code: 'KeyA', modifiers: ['alt'] },
+      ])
+      const disposeSession = fixed('gap.session.new', '新建会话', ['Alt+X'], [
+        { code: 'KeyX', modifiers: ['alt'] },
+      ])
+      const disposePaging = fixed('conversation.page', '按用户消息翻页', ['Alt+↑', 'Alt+↓'], [
+        { code: 'ArrowUp', modifiers: ['alt'] },
+        { code: 'ArrowDown', modifiers: ['alt'] },
+      ])
+      const disposeEffort = fixed('reasoning-effort.cycle', '切换推理强度', ['Alt+←', 'Alt+→'], [
+        { code: 'ArrowLeft', modifiers: ['alt'] },
+        { code: 'ArrowRight', modifiers: ['alt'] },
+      ])
+
+      const offFixed = scope.shortcuts.observeFixedInput((input) => {
+        onFixedInput(scope, input)
+      })
+
       const handler = (event: KeyboardEvent) => onKeyDown(scope, event)
       document.addEventListener('keydown', handler, true)
-      return () => document.removeEventListener('keydown', handler, true)
-    }, 'dsh-ya-simple-shortcuts: keydown')
+
+      return () => {
+        disposePermission()
+        disposeSession()
+        disposePaging()
+        disposeEffort()
+        offFixed()
+        document.removeEventListener('keydown', handler, true)
+      }
+    }, 'dsh-ya-simple-shortcuts: gap shortcuts')
   })
 }

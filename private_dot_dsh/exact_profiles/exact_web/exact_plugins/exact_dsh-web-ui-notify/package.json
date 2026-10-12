@@ -1,7 +1,7 @@
 {
   "name": "dsh-web-ui-notify",
-  "version": "0.1.6",
-  "description": "Desktop notifications for DeepSeek Harness approvals, questions, and turn completion — so neither DSH nor you end up waiting while you browse another tab.",
+  "version": "0.2.0",
+  "description": "Desktop and Web Push notifications for DeepSeek Harness root-session approvals, questions, and turn completion.",
   "keywords": [
     "deepseek",
     "deepseek-harness",
@@ -27,6 +27,7 @@
   "files": [
     "lib",
     "src",
+    "sw",
     "cordis.patch.yml",
     "README.md",
     "README.zh.md",
@@ -50,6 +51,9 @@
     "build": "node scripts/build.mjs",
     "test": "node scripts/test.mjs",
     "verify:i18n": "node scripts/verify-i18n.mjs"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
   },
   "dsh": {
     "bundle": {

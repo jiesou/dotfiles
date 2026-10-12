@@ -1,0 +1,15 @@
+Update available! 12.6.0 → 12.8.1.
+Changelog: https://pnpm.io/v/12.8.1
+To update, run: curl -fsSL https://get.pnpm.io/install.sh | sh -
+✓ Lockfile passes supply-chain policies (verified 54m ago)
+Progress: resolved 0, reused 1, downloaded 0, added 0
+Progress: resolved 0, reused 28, downloaded 7, added 0
+Packages: +110 -2
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+Progress: resolved 110, reused 51, downloaded 51, added 110, done
+[WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
+
+dependencies:
++ dsh-web-mobile 3.0.3
+
+Done in 15.1s using pnpm v12.6.0

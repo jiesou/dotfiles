@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync, globSync, realpathSync, statSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { argv as processArgv } from 'node:process'
@@ -41,6 +41,7 @@ interface Seam {
 
 interface Config {
   writeDirs?: string[]
+  devicePaths?: string[]
   launcherPath?: string
   cwd?: string
   diffBasisMaxBytes?: number
@@ -141,7 +142,7 @@ export function normalizeDirs(dirs: readonly string[] = []): string[] {
 }
 
 // 官方 JS seam 拥有 launcher 的 CLI 契约（定位/探针/grant 方言），按绝对路径动态加载。
-const SEAM_RELATIVE = join('node_modules', '@deepseek-ai', 'node-addon-landlock-run', 'lib', 'index.js')
+const SEAM_RELATIVE = join('node_modules', '@deepseek-ai', 'node-addon-system', 'lib', 'index.js')
 
 async function importSeam(): Promise<Seam> {
   const candidates = []
@@ -167,9 +168,24 @@ async function importSeam(): Promise<Seam> {
   return import(found) as Promise<Seam>
 }
 
-function grantFlags(seam: Seam, policy: SandboxPolicy, writeDirs: readonly string[]): string[] {
+// Landlock 的 path_beneath 规则绑 inode 而非路径名：串口拔插后 udev 换 inode，
+// mount 时快照的授权当场失效；设备缺席又会触发 launcher exit 125 fail-closed。
+// confine 每条命令调一次，故在此展开通配符——新设备下一条命令自动生效，消失的
+// 设备 glob 查不到即不进授权面。
+function resolveDevices(patterns: readonly string[] = []): string[] {
+  return patterns.flatMap((pattern) => {
+    try {
+      // 目录一律剔除：通配符误伤目录会把整棵子树写开（/dev/* 会命中 /dev/shm）。
+      return globSync(expandHome(pattern)).filter((path) => !isDirectory(path))
+    } catch {
+      return []
+    }
+  })
+}
+
+function grantFlags(seam: Seam, policy: SandboxPolicy, writeDirs: readonly string[], devicePaths: readonly string[]): string[] {
   const readWrite = policy.mode === 'workspace-write'
-    ? ['/dev/null', '/tmp', policy.workspaceRoot, ...writeDirs]
+    ? ['/dev/null', '/tmp', policy.workspaceRoot, ...writeDirs, ...resolveDevices(devicePaths)]
     : ['/dev/null']
   // landlock-run 对打不开的授权根 fail-closed（exit 125，整条命令不执行），
   // 不存在的目录必须剔除；目录稍后建出来后下次 confine 自动纳入。
@@ -184,10 +200,19 @@ function existsDir(dir: string): boolean {
   }
 }
 
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
 export const name = 'dsh-sandbox-landlock'
 
 export async function apply(ctx: Context | PluginCtx, config: Config = {}): Promise<void> {
   const writeDirs = normalizeDirs(config.writeDirs ?? [])
+  const devicePaths = config.devicePaths ?? []
   if (platform() !== 'linux') return
   let seam: Seam
   try {
@@ -211,7 +236,7 @@ export async function apply(ctx: Context | PluginCtx, config: Config = {}): Prom
     // 生产消费方在 danger-full-access 时不会调用 confine；此处只接收受限模式。
     confine(commandArgv: readonly string[], policy: SandboxPolicy): ConfinedArgv {
       return {
-        argv: [launcher, ...grantFlags(seam, policy, writeDirs), '--', ...commandArgv],
+        argv: [launcher, ...grantFlags(seam, policy, writeDirs, devicePaths), '--', ...commandArgv],
         enforcement: verdict,
         denialSignatures: ['permission denied'],
         runnerFailureRules: [{

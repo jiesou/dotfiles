@@ -1,6 +1,6 @@
-# dsh-web-ui-notify — 审批/提问/轮次完成桌面通知插件
+# dsh-web-ui-notify — 审批/提问/轮次完成桌面与手机通知插件
 
-[![Release v0.1.6](https://img.shields.io/badge/release-v0.1.6-5B4CF0?style=flat-square)](https://github.com/omdsh-dev/dsh-web-ui-notify/releases/tag/v0.1.6)
+[![Release v0.1.6](https://img.shields.io/badge/release-v0.2.0-5B4CF0?style=flat-square)](https://github.com/omdsh-dev/dsh-web-ui-notify/releases/tag/v0.2.0)
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-0B7285?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%5E20%20%7C%20%3E%3D22-339933?style=flat-square&logo=nodedotjs&logoColor=white)](package.json)
 [![DSH profiles](https://img.shields.io/badge/DSH-Web-5B4CF0?style=flat-square)](cordis.patch.yml)
@@ -18,8 +18,9 @@
 ## 实现能力
 
 - **当前会话介入时通知**：工具审批和 DSH 提问，通知正文带上下文（审批显示越权原因，提问显示问题原文）
-- **后台会话也通知**：没在看的会话需要审批/提问时同样弹通知（正文带上下文，和当前会话一致），整个会话干完也会通知；点一下直接跳到那个会话
-- **干完一轮也通知**：当前会话每轮干完都通知，正文是这一轮最终回答的开头（80 字以内），纯工具轮没有最终回答时显示轮次号。不管这轮是正常结束、被中断还是出错，都会通知
+- **后台会话也通知**：没在看的 root 会话需要审批/提问时同样弹通知（正文带上下文），整轮结束也会通知；subagent/fork 会话不会单独打扰；点一下直接跳到会话
+- **手机推送**：在支持 HTTPS/PWA 的浏览器里从设置开启；页面在后台甚至关闭后也能收到。手机浏览器没有 `Notification` 构造函数，推送是手机上唯一的通道，也只会有一条，同一件事不会发两遍
+- **干完一轮也通知**：当前会话每轮干完都通知，正文是这一轮最终回答的开头（80 字以内），纯工具轮没有最终回答时显示轮次号。不管这轮是正常结束、被中断还是出错，都会通知；你自己按的停止不通知
 - **标题带会话名**：所有通知标题都标明来自哪个会话，如「重构数据库 · 需要审批」
 - **点击跳转到对应会话**：点通知不只是跳回 DSH 页面，还会自动打开通知里的那个会话
 - 只在你不看这个标签页时通知；页面在前台时 DSH 本来就有提示，不重复打扰
@@ -41,7 +42,7 @@ dsh plugin --profile web add github:omdsh-dev/dsh-web-ui-notify
 dsh plugin --profile web add /path/to/dsh-web-ui-notify
 ```
 
-仓库里带了构建产物（`lib/`），装完直接可用，不需要另外构建。插件零运行时依赖——浏览器侧那几个 `require`（react、react/jsx-runtime、ui-slots）走 DSH 前端自己的模块表，不经过 npm。
+仓库里带了构建产物（`lib/`）和 Service Worker（`sw/`），装完直接可用，不需要另外构建。Host 使用 `web-push`；浏览器 UI 依赖仍走 DSH 前端自己的模块表。
 
 > 旧版 DSH（profile 体系之前）用 `pnpm --filter @deepseek-ai/dsh add` + `config.yaml` 安装；20260806 快照起改为上面的 profile 方式。若你的 DSH 还是旧版，用 README 的历史版本（git 历史里可见）。
 
@@ -65,13 +66,9 @@ dsh plugin --profile web remove dsh-web-ui-notify
 
 ## 使用
 
-装好之后还要授权浏览器通知权限，否则插件是静默的——没授权时浏览器直接禁止弹通知。
+先在 **设置 → 通用 → 桌面通知** 授予浏览器通知权限。要让手机或关闭页面后也能收到推送，请在前台页面再点**开启手机推送**。Web Push 需要 HTTPS 和浏览器支持；iOS 必须将站点添加到主屏幕作为 PWA，普通 Safari 标签页不支持。macOS 还要在**系统设置 → 通知**里允许你的浏览器。
 
-1. 打开 **设置 → 通用 → 桌面通知**，点**开启桌面通知**
-2. 浏览器弹出询问，选允许，状态变成「已开启」
-3. macOS 还要在**系统设置 → 通知**里允许你的浏览器
-
-之后切到别的标签页，遇到审批、提问、或者一轮干完了，就会收到系统通知，点它跳回来处理。
+桌面通知在切到其他标签页时继续工作；Web Push 可在页面关闭时送达，点击通知会打开对应会话。
 
 设置行的四种状态：
 
@@ -86,7 +83,7 @@ dsh plugin --profile web remove dsh-web-ui-notify
 
 | 症状 | 解决 |
 | --- | --- |
-| 没有通知出现 | 确认设置 → 通用 的开关是「已开启」、浏览器对 DSH 站点的权限是「允许」、macOS 系统设置 → 通知 里允许了浏览器；然后切到别的标签页——插件只在你不看页面时通知 |
+| 没有通知出现 | 检查浏览器通知权限；手机推送需单独开启；确认站点使用 HTTPS、iOS 已安装 PWA，并检查系统通知设置 |
 | 重启后通知失效 | 浏览器可能重置了站点权限；重新授权，或如果设置行显示其他状态就重新开启开关 |
 | 「已被浏览器阻止」 | 之前拒绝过——去浏览器站点设置改回「允许」，点开启按钮没用 |
 | 「浏览器不支持」 | 当前环境没有 Notification API（旧版或特殊浏览器），桌面通知无法工作 |

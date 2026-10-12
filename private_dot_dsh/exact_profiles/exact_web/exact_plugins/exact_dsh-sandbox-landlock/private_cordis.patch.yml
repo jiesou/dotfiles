@@ -14,6 +14,7 @@
           - ~/.mcp-auth
           - ~/.cache/opencode
           - ~/.local/share/opencode
+          - ~/.local/share/Trash
           - ~/Downloads
           - ~/Documents/dev/.blog
           - ~/Documents/dev/Android
@@ -36,4 +37,12 @@
           - ~/.platformio
           - ~/.espressif
           - ~/.arduino15
+          # 串口等设备节点：通配符在每条命令 confine 时展开（Landlock 规则绑 inode，
+          # 拔插后下一条命令自动重新授权；设备缺席自动剔除，不会触发 launcher exit 125）
+        devicePaths:
+          - /dev/ttyUSB*
+          - /dev/ttyACM*
+          # GPU 加速：VA-API / EGL / Vulkan 只需 render node（udev 建为 0666，全球可读写）。
+          # card* 是 DRM master、能接管显示，不在此列。
+          - /dev/dri/renderD*
 

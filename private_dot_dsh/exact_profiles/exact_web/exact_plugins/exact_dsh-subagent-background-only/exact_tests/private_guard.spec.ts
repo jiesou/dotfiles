@@ -19,7 +19,7 @@ function makeContinuableDefinition(name: string): Fixture {
   return {
     name,
     description:
-      'Delegate a task. This tool runs in the background by default, immediately returns a durable subagent id, and keeps the child conversation available for later turns. Set `run_in_background: false` only when your next action depends on receiving the result.',
+      'Delegate a task. It runs in the background by default and returns a subagent id you can continue with `send_message`; you are notified when the run settles.',
     parameters: {
       type: 'object',
       properties: {
@@ -27,8 +27,7 @@ function makeContinuableDefinition(name: string): Fixture {
         prompt: { type: 'string', description: 'The task.' },
         run_in_background: {
           type: 'boolean',
-          description:
-            'Whether to run in the background and return a durable subagent id immediately. Defaults to true. Set false to wait for the result when your next action depends on it.',
+          description: 'Defaults to true. Set false only when your next action depends on the result.',
         },
       },
       required: ['description', 'prompt'],
@@ -37,14 +36,14 @@ function makeContinuableDefinition(name: string): Fixture {
   }
 }
 
-/** The one-shot wording: no durable-id promise, so stripping must be refused. */
+/** The one-shot wording: no continuable promise, so stripping must be refused. */
 function makeOneShotDefinition(name: string): Fixture {
   const definition = makeContinuableDefinition(name)
   definition.description = 'Delegate a task. This call waits for the result by default.'
   definition.parameters.properties['run_in_background'] = {
     type: 'boolean',
     description:
-      'Whether to run as a background job and return its id. Defaults to false; collect with job_output or stop with job_kill.',
+      'Run as a background job and return its id (collect with job_output, stop with job_kill). Defaults to false.',
   }
   return definition
 }
@@ -106,7 +105,7 @@ describe('patchDefinition (in-place mutation)', () => {
     expect(definition.parameters.required ?? []).not.toContain('run_in_background')
     expect(definition.parameters.properties).toHaveProperty('description')
     expect(definition.parameters.properties).toHaveProperty('prompt')
-    expect(definition.description).not.toMatch(/run_in_background: false/)
+    expect(definition.description).not.toMatch(/run_in_background/)
     expect(definition.description).toMatch(/always runs in the background/)
 
     await definition.execute({ description: 'd', prompt: 'p' }, {})
@@ -147,15 +146,15 @@ describe('patchDefinition (in-place mutation)', () => {
     expect(definition.parameters.properties).toHaveProperty('run_in_background')
   })
 
-  it('REFUSES when the description no longer carries the sentence it replaces', () => {
-    // A reworded upstream must not yield a stripped schema beside a prompt that
-    // still names the parameter: detection and edit have to agree.
+  it('REFUSES when the rewritten description would still name the parameter', () => {
+    // Upstream moving the `false`-teaching back into the TOOL description must
+    // not yield a stripped schema beside a prompt that still names the
+    // parameter: detection and edit have to agree.
     const definition = makeContinuableDefinition('subagent')
-    definition.description =
-      'Delegate a task. This tool runs in the background by default, immediately returns a durable subagent id, and keeps the child conversation available for later turns.'
+    definition.description += ' Set `run_in_background: false` to wait for the result.'
     const outcome = patchDefinition(definition)
     expect(outcome.patched).toBe(false)
-    expect(outcome.reason).toMatch(/leave the prompt teaching/)
+    expect(outcome.reason).toMatch(/would still name `run_in_background`/)
     expect(definition.parameters.properties).toHaveProperty('run_in_background')
     expect(definition.description).not.toMatch(/always runs in the background/)
   })
@@ -277,12 +276,13 @@ describe('mode discrimination (regression: real headless subagent_fork is one-sh
     expect(patchDefinition(definition)).toEqual({ patched: false })
   })
 
-  it('requires BOTH signals: durable-id wording alone is not enough', () => {
+  it('requires BOTH signals: continuable wording alone is not enough', () => {
     const definition = makeContinuableDefinition('subagent')
     // Keep the continuable tool description but make the parameter say false.
     definition.parameters.properties['run_in_background'] = {
       type: 'boolean',
-      description: 'Whether to run as a background job and return its id. Defaults to false; collect with job_output or stop with job_kill.',
+      description:
+        'Run as a background job and return its id (collect with job_output, stop with job_kill). Defaults to false.',
     }
     expect(patchDefinition(definition).patched).toBe(false)
     expect(definition.parameters.properties).toHaveProperty('run_in_background')

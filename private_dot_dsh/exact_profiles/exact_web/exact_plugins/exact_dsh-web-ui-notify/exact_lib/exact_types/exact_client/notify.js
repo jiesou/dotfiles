@@ -28,9 +28,27 @@ function withClickFocus(notification, onOpen) {
 function titled(kindTitle, label) {
     return label === '' ? kindTitle : `${label} · ${kindTitle}`;
 }
-/** The one rendering path every notification kind funnels through. */
+/** Whether the constructor refusal was already reported this session. */
+let ctorUnavailableReported = false;
+/**
+ * The one rendering path every notification kind funnels through. A browser
+ * without the constructor gets nothing here: the host pushes the same events to
+ * the device that opted into Web Push, and a local display on top of that push
+ * is what showed every event twice on a phone.
+ */
 function show(title, body, tag, target) {
-    return withClickFocus(new Notification(title, { body, tag, requireInteraction: true }), target.onOpen);
+    const options = { body, tag, requireInteraction: true };
+    try {
+        return withClickFocus(new Notification(title, options), target.onOpen);
+    }
+    catch (error) {
+        if (!ctorUnavailableReported) {
+            ctorUnavailableReported = true;
+            console.warn('[web-ui-notify] this browser cannot construct a Notification; ' +
+                'notifications are delivered by Web Push instead.', error);
+        }
+        return { close() { }, onclick: null };
+    }
 }
 /** Notification-body cap for a plan under review: keep the system notification compact. */
 const PLAN_MAX = 160;
@@ -44,9 +62,8 @@ function excerptOf(text, max) {
     return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 }
 /**
- * Build and show the desktop notification for one pending wait. The caller
- * gates on {@link hiddenNow} / {@link notificationUsable} and dedupes by
- * wait key; this function only renders.
+ * Build and show the notification for one pending wait. The caller gates on
+ * {@link hiddenNow} / {@link notificationUsable} and dedupes by wait key.
  *
  * Three wait kinds reach this renderer: `approval`, `question`, and the
  * `plan-review` intent of a question. A plan review is its own thing — its
@@ -88,7 +105,7 @@ const TURN_OUTCOME_COPY = {
     interrupted: { title: 'notify.turn.interrupted.title', body: 'notify.turn.interrupted.body' },
 };
 /**
- * Build and show the desktop notification for a finished turn. A turn that
+ * Build and show the notification for a finished turn. A turn that
  * produced no final assistant text is normal — a concluding tool
  * (`concludesTurn`), a structured-output subagent, a PTC script that ends the
  * loop — so only the outcome decides the copy, never the absence of text. The
@@ -117,7 +134,7 @@ export function fireTurnNotification(turn, summary, facts, t, target) {
     return show(titled(t('notify.turn.title'), target.label), body, target.tag, target);
 }
 /**
- * Build and show the desktop notification for a whole background session
+ * Build and show the notification for a whole background session
  * finishing ("done" reminder). The caller gates on {@link hiddenNow} /
  * {@link notificationUsable} and dedupes per session; this function only
  * renders.

@@ -1,11 +1,12 @@
 /**
- * Approval-notification plugin, browser half: when an approval or question
- * wait lands, or a turn finishes, while the page is hidden (the user is on
- * another tab), show a desktop Notification. Titles name the source session,
+ * Notification plugin, browser half: when an approval or question wait lands,
+ * or a turn finishes while the page is hidden (the user is on another tab),
+ * show a desktop Notification. Titles name the source session,
  * and clicking a notification jumps to that exact conversation. A
  * General-settings row exposes the permission request button — the
  * user-gesture entry point the browser requires before `new Notification`
- * works.
+ * works — and the opt-in that subscribes the device to the host's Web Push,
+ * which is the channel for browsers that have no constructor at all.
  *
  * Observation model — two layers:
  *
@@ -93,6 +94,23 @@ function mainSessionId(list: SessionListState): SessionId | undefined {
   return Object.values(list.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)?.id
 }
 
+function isRootSession(list: SessionListState, sid: SessionId): boolean {
+  const session = list.byId[sid]
+  return session !== undefined && session.parentId === undefined && session.origin !== 'subagent'
+}
+
+function hasSubagentSettlement(
+  nodes: readonly ConversationNode[],
+  end: number | undefined,
+): boolean {
+  if (end === undefined) return false
+  const settlement = nodes.find(node => {
+    if (node.kind !== 'context' || typeof node.source !== 'object' || node.source === null) return false
+    return (node.source as { kind?: unknown }).kind === 'subagent-settled'
+  })
+  return settlement !== undefined && nodes.some(node => node.kind === 'user' && node.seq > settlement.seq && node.seq < end)
+}
+
 /**
  * Extract a compact excerpt of one turn's final assistant text for the
  * notification body: the LAST assistant node of that turn, text blocks joined
@@ -126,6 +144,11 @@ export function turnSummaryOf(nodes: readonly ConversationNode[], turn: number):
  * script can close a turn legitimately — and a stop or a failure closes one
  * without any answer at all. Only the reason distinguishes them, so the
  * timeline's own `turn/end` event decides the copy.
+ *
+ * A stop the USER asked for is the one outcome with nothing to report: the stop
+ * button already said so, and announcing it only echoes their own click back.
+ * Every other abort — a hook refusing to go on, a parent or disposal cancel —
+ * still announces.
  * @param reason - the turn's `TurnEndReason`, absent while the end is not loaded.
  * @returns the facts to render, or undefined to stay silent for this turn.
  */
@@ -146,6 +169,8 @@ function turnFactsOf(reason: TurnEndReason | undefined): TurnEndFacts | undefine
       return { outcome: 'error', detail: reason.error.message }
     case 'aborted': {
       const cause = reason.reason
+      // The user's own stop: they were there when it happened.
+      if (cause.kind === 'user') return undefined
       // A hook's own stop reason is the most useful sentence we have.
       return cause.kind === 'hook' && cause.reason !== ''
         ? { outcome: 'aborted', detail: cause.reason }
@@ -253,7 +278,7 @@ export function apply(
   const scan = (): void => {
     try {
       const current = mainSessionId(sessions.list.getSnapshot())
-      if (current === undefined) return
+      if (current === undefined || !isRootSession(sessions.list.getSnapshot(), current)) return
       const snapshot = ctx.uiConversation.binding(current).target('chat').getSnapshot()
       // No Chat snapshot yet: the view is not materialized during boot. Transient.
       if (snapshot === undefined) return
@@ -271,9 +296,9 @@ export function apply(
       for (const turn of snapshot.legacy.turnEnds.keys()) {
         if (turns.has(turn)) continue
         turns.add(turn)
-        const facts = turnFactsOf(snapshot.timeline?.turns.get(turn)?.end?.data.reason)
-        // Nothing to announce (a synthetic fork closer): stay silent.
-        if (facts === undefined) continue
+        const turnLocation = snapshot.timeline?.turns.get(turn)
+        const facts = turnFactsOf(turnLocation?.end?.data.reason)
+        if (facts === undefined || hasSubagentSettlement(snapshot.legacy.nodes, turnLocation?.end?.seq)) continue
         // Only a page bound to this session can see its turns, so the election
         // runs among those pages alone.
         const tag = `${current}:turn:${turn}`
@@ -309,7 +334,9 @@ export function apply(
     try {
       const statuses = ctx.uiSession.sessionStatus.getSnapshot()
       const current = mainSessionId(sessions.list.getSnapshot())
+      const sessionList = sessions.list.getSnapshot()
       for (const [sid, status] of statuses) {
+        if (!isRootSession(sessionList, sid)) continue
         const wait = status.pendingInteraction
         if (wait !== undefined) {
           const key = `${sid}:${wait.key}`
@@ -367,7 +394,7 @@ export function apply(
 
   // Moving the main view changes what this page is "watching" — and therefore
   // what its siblings may announce — so every list move is re-announced.
-  const unsubList = sessions.list.subscribe(() => { watchCurrent(); syncView() })
+  const unsubList = sessions.list.subscribe(() => { watchCurrent(); syncView(); scanStatus() })
   const unsubStatus = ctx.uiSession.sessionStatus.subscribe(scanStatus)
   const onVisibilityChange = (): void => syncView()
   if (typeof document !== 'undefined') {
