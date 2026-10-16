@@ -17,9 +17,11 @@
 
 只有需要模型在合适场景自动触发的通用 skill 不加 —— 即顶层那批 skill，以及 bypass-cf-403、cpp-style、gh、markitdown、yt-dlp、watch-video 这类 0connect 内的常用 skill。其余一律加。
 
+安装他人的skill，也视类型加上。
+
 ## description
 
-常驻上下文，越短越好。一句话，只写触发条件，`USE when` 开头。
+常驻上下文，越短越好。 **一句话干净说明即可** ，只写触发条件，`USE when` 开头。
 
 安装他人的skill，description通常较长，需自行精简。
 

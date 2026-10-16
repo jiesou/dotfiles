@@ -1,11 +1,11 @@
 # ILIB\_FootprintItem interface
 
-封装属性
+Footprint property
 
 ## Signature
 
 ```typescript
-interface ILIB_FootprintItem 
+interface ILIB_FootprintItem
 ```
 
 ## Properties
@@ -14,137 +14,141 @@ interface ILIB_FootprintItem
 
 Property
 
-
 </th><th>
 
 Modifiers
-
 
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [classification?](./ILIB_FootprintItem.md)
 
-
 </td><td>
-
 
 </td><td>
 
 [ILIB\_ClassificationIndex](./ILIB_ClassificationIndex.md) \| Array&lt;string&gt;
 
-
 </td><td>
 
-_(Optional)_ 分类
-
+_(Optional)_ Classification
 
 </td></tr>
 <tr><td>
 
 [description?](./ILIB_FootprintItem.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
-_(Optional)_ 描述
-
+_(Optional)_ Description
 
 </td></tr>
 <tr><td>
 
 [libraryType](./ILIB_FootprintItem.md)
 
-
 </td><td>
 
 `readonly`
-
 
 </td><td>
 
 [ELIB\_LibraryType.FOOTPRINT](../enums/ELIB_LibraryType.md)
 
-
 </td><td>
 
-库类型
-
+Library type
 
 </td></tr>
 <tr><td>
 
 [libraryUuid](./ILIB_FootprintItem.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
+</td><td>
+
+UUID of the library it belongs to
+
+</td></tr>
+<tr><td>
+
+[model3D?](./ILIB_FootprintItem.md)
 
 </td><td>
 
-所属库 UUID
+</td><td>
 
+\{ name: string; uuid: string; libraryUuid: string \}
+
+</td><td>
+
+_(Optional)_ 关联 3D 模型
+
+ADD since v4.1.22
 
 </td></tr>
 <tr><td>
 
 [name](./ILIB_FootprintItem.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
+</td><td>
+
+Footprint name
+
+</td></tr>
+<tr><td>
+
+[otherProperty?](./ILIB_FootprintItem.md)
 
 </td><td>
 
-封装名称
+</td><td>
 
+Record&lt;string, boolean \| number \| string \| undefined&gt;
+
+</td><td>
+
+_(Optional)_ 其它属性
 
 </td></tr>
 <tr><td>
 
 [uuid](./ILIB_FootprintItem.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
-封装 UUID
-
+Footprint UUID
 
 </td></tr>
 </tbody></table>
@@ -157,7 +161,7 @@ string
 
 # ILIB\_FootprintItem.classification property
 
-分类
+Classification
 
 ## Signature
 
@@ -169,7 +173,7 @@ classification?: ILIB_ClassificationIndex | Array<string>;
 
 # ILIB\_FootprintItem.description property
 
-描述
+Description
 
 ## Signature
 
@@ -181,7 +185,7 @@ description?: string;
 
 # ILIB\_FootprintItem.libraryType property
 
-库类型
+Library type
 
 ## Signature
 
@@ -193,7 +197,7 @@ readonly libraryType: ELIB_LibraryType.FOOTPRINT;
 
 # ILIB\_FootprintItem.libraryUuid property
 
-所属库 UUID
+UUID of the library it belongs to
 
 ## Signature
 
@@ -201,11 +205,25 @@ readonly libraryType: ELIB_LibraryType.FOOTPRINT;
 libraryUuid: string;
 ```
 
+### model3d
+
+# ILIB\_FootprintItem.model3D property
+
+关联 3D 模型
+
+ADD since v4.1.22
+
+## Signature
+
+```typescript
+model3D?: { name: string; uuid: string; libraryUuid: string };
+```
+
 ### name
 
 # ILIB\_FootprintItem.name property
 
-封装名称
+Footprint name
 
 ## Signature
 
@@ -213,11 +231,23 @@ libraryUuid: string;
 name: string;
 ```
 
+### otherproperty
+
+# ILIB\_FootprintItem.otherProperty property
+
+其它属性
+
+## Signature
+
+```typescript
+otherProperty?: Record<string, boolean | number | string | undefined>;
+```
+
 ### uuid
 
 # ILIB\_FootprintItem.uuid property
 
-封装 UUID
+Footprint UUID
 
 ## Signature
 

@@ -28,6 +28,7 @@
           - mcp__tavily__tavily_map
           - mcp__tavily__tavily_crawl
           - mcp__tavily__tavily_research
+          - mcp__tinyfish__top_up_wallet
           - mcp__tinyfish__batch_cancel
           - mcp__tinyfish__batch_status
           - mcp__tinyfish__cancel_monitor
@@ -78,7 +79,7 @@
         requestImageMaxBytes: 1048576
         api: openai-completions
         apiKeyEnv: CPA_API_KEY
-        baseURL: http://127.0.0.1:8317/v1
+        baseURL: http://192.168.11.192:8317/v1
         displayName: CPA
         models:
           - id: gemini-3.8-flash-high
@@ -108,10 +109,10 @@
           - id: claude-sonnet-5-5-high
             name: Claude Sonnet 5.5 (High)
             contextWindow: 1000000
+            maxTokens: 128000
             input:
               - text
               - image
-            maxTokens: 128000
             reasoningEfforts:
               off: null
               low: low
@@ -121,10 +122,10 @@
           - id: claude-opus-5-5-high
             name: Claude Opus 5.5 (High)
             contextWindow: 1000000
+            maxTokens: 128000
             input:
               - text
               - image
-            maxTokens: 128000
             reasoningEfforts:
               off: null
               low: low
@@ -256,7 +257,7 @@
               high: high
               max: max
           - id: deepseek-v4.1-flash
-            name: Deepseek-V4.1-Flash (x0.06)
+            name: Deepseek-V4.1-Flash
             contextWindow: 1000000
             maxTokens: 128000
             input:
@@ -442,7 +443,7 @@
               high: high
               max: max
           - contextWindow: 1000000
-            id: qwen3.8-max-0902
+            id: qwen3.8-max
             input:
               - text
               - image

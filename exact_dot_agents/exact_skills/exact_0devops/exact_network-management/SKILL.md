@@ -420,6 +420,7 @@ _未来 OpenCode 免费配额的使用可能会发生变化，这里仅记录一
 3. 如果 R2S 不可恢复，用 `TP-LINK_wy` 和 `TP-LINK-5` WiFi 即可，见 #关于其他线路 章节
 4. 如果 运营商问题 和 R2S故障 叠加，可以将终端设备默认网关指向 192.168.11.131，通过二层网络转发，出口走WY信息中心联通300M网络，见 #关于其他线路 章节
 5. **重要：** 绝大多数问题和 openclash/mihomo **无关** ，不要绕弯路去研究 openclash
+6. 只有 overlay 内网不通、外网正常：`ip addr show tun0` 少了 `10.144.x.x/8`（只剩 `/24`），是 `easytier restart` 时 netifd 约 1/3 概率漏加地址。**`network reload` 修不了**（netifd 状态是假的，`ubus call network.interface.EasyTier status` 仍报 `"up": true` + `/8`），要 `ifup EasyTier`。开机/重启机器不踩这个坑，`/8` 一直在
 
 ## 公网/内网穿透流程
 

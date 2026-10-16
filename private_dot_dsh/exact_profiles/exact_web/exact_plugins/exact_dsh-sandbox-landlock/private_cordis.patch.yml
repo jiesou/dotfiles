@@ -42,6 +42,11 @@
         devicePaths:
           - /dev/ttyUSB*
           - /dev/ttyACM*
+          # pty：没有它，沙箱内任何要开伪终端的程序（tmux、script、expect、
+          # pty.fork）都会在 openpty 处吃 EACCES，看着像“禁止创建进程”。
+          # /dev/ptmx 本身 0666；/dev/pts/* 归当前会话用户。
+          - /dev/ptmx
+          - /dev/pts/*
           # GPU 加速：VA-API / EGL / Vulkan 只需 render node（udev 建为 0666，全球可读写）。
           # card* 是 DRM master、能接管显示，不在此列。
           - /dev/dri/renderD*

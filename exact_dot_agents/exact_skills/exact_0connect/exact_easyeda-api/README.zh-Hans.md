@@ -5,12 +5,13 @@
 供 AI 编程工具（Claude Code、OpenCode、QwenCode 等所有支持 [Agent Skills](https://agentskills.io/) 标准的工具）使用的 EasyEDA Pro API 技能包（Skill）。
 
 这个 SKILL 不仅支持 AI 在线调试嘉立创EDA，也支持辅助开发嘉立创EDA扩展。
-在开发嘉立创EDA扩展时，AI 可以使用本 SKILL 提供的扩展开发相关文档、API 参考、类型信息、调用示例以及桥接调试能力，帮助完成接口查询、代码编写与联调验证。
+在开发嘉立创EDA扩展时，AI 可以使用本 SKILL 提供的扩展开发相关文档、API 参考、类型信息与调用示例，帮助完成接口查询、代码编写与联调验证。
 如果用户准备自行分析或修改嘉立创EDA文档源码，而不是通过 API 操作，也可以使用本项目提供的文档源码格式说明。
 
 - 📚 **结构化 API 文档** — 自动从参考文档生成分层索引，便于 AI 快速查阅
 - 🧾 **文档源码格式规范** — 说明工程、原理图、PCB 文档源码格式，适合直接分析和修改源码的场景
-- 🔌 **WebSocket Bridge** — Node.js 服务端，桥接 AI 和 EasyEDA 客户端
+- 🖥️ **CLI 驱动** — 通过客户端内置的 `lceda-pro` 命令行（或 `--mcp`）操作编辑器
+- 🔌 **旧版 WebSocket Bridge** — 面向 v4.1.60 之前没有 CLI 的客户端
 - 🤖 **SKILL.md** — 完整的技能指导文件
 
 ## 快速开始
@@ -29,35 +30,38 @@ npm run build:docs
 
 这会从 `reference/` 目录读取原始 API 文档，生成结构化文档到 `docs/` 目录。
 
-### 3. 启动 WebSocket Bridge 服务器
+### 3. 使用 AI 编程工具
+
+AI 编程工具（Claude Code、OpenCode、QwenCode 等）会自动读取 `SKILL.md` 获取技能指导，
+并通过桌面客户端内置的 CLI（v4.1.60 及以上）操作编辑器：
 
 ```bash
-npm run server
+# 探测端点
+lceda-pro doctor
+
+# 列出编辑器窗口（一个窗口 = 一个会话）
+lceda-pro session list
+
+# 在会话中执行 EDA 代码
+lceda-pro invoke --session "$S" --ext-uuid eda --code-file - < step.js
 ```
 
-服务器自动在端口范围 `49620-49629` 中选择可用端口启动，等待 EasyEDA 客户端连接。
+CLI 也可以作为 MCP 服务器运行：`lceda-pro --mcp stdio`。
 
-### 4. EasyEDA 端连接
+### 4. 旧版：WebSocket Bridge
 
-在嘉立创EDA中安装 `run-api-gateway.eext` 扩展，下载地址：
-
-- https://ext.lceda.cn/item/oshwhub/run-api-gateway
-
-扩展加载后会自动连接到 Bridge 服务器（自动扫描端口范围，验证握手后连接）。
-
-### 5. 使用 AI 编程工具
-
-AI 编程工具（Claude Code、OpenCode、QwenCode 等）会自动读取 `SKILL.md` 获取技能指导，通过 HTTP API 向 EDA 发送代码：
+面向 v4.1.60 之前没有 CLI 的客户端，本仓库仍附带独立的 bridge 服务器和
+`run-api-gateway` 扩展（<https://jlcext.com/item/oshwhub-official/run-api-gateway>）：
 
 ```bash
-# 检查 EDA 连接状态（端口自动发现，此处假设服务在 49620）
+npm run server            # 在 49620-49629 中选取首个空闲端口
 curl http://localhost:49620/health
-
-# 执行 EDA 代码
 curl -X POST http://localhost:49620/execute \
   -H "Content-Type: application/json" \
   -d '{"code": "return await eda.dmt_Project.getCurrentProjectInfo();"}'
 ```
+
+它需要额外进程和扩展安装，优先使用上面的内置 CLI。
 
 ## 一键打包
 
@@ -87,39 +91,34 @@ npx clawhub@latest publish dist/easyeda-api/
 ## 架构
 
 ```
-┌──────────────┐   HTTP/WS     ┌────────────────┐   WebSocket    ┌──────────┐
-│   AI Agent    │ ◄───────────► │  Bridge Server  │ ◄───────────► │  EasyEDA  │
-│  (Skill Tool) │  Port Range   │  (Node.js)      │  Port Range   │  (Client) │
-└──────────────┘  49620-49629   └────────────────┘  49620-49629   └──────────┘
+┌──────────────┐  CLI / MCP   ┌───────────────────────┐     本地端点       ┌──────────┐
+│   AI Agent   │ ◄──────────► │  lceda-pro            │ ◄────────────────► │ EasyEDA  │
+│ (Skill Tool) │              │  （客户端内置）        │                    │ (Client) │
+└──────────────┘              └───────────────────────┘                    └──────────┘
 ```
 
-## 通信协议
+## 返回结构
 
-| 消息类型 | 方向 | 说明 |
-|----------|------|------|
-| `execute` | AI → EDA | 执行 JS 代码 |
-| `result` | EDA → AI | 返回执行结果 |
-| `error` | EDA → AI | 返回执行错误 |
-| `handshake` | Server → Client | 连接验证（含 `service: "easyeda-bridge"`） |
-| `ping/pong` | 双向 | 心跳检测 |
+每条 CLI 命令返回同样的 JSON，只需检查最外层 `ok`：
+
+```json
+{"ok": true,  "value": {}, "logs": [], "durationMs": 12}
+{"ok": false, "error": {"code": "EXECUTION_ERROR", "message": "..."}}
+```
 
 ## 目录结构
 
 ```
-easyeda-api-skill/
+easyeda-api/
   SKILL.md              # AgentSkills 标准技能定义
-  AGENTS.md              # Agent 提示指南
+  README.md             # 英文 README
+  README.zh-Hans.md     # 本文件
   package.json          # 项目配置
-  reference/            # 原始 API 参考文档（gitignore）
-  docs/                 # 构建后的结构化文档（gitignore）
+  references/           # 扩展 API 参考（类 / 枚举 / 接口 / 类型）
   format/               # 嘉立创EDA文档源码格式规范（project/schematic/pcb）
-  guide/                # API 开发指南（人工撰写）
-  user-guide/           # 用户指南（人工撰写）
-  server/index.mjs      # WebSocket Bridge 服务器
+  guide/                # API 开发指南，含完整 CLI 参考（cli.md）
+  user-guide/           # 扩展的获取与使用
   scripts/
-    build-docs.mjs      # 文档构建脚本
-    pack.mjs            # 打包脚本
-  dist/                 # 打包输出（gitignore）
-    easyeda-api/        # 可发布的 skill 目录
-    easyeda-api.zip     # 用于 ClawHub 上传的 zip 文件
+    bridge-server.mjs   # 旧版 WebSocket Bridge 服务器（v4.1.60 之前的客户端）
+  node_modules/
 ```

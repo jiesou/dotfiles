@@ -1,11 +1,11 @@
 # ESYS\_WindowEventType enum
 
-窗口事件类型
+Window event type
 
 ## Signature
 
 ```typescript
-declare enum ESYS_WindowEventType 
+enum ESYS_WindowEventType
 ```
 
 ## Enumeration Members
@@ -14,48 +14,52 @@ declare enum ESYS_WindowEventType
 
 Member
 
-
 </th><th>
 
 Value
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 BLUR
 
-
 </td><td>
 
-`"blur"`
-
+`'blur'`
 
 </td><td>
 
 失去焦点
 
+</td></tr>
+<tr><td>
+
+DROP
+
+</td><td>
+
+`'drop'`
+
+</td><td>
+
+文件拖入浏览器区域
 
 </td></tr>
 <tr><td>
 
 FOCUS
 
-
 </td><td>
 
-`"focus"`
-
+`'focus'`
 
 </td><td>
 
 获取焦点
-
 
 </td></tr>
 </tbody></table>

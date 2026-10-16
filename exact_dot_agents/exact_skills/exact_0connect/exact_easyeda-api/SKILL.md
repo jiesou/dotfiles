@@ -1,45 +1,44 @@
 ---
 name: easyeda-api
 description: >-
-  EasyEDA Pro API skill for AI agents. Use when working with EasyEDA Pro EDA software.
-license: MIT
-compatibility: Requires Node.js 18+, EasyEDA Pro desktop client with extension support
-metadata:
-  author: JLCEDA
-  version: "1.1.3"
-  openclaw:
-    requires:
-      bins:
-        - node
-      env:
-        - CLAUDE_SKILL_DIR
+  USE when working with EasyEDA Pro / 嘉立创EDA专业版 (PCB, schematic, footprint, symbol, library,
+  project, or extension development). 嘉立创EDA's English name is EasyEDA — same product.
+  Local API reference (131 classes) + the official `lceda-pro` CLI that drives the running client.
 disable-model-invocation: true
 ---
 
 # EasyEDA Pro API Skill
 
-Control EasyEDA Pro (嘉立创EDA专业版) programmatically through AI. This skill provides:
+Drive EasyEDA Pro (嘉立创EDA专业版) from the official `lceda-pro` command-line client. This skill provides:
 
-1. **Complete API reference** — 120 classes, 62 enums, 70 interfaces, 19 type aliases
-2. **WebSocket bridge** — Execute code in the running EasyEDA Pro client
+1. **Complete API reference** — 131 classes, 62 enums, 70 interfaces, 19 type aliases
+2. **The CLI form** — `doctor` / `session` / `invoke` / `doc`, plus `--mcp` for agents that speak MCP
 3. **Code patterns** — Common operations for PCB, schematic, library, and project management
 4. **Document source format reference** — File format specifications for project, schematic, and PCB sources when users need to analyze or modify EasyEDA document source directly instead of using the API
 
 This skill supports not only live debugging in EasyEDA, but also EasyEDA extension development.
-During EasyEDA extension development, AI agents can use the extension-related documentation, API references, type information, usage examples, and bridge-based debugging capabilities provided by this skill to look up APIs, write code, and validate behavior during integration and debugging.
+During EasyEDA extension development, AI agents can use the extension-related documentation, API references, type information, and usage examples provided by this skill to look up APIs, write code, and validate behavior during integration and debugging.
 
 ## Architecture
 
+The CLI is built into the client executable (v4.1.60+); nothing else needs installing, and
+the browser / online edition is not supported.
+
 ```
-┌───────────┐   HTTP/WS     ┌─────────────────┐   WebSocket   ┌───────────┐
-│ AI Agent  │ ◄───────────► │  Bridge Server  │ ◄───────────► │  EasyEDA  │
-│           │  Port Range   │  (Node.js)      │  Port Range   │  (Client) │
-└───────────┘  49620-49629  └─────────────────┘  49620-49629  └───────────┘
+lceda-pro doctor                                  probe the endpoint
+lceda-pro session list                            one editor window = one session
+lceda-pro invoke --session S --ext-uuid eda ...   run JS inside that window
+lceda-pro doc api ...                             progressive API lookup
+lceda-pro --mcp stdio                             the same tree as MCP tools
 ```
 
-The server auto-selects an available port from 49620-49629 on startup.
-Both AI and EDA clients auto-discover the server by scanning the port range
-and verifying a handshake (`service: "easyeda-bridge"`).
+Each command is a short-lived process that talks to the running editor over a local
+endpoint; every one returns the same JSON envelope.
+
+Full references for this form:
+
+- [guide/cli.md](guide/cli.md) — the complete CLI reference shipped with this skill (every command and option, project formats, workflows A and B)
+- <https://prodocs.lceda.cn/storage/texts/api/guide/cli-for-ai.md> — the official agent-oriented CLI document: hard constraints and verification checkpoints to follow when acting on the user's behalf
 
 ## Quick Start
 
@@ -55,102 +54,83 @@ When user says **"嘉立创EDA，启动！"**, **"立创EDA，启动！"**, or *
 
 Then proceed with the setup steps below.
 
-### 2. Install dependencies (if needed)
+### 2. Probe the endpoint
 
 ```bash
-cd ${CLAUDE_SKILL_DIR} && npm install
+lceda-pro doctor
 ```
 
-### 3. Start bridge server
+`"connected": false` means no editor is running — ask the user to launch EasyEDA Pro,
+then retry. Every CLI command prints this envelope; only the top-level `ok` needs checking.
 
-> **⚠️ IMPORTANT**: The bridge server must run in the background. Do NOT run it in the foreground, or the AI will block waiting for the server to exit.
+### 3. Pick a session
+
+Every editor window already has a session, whether the user opened it in the GUI or the CLI
+opened it:
 
 ```bash
-# Check if bridge is already running
-for port in $(seq 49620 49629); do
-  resp=$(curl -s http://localhost:$port/health 2>/dev/null)
-  if echo "$resp" | grep -q '"easyeda-bridge"'; then
-    echo "Bridge already running on port $port"
-    BRIDGE_PORT=$port
-    break
-  fi
-done
-
-# Start bridge if not running
-if [ -z "$BRIDGE_PORT" ]; then
-  node ${CLAUDE_SKILL_DIR}/scripts/bridge-server.mjs &
-  sleep 2
-  # Find the port bridge is running on
-  for port in $(seq 49620 49629); do
-    resp=$(curl -s http://localhost:$port/health 2>/dev/null)
-    if echo "$resp" | grep -q '"easyeda-bridge"'; then
-      BRIDGE_PORT=$port
-      break
-    fi
-  done
-fi
-
-echo "Bridge running on port: ${BRIDGE_PORT:-unknown}"
+lceda-pro session list
 ```
 
-### 4. Connect EasyEDA
-
-Install the `run-api-gateway.eext` extension in EasyEDA Pro. Download link:
-
-- https://ext.lceda.cn/item/oshwhub/run-api-gateway
-
-After the extension is loaded, it will automatically establish the WebSocket connection.
-
-### 5. Verify connection and select EDA window
-
-```bash
-# Check bridge and EDA connection status
-curl http://localhost:${BRIDGE_PORT:-49620}/health
-
-# List all connected EDA windows
-curl http://localhost:${BRIDGE_PORT:-49620}/eda-windows
-```
-
-The `/eda-windows` response looks like:
 ```json
-{
-  "windows": [
-    { "windowId": "abc-123", "connected": true, "active": true },
-    { "windowId": "def-456", "connected": true, "active": false }
-  ],
-  "activeWindowId": "abc-123",
-  "count": 2
-}
+{"sessionId": "fe063ab0-...", "origin": "user", "path": null, "title": "嘉立创EDA(专业版) - V4.1.71"}
 ```
 
-**Handle based on window count**:
-- **0 windows**: Tell user "No EasyEDA window is connected. Please ensure the EasyEDA extension (run-api-gateway.eext) is installed and loaded in EasyEDA. Download: https://ext.lceda.cn/item/oshwhub/run-api-gateway"
-- **1 window**: Auto-selected as active. Tell user: "✅ Connected! Active EDA window: abc-123. Ready to work."
-- **2+ windows**: Show the available windows and ask user to select:
-  ```
-  Multiple EDA windows detected:
-  - abc-123 (active)
-  - def-456
-  
-  Which EDA window should I use?
-  ```
-
-**Select a window**:
-```bash
-curl -X POST http://localhost:${BRIDGE_PORT}/eda-windows/select \
-  -H "Content-Type: application/json" \
-  -d '{"windowId": "abc-123"}'
-```
-
-After selection, confirm: "✅ Active EDA window: abc-123. Ready to work."
-
-### 6. Execute code on EDA
+`origin: user` windows belong to the user — read and drive them freely, but never
+`session close` them. To open a project yourself:
 
 ```bash
-curl -X POST http://localhost:${BRIDGE_PORT:-49620}/execute \
-  -H "Content-Type: application/json" \
-  -d '{"code": "return await eda.dmt_Project.getCurrentProjectInfo();"}'
+lceda-pro open --path /path/to/Board.eprj3     # -> value.sessionId ; add --headless true to hide the window
 ```
+
+### 4. Execute code on EDA
+
+Always pass `--ext-uuid eda`: it runs the code under the built-in extension identity, which
+grants file-system and system access. Without it many APIs fail.
+
+```bash
+cat > probe.js <<'EOF'
+const out = {};
+out.version = eda.sys_Environment.getEditorCurrentVersion();
+out.user = (await eda.sys_Environment.getUserInfo()).username;
+return out;
+EOF
+
+lceda-pro invoke --session "$S" --ext-uuid eda --code-file - < probe.js
+```
+
+```json
+{"ok": true, "value": {"version": "4.1.71", "user": "jiesou"}, "logs": [], "durationMs": 3}
+```
+
+`--code-file -` reads the source from stdin. Prefer it over `--code`: a real file keeps
+multi-line code and quotes intact, and sidesteps shell escaping entirely. `--code-file <path>`
+also works, but the path is resolved *inside the client's sandbox* (a Flatpak install only
+sees the home directory), so stdin is the reliable form.
+
+For long operations raise the budget with `--timeout <ms>` (default 60000, max 1800000).
+
+### 5. Look up the API
+
+The API is discovered progressively — never guess a signature:
+
+```bash
+lceda-pro doc api                                                        # every class
+lceda-pro doc api --class-name PCB_Document                              # its methods
+lceda-pro doc api --class-name PCB_Document --method-name autoRouting     # full signature + runnable example
+```
+
+`callPath` is the property name on `eda`, so class `DMT_Project` is called as
+`eda.dmt_Project.createProject(...)`. Every method ships with a runnable example.
+
+### 6. Close what you opened
+
+```bash
+lceda-pro session close --session "$S" --destroy
+```
+
+Windows the user opened are rejected with `SESSION_NOT_OWNED` — leave them alone.
+`session abort` force-kills any window including the user's; it is a last resort.
 
 ## API Documentation
 
@@ -165,10 +145,11 @@ The full API reference is in the [references/](references/) directory:
 
 ### How to look up API
 
-1. **Start with `_index.md`** to find the right class/module for the task
-2. **Read the class doc** (e.g., `references/classes/DMT_Board.md`) for all methods and signatures
-3. **Use `_quick-reference.md`** for fast method signature lookup across all classes
-4. **Check enums/interfaces** for parameter types and return types
+1. **Ask the running client** — `lceda-pro doc api --class-name <C> [--method-name <m>]`; it is the authoritative, version-matched reference and includes a runnable example per method
+2. **Start with `_index.md`** to find the right class/module for the task
+3. **Read the class doc** (e.g., `references/classes/DMT_Board.md`) for all methods and signatures
+4. **Use `_quick-reference.md`** for fast method signature lookup across all classes
+5. **Check enums/interfaces** for parameter types and return types
 
 ### Document Source Format Documentation
 
@@ -196,21 +177,17 @@ Use these files when the task is about understanding source layout, generating c
 
 ## Code Execution Context
 
-All code runs inside EasyEDA Pro's browser runtime as:
+All code runs inside EasyEDA Pro's browser runtime as the body of an async function:
 
 ```javascript
-async function(eda) {
-  // Your code here — `eda` is the global EDA API object
-  // You MUST use `return` to send results back
-  // Do not add comments to the generated code, as the code is typically executed as a single line
-}
+// Your code here — `eda` is the global EDA API object
+// You MUST use `return` to send results back
 ```
 
 **Critical rules:**
 - The `eda` object provides access to all API modules (e.g., `eda.dmt_Board`, `eda.pcb_Primitive`).
 - Always refer to the API documentation for correct usage.
-- Do not add comments to the generated code, as the code is typically executed as a single line.
-- Always use `return` to get results — `console.log` output is NOT captured.
+- Always use `return` to get results — `console.log` output is NOT captured (`logs` in the envelope only carries runtime warnings).
 - All API methods returning promises must be `await`ed.
 - Code runs in browser context — no Node.js APIs (fs, path, etc.) available.
 - Use `eda.sys_Message.showToastMessage(msg)` for user-visible notifications.
@@ -254,41 +231,37 @@ const data = JSON.parse(await eda.sys_Storage.getExtensionUserConfig('myKey'));
 const info = await eda.dmt_Project.getCurrentProjectInfo();
 ```
 
-## Communication Protocol
+## Response Envelope and MCP
 
-### Port Discovery
+Every command returns the same shape; only the outermost `ok` matters:
 
-The bridge server listens on the first available port in **49620-49629**.
-To find the server, scan the range and verify the service identity:
-
-```bash
-for port in $(seq 49620 49629); do
-  resp=$(curl -s http://127.0.0.1:$port/health 2>/dev/null)
-  if echo "$resp" | grep -q '"easyeda-bridge"'; then
-    BRIDGE_PORT=$port; break
-  fi
-done
+```json
+{"ok": true,  "value": {}, "logs": [], "durationMs": 12}
+{"ok": false, "error": {"code": "EXECUTION_ERROR", "message": "..."}}
 ```
 
-### Handshake
+The code handed to `invoke` is an async function **body**: use `return`, `await` directly,
+and read `--args '<json>'` through `__CLI__.args`.
 
-- **HTTP**: `GET /health` returns `{ "service": "easyeda-bridge", "edaConnected": bool, ... }`
-- **WebSocket**: On connect, server sends `{ "type": "handshake", "service": "easyeda-bridge" }`
-- Clients MUST verify `service === "easyeda-bridge"` before using the connection
+### MCP
 
-### Message Format
+```bash
+lceda-pro --mcp stdio                        # local agent
+lceda-pro --mcp http --port 3030 --token T   # remote / browser agent
+```
 
-JSON messages over WebSocket / HTTP:
+MCP exposes the same command tree through three generic tools — `lceda-pro.help`,
+`lceda-pro.discover`, `lceda-pro.call`. There are no per-API tools: discovery is
+`discover("...")`, execution is `call({path: "invoke", input: {...}})`. `prompts` and
+`resources` are not implemented.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `type` | `"execute"` \| `"result"` \| `"error"` \| `"ping"` \| `"pong"` \| `"handshake"` | Message type |
-| `id` | `string` | Request UUID for matching request/response |
-| `code` | `string` | JavaScript code to execute (for `execute` type) |
-| `result` | `any` | Execution result (for `result` type) |
-| `error` | `string` | Error message (for `error` type) |
-| `service` | `string` | Service identifier (for `handshake` type) |
-| `timestamp` | `number` | Unix milliseconds |
+### Legacy: the WebSocket bridge
+
+Earlier versions of this skill drove a separate Node.js bridge server
+(`scripts/bridge-server.mjs`, ports 49620-49629) plus the `run-api-gateway` extension, and
+executed code over `curl -X POST .../execute`. It predates the built-in CLI, needs an
+extension install and a background process, and is superseded by everything above. The
+script is kept only for clients older than v4.1.60 that have no CLI.
 
 ## Common Patterns
 
@@ -639,34 +612,17 @@ const project = await eda.dmt_Project.getCurrentProjectInfo();
 
 ### Multi-Window Support
 
-When multiple EasyEDA windows are connected to the bridge, you do NOT need to check window selection on every EDA operation. Only check when:
-1. **First EDA operation** — Verify which window is active and tell the user
-2. **EDA disconnected error** — If bridge returns an error about EDA being disconnected, ask user to select a new window
-
-**Multi-window operations:**
-```bash
-# List all connected EDA windows
-curl http://localhost:49620/eda-windows
-
-# Select a specific window
-curl -X POST http://localhost:49620/eda-windows/select \
-  -H "Content-Type: application/json" \
-  -d '{"windowId": "abc-123-def"}'
-
-# Execute on specific window
-curl -X POST http://localhost:49620/execute \
-  -H "Content-Type: application/json" \
-  -d '{"code": "return await eda.dmt_Project.getCurrentProjectInfo();", "windowId": "abc-123-def"}'
-```
-
-If only one EDA window is connected, it's automatically selected as active.
+One editor window is one session: `lceda-pro session list` reports each window with its
+origin (`user` / `cli`), project path and title. There is no global "active window" — the
+`--session` you pass to `invoke` decides which window runs. Check the list on the first EDA
+operation, and when a call reports the window is gone.
 
 ## Debugging Tips & Failure Strategies
 
 ### Troubleshooting
 
-1. **Always check health first**: Scan ports 49620-49629 for `{"service":"easyeda-bridge"}`
-2. **EDA not connected?**: Ensure bridge extension is loaded in EasyEDA. Download: https://ext.lceda.cn/item/oshwhub/run-api-gateway
+1. **Always run `lceda-pro doctor` first**: `connected: false` means no editor is running — ask the user to start EasyEDA Pro
+2. **`INVALID_ARGS: cannot read <file>` on `--code-file`**: the path is resolved inside the client's sandbox, which sees only the home directory — pipe through stdin (`--code-file -`) instead
 3. **Timeout errors**: Default 30s timeout. If timeout occurs:
    - Check if the correct project and document are opened (use `dmt_Project.getCurrentProjectInfo()`)
    - If no project is opened, use `dmt_Project.openProject(projectPath)` to open one
@@ -675,7 +631,7 @@ If only one EDA window is connected, it's automatically selected as active.
    - Complex operations may need code splitting
 4. **Check return values**: Many methods return `null` on failure — always validate
 5. **Layer numbers**: Use enums from `references/enums/` docs (e.g., `EPCB_LayerId`)
-6. **EDA window disconnected**: If you get an error about a window being disconnected, use `GET /eda-windows` to check available windows and `POST /eda-windows/select` to switch to another window
+6. **Session gone**: If a call reports the window is gone, re-run `lceda-pro session list`; the user may have closed the window, or the editor restarted
 7. **Permission errors**: All API interfaces are controlled by EDA's permission system. If a specific API consistently fails to execute (returns error or null) while other APIs work fine, and you've confirmed the call matches the documentation exactly, it may be **blocked by permissions** — not a code bug. The EDA client may restrict certain operations based on user license, project settings, or document state. Inform the user that the operation may require elevated permissions or a different EDA edition.
 8. **Persistent errors?**: If you've verified the API call matches the documentation exactly, ruled out permission issues, and still encounter unexpected errors, consider reporting the issue through official EasyEDA support channels
 
@@ -697,42 +653,40 @@ When developing extensions, follow these rules:
 
 When the user asks you to perform EDA operations:
 
-1. **Understand the task** — What domain? (PCB/SCH/LIB/Project)
-2. **Verify document state** — Check `eda.dmt_Project.getCurrentProjectInfo()` and `eda.dmt_SelectControl.getCurrentDocumentInfo()`
-3. **Confirm correct document type** — PCB operations need active PCB, SCH operations need active Schematic
-4. **Look up API** — Read relevant class docs from `references/`
+1. **Probe** — `lceda-pro doctor`, then `lceda-pro session list` to pick the window
+2. **Understand the task** — What domain? (PCB/SCH/LIB/Project)
+3. **Confirm document type** — PCB operations need an active PCB, SCH operations an active Schematic; switch with `eda.dmt_EditorControl.openDocument(...)`
+4. **Look up API** — `lceda-pro doc api --class-name <C> [--method-name <m>]`, or read `references/` for the same content offline
 5. **Check types** — Read enum/interface docs for parameter types
-6. **Write code** — Follow the execution context rules above
-7. **Execute** — Send via `POST /execute` and check the result
-8. **Iterate** — If errors occur, read error messages and adjust
+6. **Write code to a file** — never inline a multi-line snippet in a shell argument
+7. **Execute** — `lceda-pro invoke --session "$S" --ext-uuid eda --code-file - < step.js`, then check `ok`
+8. **Verify on disk** — exports must exist as files before you report success
+9. **Iterate** — If errors occur, read `error.code` / `error.message` and adjust
 
 When unsure about an API:
+- `lceda-pro doc api --class-name <C>` lists the methods; `--method-name <m>` prints the full signature and a runnable example
 - Search `_quick-reference.md` for method names
-- Read the specific class doc for detailed signatures and remarks
 - Check interface docs for complex parameter types
 
 ## Session Management
 
-### Detecting Topic Changes
+### Sessions you opened
 
-The Bridge server consumes system resources while running. If the user has switched to a completely different topic (not related to EasyEDA/EDA/PCB/schematic) **3 consecutive times**, proactively ask if they want to close the Bridge:
-
-> "I notice we've moved on from EasyEDA. The Bridge server is still running in the background. Would you like me to stop it to free up resources?"
-
-**Do NOT close the Bridge automatically** — the user may switch back to EDA work later. Only ask, and close if they confirm.
-
-### Closing the Bridge
-
-If the user confirms they want to stop the Bridge:
+Close every session you opened once its work is done, so windows do not pile up:
 
 ```bash
-# Find and stop the bridge process
-for port in $(seq 49620 49629); do
-  pid=$(lsof -ti :$port 2>/dev/null)
-  if [ -n "$pid" ]; then
-    kill $pid
-    echo "Bridge stopped (PID: $pid, Port: $port)"
-    break
-  fi
-done
+lceda-pro session close --session "$S" --destroy
 ```
+
+Sessions the user opened are rejected with `SESSION_NOT_OWNED` — that is expected, not an error to work around. Never `session abort` a user window; it discards unsaved edits.
+
+### The legacy bridge
+
+If you find a `bridge-server.mjs` process still running, it belongs to the superseded
+WebSocket path. Ask the user before stopping it:
+
+```bash
+lsof -ti :49620 && kill "$(lsof -ti :49620)"
+```
+
+Do NOT stop it automatically — another session may still be driving the editor through it.

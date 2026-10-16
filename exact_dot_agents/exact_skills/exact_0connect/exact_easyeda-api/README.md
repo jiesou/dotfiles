@@ -5,12 +5,13 @@
 An EasyEDA Pro API skill package for AI coding tools such as Claude Code, OpenCode, QwenCode, and any other tool that supports the [Agent Skills](https://agentskills.io/) standard.
 
 This skill supports both online debugging of EasyEDA Pro through AI and extension development for EasyEDA Pro.
-When developing EasyEDA extensions, AI can use the extension-development documentation, API references, type information, usage examples, and bridge debugging capabilities provided by this skill to help with API lookup, code generation, and integration debugging.
+When developing EasyEDA extensions, AI can use the extension-development documentation, API references, type information, and usage examples provided by this skill to help with API lookup, code generation, and integration debugging.
 If you want to analyze or modify EasyEDA document source files directly instead of operating through the API, this project also provides documentation for the source file formats.
 
 - 📚 **Structured API documentation** — Automatically builds hierarchical indexes from reference docs for fast AI lookup
 - 🧾 **Document source format specifications** — Explains project, schematic, and PCB source formats for direct source analysis and modification
-- 🔌 **WebSocket Bridge** — A Node.js server that bridges AI tools and the EasyEDA client
+- 🖥️ **CLI-driven** — Drives the `lceda-pro` CLI built into the desktop client (or `--mcp`)
+- 🔌 **Legacy WebSocket Bridge** — A Node.js server for clients older than v4.1.60
 - 🤖 **SKILL.md** — A complete skill instruction file
 
 ## Quick Start
@@ -29,35 +30,40 @@ npm run build:docs
 
 This reads the raw API documentation from the `reference/` directory and generates structured docs into the `docs/` directory.
 
-### 3. Start the WebSocket Bridge server
+### 3. Use from an AI coding tool
+
+AI coding tools such as Claude Code, OpenCode, and QwenCode automatically read `SKILL.md`
+for instructions and drive the editor through the CLI built into the desktop client
+(v4.1.60+):
 
 ```bash
-npm run server
+# Probe the endpoint
+lceda-pro doctor
+
+# List editor windows (one window = one session)
+lceda-pro session list
+
+# Execute EasyEDA code in a session
+lceda-pro invoke --session "$S" --ext-uuid eda --code-file - < step.js
 ```
 
-The server automatically chooses an available port in the `49620-49629` range and waits for the EasyEDA client to connect.
+The CLI can also run as an MCP server: `lceda-pro --mcp stdio`.
 
-### 4. Connect from EasyEDA
+### 4. Legacy: the WebSocket bridge
 
-Install the `run-api-gateway.eext` extension in EasyEDA. Download:
-
-- https://ext.lceda.cn/item/oshwhub/run-api-gateway
-
-After the extension is loaded, it connects to the Bridge server automatically by scanning the port range and verifying the handshake.
-
-### 5. Use from an AI coding tool
-
-AI coding tools such as Claude Code, OpenCode, and QwenCode automatically read `SKILL.md` for instructions, then use the HTTP API to send code to EasyEDA:
+For clients older than v4.1.60 that have no CLI, this repo still ships a standalone bridge
+server plus the `run-api-gateway` extension
+(<https://jlcext.com/item/oshwhub-official/run-api-gateway>):
 
 ```bash
-# Check EasyEDA connection status (assuming the service is on port 49620)
+npm run server            # listens on the first free port in 49620-49629
 curl http://localhost:49620/health
-
-# Execute EasyEDA code
 curl -X POST http://localhost:49620/execute \
   -H "Content-Type: application/json" \
   -d '{"code": "return await eda.dmt_Project.getCurrentProjectInfo();"}'
 ```
+
+It needs a separate process and an extension install, so prefer the built-in CLI above.
 
 ## One-Command Packaging
 
@@ -86,40 +92,35 @@ Or upload the zip file at https://clawhub.ai/upload
 
 ## Architecture
 
-```text
-┌──────────────┐   HTTP/WS     ┌────────────────┐   WebSocket    ┌──────────┐
-│   AI Agent   │ ◄───────────► │ Bridge Server  │ ◄───────────► │  EasyEDA │
-│ (Skill Tool) │  Port Range   │   (Node.js)    │  Port Range   │ (Client) │
-└──────────────┘  49620-49629   └────────────────┘  49620-49629   └──────────┘
+```
+┌──────────────┐  CLI / MCP   ┌───────────────────────┐   local endpoint   ┌──────────┐
+│   AI Agent   │ ◄──────────► │  lceda-pro            │ ◄────────────────► │  EasyEDA │
+│ (Skill Tool) │              │  (built into client)  │                    │ (Client) │
+└──────────────┘              └───────────────────────┘                    └──────────┘
 ```
 
-## Communication Protocol
+## Response Envelope
 
-| Message Type | Direction | Description |
-|--------------|-----------|-------------|
-| `execute` | AI → EDA | Execute JavaScript code |
-| `result` | EDA → AI | Return execution result |
-| `error` | EDA → AI | Return execution error |
-| `handshake` | Server → Client | Connection verification (includes `service: "easyeda-bridge"`) |
-| `ping/pong` | Bidirectional | Heartbeat |
+Every CLI command returns the same JSON; only the top-level `ok` needs checking:
+
+```json
+{"ok": true,  "value": {}, "logs": [], "durationMs": 12}
+{"ok": false, "error": {"code": "EXECUTION_ERROR", "message": "..."}}
+```
 
 ## Directory Structure
 
 ```text
-easyeda-api-skill/
+easyeda-api/
   SKILL.md              # AgentSkills standard skill definition
-  AGENTS.md             # Agent prompt guide
+  README.md             # This file
+  README.zh-Hans.md     # Chinese README
   package.json          # Project configuration
-  reference/            # Raw API reference docs (gitignored)
-  docs/                 # Built structured docs (gitignored)
+  references/           # Extension API reference (classes, enums, interfaces, types)
   format/               # EasyEDA document source format specs (project/schematic/pcb)
-  guide/                # API development guides
-  user-guide/           # User guides
-  server/index.mjs      # WebSocket Bridge server
+  guide/                # API development guides, including the full CLI reference (cli.md)
+  user-guide/           # Getting and using extensions
   scripts/
-    build-docs.mjs      # Documentation build script
-    pack.mjs            # Packaging script
-  dist/                 # Packaging output (gitignored)
-    easyeda-api/        # Publishable skill directory
-    easyeda-api.zip     # Zip archive for ClawHub upload
+    bridge-server.mjs   # Legacy WebSocket Bridge server (pre-v4.1.60 clients)
+  node_modules/
 ```
