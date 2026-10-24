@@ -51,7 +51,7 @@ import { fetchFreeModels } from './models.js'
 import type { NousPortalModel } from './models.js'
 
 export { DEFAULT_CLIENT_ID, DEFAULT_INFERENCE_URL, DEFAULT_PORTAL_URL, DEFAULT_SCOPE } from './oauth.js'
-export { deviceCodeLogin, NousTokenManager, pollForToken, requestDeviceCode } from './oauth.js'
+export { deviceCodeLogin, NousPortalEdgeBlockedError, NousTokenManager, pollForToken, requestDeviceCode } from './oauth.js'
 export type { DeviceCodeChallenge, InferenceCredential, NousPortalGrant } from './oauth.js'
 export { fetchFreeModels, parseFreeModels } from './models.js'
 export type { NousPortalModel } from './models.js'

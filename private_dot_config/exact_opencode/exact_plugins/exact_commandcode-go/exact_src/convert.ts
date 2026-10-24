@@ -1,215 +1,195 @@
-import type { LanguageModelV3CallOptions } from "@ai-sdk/provider"
-import type {
-  LanguageModelV3FunctionTool,
-  LanguageModelV3Message,
-  LanguageModelV3TextPart,
-  LanguageModelV3ReasoningPart,
-  LanguageModelV3ToolCallPart,
-  LanguageModelV3ToolResultPart,
-  LanguageModelV3ToolResultOutput,
-} from "@ai-sdk/provider"
-
-type CCMessage =
-  | { role: "user"; content: string | unknown[] }
-  | { role: "assistant"; content: CCAssistantContent[] }
-  | { role: "tool"; content: CCToolResultContent[] }
-
-type CCAssistantContent =
-  | { type: "text"; text: string }
-  | { type: "reasoning"; text: string }
-  | { type: "tool-call"; toolCallId: string; toolName: string; input: unknown }
-
-type CCToolResultContent = {
+type WireTextPart = { type: "text"; text: string }
+type WireReasoningPart = { type: "reasoning"; text: string }
+type WireToolCallPart = {
+  type: "tool-call"
+  toolCallId: string
+  toolName: string
+  input: Record<string, unknown>
+}
+type WireToolResultPart = {
   type: "tool-result"
   toolCallId: string
   toolName: string
-  output: { type: "text"; value: string } | { type: "error-text"; value: string }
+  output: { type: "text" | "error-text"; value: string }
 }
 
-type CCTool = {
-  type: "function"
+type WireUserContent = WireTextPart[]
+type WireAssistantContent = Array<WireTextPart | WireReasoningPart | WireToolCallPart>
+type WireToolContent = WireToolResultPart[]
+
+export type WireMessage =
+  | { role: "user"; content: WireUserContent }
+  | { role: "assistant"; content: WireAssistantContent }
+  | { role: "tool"; content: WireToolContent }
+
+export type WireTool = {
   name: string
-  description?: string
-  input_schema: unknown
+  description: string
+  input_schema: Record<string, unknown>
 }
 
-interface CCRequestEnvelope {
+export type GenerateBody = {
   config: {
     workingDir: string
     date: string
     environment: string
-    structure: unknown[]
+    structure: string[]
     isGitRepo: boolean
     currentBranch: string
     mainBranch: string
     gitStatus: string
-    recentCommits: unknown[]
+    recentCommits: string[]
   }
-  memory: string
-  taste: string
+  memory: null
+  taste: null
   skills: null
-  permissionMode: string
+  permissionMode: "standard" | "auto-accept" | "plan"
+  mode: string
   params: {
     model: string
-    messages: CCMessage[]
-    tools: CCTool[]
-    system: string
+    messages: WireMessage[]
+    tools: WireTool[]
+    system?: string
     max_tokens: number
-    stream: true
+    stream: boolean
     temperature?: number
-    top_p?: number
-    top_k?: number
     reasoning_effort?: string
   }
 }
 
-function hasType(p: unknown, type: string): boolean {
-  return typeof p === "object" && p !== null && (p as { type?: string }).type === type
+export type OpenAIMessage = {
+  role?: string
+  content?: unknown
+  tool_calls?: Array<{
+    id?: string
+    type?: string
+    function?: { name?: string; arguments?: string }
+  }>
+  tool_call_id?: string
+  name?: string
 }
 
-function isTextPart(p: unknown): p is LanguageModelV3TextPart {
-  return hasType(p, "text")
+export type OpenAITool = {
+  type?: string
+  function?: {
+    name?: string
+    description?: string
+    parameters?: Record<string, unknown>
+  }
 }
 
-function isReasoningPart(p: unknown): p is LanguageModelV3ReasoningPart {
-  return hasType(p, "reasoning")
-}
-
-function isToolCallPart(p: unknown): p is LanguageModelV3ToolCallPart {
-  return hasType(p, "tool-call")
-}
-
-function isToolResultPart(p: unknown): p is LanguageModelV3ToolResultPart {
-  return hasType(p, "tool-result")
-}
-
-function extractText(content: unknown): string {
+function extractTextContent(content: unknown): string {
   if (typeof content === "string") return content
-  if (Array.isArray(content)) {
-    const textParts = content.filter(isTextPart) as LanguageModelV3TextPart[]
-    const nonTextParts = content.filter((p) => !isTextPart(p))
-    if (nonTextParts.length > 0 && textParts.length === 0) {
-      console.warn(`Command Code provider: dropped ${nonTextParts.length} non-text part(s) in user message`)
-    }
-    return textParts.map((p) => p.text).join("\n")
-  }
-  return ""
+  if (!Array.isArray(content)) return ""
+  return content
+    .map((part) => {
+      if (!part || typeof part !== "object") return ""
+      const p = part as { type?: string; text?: string }
+      if (p.type === "text" && typeof p.text === "string") return p.text
+      return ""
+    })
+    .join("\n")
+    .trim()
 }
 
-function convertToolResultOutput(output: LanguageModelV3ToolResultOutput): CCToolResultContent["output"] {
-  switch (output.type) {
-    case "text":
-      return { type: "text", value: output.value }
-    case "error-text":
-      return { type: "error-text", value: output.value }
-    case "json":
-      return { type: "text", value: JSON.stringify(output.value) }
-    case "execution-denied":
-      return { type: "error-text", value: output.reason ?? "Execution denied" }
-    case "error-json":
-      return { type: "error-text", value: JSON.stringify(output.value) }
-    case "content":
-      return { type: "text", value: output.value.map((v: Record<string, unknown>) => ("text" in v ? v.text : JSON.stringify(v))).join("\n") }
-    default:
-      return { type: "text", value: JSON.stringify(output) }
-  }
-}
-
-function convertMessage(msg: LanguageModelV3Message): CCMessage | null {
-  switch (msg.role) {
-    case "user": {
-      const text = extractText(msg.content)
-      return { role: "user", content: text }
-    }
-    case "assistant": {
-      const parts: CCAssistantContent[] = []
-      for (const part of msg.content) {
-        if (isTextPart(part)) {
-          parts.push({ type: "text", text: part.text })
-        } else if (isReasoningPart(part)) {
-          parts.push({ type: "reasoning", text: part.text })
-        } else if (isToolCallPart(part)) {
-          parts.push({
-            type: "tool-call",
-            toolCallId: part.toolCallId,
-            toolName: part.toolName,
-            input: part.input,
-          })
-        }
-      }
-      return { role: "assistant", content: parts }
-    }
-    case "tool": {
-      const parts: CCToolResultContent[] = []
-      for (const part of msg.content) {
-        if (isToolResultPart(part)) {
-          parts.push({
-            type: "tool-result",
-            toolCallId: part.toolCallId,
-            toolName: part.toolName,
-            output: convertToolResultOutput(part.output),
-          })
-        }
-      }
-      return { role: "tool", content: parts }
-    }
-    default:
-      return null
-  }
-}
-
-function convertTools(
-  tools: Array<LanguageModelV3FunctionTool | { type: "provider"; id: `${string}.${string}`; name: string; args: Record<string, unknown> }> | undefined,
-): CCTool[] {
-  if (!tools) return []
+export function openaiToolsToWire(tools: OpenAITool[] | undefined): WireTool[] {
+  if (!Array.isArray(tools)) return []
   return tools
-    .filter((t): t is LanguageModelV3FunctionTool => t.type === "function")
-    .map((t) => ({
-      type: "function" as const,
-      name: t.name,
-      description: t.description,
-      input_schema: t.inputSchema,
-    }))
+    .map((t) => {
+      const name = t.function?.name
+      if (!name) return null
+      return {
+        name,
+        description: t.function?.description || name,
+        input_schema:
+          (t.function?.parameters as Record<string, unknown>) || {
+            type: "object",
+            properties: {},
+          },
+      }
+    })
+    .filter((t): t is WireTool => Boolean(t))
 }
 
-export function buildRequest(
-  modelId: string,
-  options: LanguageModelV3CallOptions,
-): CCRequestEnvelope {
-  let systemPrompt = ""
-  const messages: CCMessage[] = []
+export function openaiMessagesToWire(messages: OpenAIMessage[]): { system: string; messages: WireMessage[] } {
+  const systemParts: string[] = []
+  const wire: WireMessage[] = []
 
-  for (const msg of options.prompt) {
-    if (msg.role === "system") {
-      systemPrompt += (systemPrompt ? "\n\n" : "") + msg.content
+  for (const msg of messages) {
+    const role = msg.role || ""
+    if (role === "system" || role === "developer") {
+      const text = extractTextContent(msg.content)
+      if (text) systemParts.push(text)
       continue
     }
-    const converted = convertMessage(msg)
-    if (converted) messages.push(converted)
+
+    if (role === "user") {
+      const text = extractTextContent(msg.content)
+      if (!text) continue
+      wire.push({ role: "user", content: [{ type: "text", text }] })
+      continue
+    }
+
+    if (role === "assistant") {
+      const content: WireAssistantContent = []
+      const text = extractTextContent(msg.content)
+      if (text) content.push({ type: "text", text })
+      if (Array.isArray(msg.tool_calls)) {
+        for (const tc of msg.tool_calls) {
+          const id = tc.id || ""
+          const name = tc.function?.name || ""
+          if (!id || !name) continue
+          let input: Record<string, unknown> = {}
+          try {
+            input = JSON.parse(tc.function?.arguments || "{}") as Record<string, unknown>
+          } catch {
+            input = { raw: tc.function?.arguments || "" }
+          }
+          content.push({ type: "tool-call", toolCallId: id, toolName: name, input })
+        }
+      }
+      if (content.length > 0) wire.push({ role: "assistant", content })
+      continue
+    }
+
+    if (role === "tool") {
+      const toolCallId = msg.tool_call_id || ""
+      if (!toolCallId) continue
+      wire.push({
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId,
+            toolName: msg.name || "",
+            output: { type: "text", value: extractTextContent(msg.content) },
+          },
+        ],
+      })
+    }
   }
 
-  const params: CCRequestEnvelope["params"] = {
-    model: modelId,
-    messages,
-    tools: convertTools(options.tools),
-    system: systemPrompt,
-    max_tokens: options.maxOutputTokens ?? 16384,
-    stream: true,
-  }
+  return { system: systemParts.join("\n\n"), messages: wire }
+}
 
-  if (options.temperature !== undefined) params.temperature = options.temperature
-  if (options.topP !== undefined) params.top_p = options.topP
-  if (options.topK !== undefined) params.top_k = options.topK
-
-  const ccOptions = options.providerOptions?.commandcode as Record<string, unknown> | undefined
-  if (typeof ccOptions?.reasoningEffort === "string") params.reasoning_effort = ccOptions.reasoningEffort
+export function buildGenerateBody(params: {
+  model: string
+  messages: OpenAIMessage[]
+  tools?: OpenAITool[]
+  system?: string
+  maxTokens?: number
+  temperature?: number
+  effort?: string
+  workingDir?: string
+}): GenerateBody {
+  const { system, messages } = openaiMessagesToWire(params.messages)
+  const combinedSystem = [params.system, system].filter(Boolean).join("\n\n")
 
   return {
     config: {
-      workingDir: process.cwd() ?? "/",
-      date: new Date().toISOString().split("T")[0] ?? "",
-      environment: `${process.platform}-${process.arch}`,
-      // Stub: opencode does not expose project structure context
+      workingDir: params.workingDir ?? process.cwd() ?? "/",
+      date: new Date().toISOString().slice(0, 10),
+      environment: process.platform,
       structure: [],
       isGitRepo: false,
       currentBranch: "",
@@ -217,11 +197,20 @@ export function buildRequest(
       gitStatus: "",
       recentCommits: [],
     },
-    memory: "",
-    // Stub: taste/memory/permissionMode are Command Code CLI features not exposed via provider API
-    taste: "",
+    memory: null,
+    taste: null,
     skills: null,
-    permissionMode: "standard",
-    params,
+    permissionMode: "auto-accept",
+    mode: "agent",
+    params: {
+      model: params.model,
+      messages,
+      tools: openaiToolsToWire(params.tools),
+      ...(combinedSystem ? { system: combinedSystem } : {}),
+      max_tokens: params.maxTokens ?? 32_768,
+      stream: true,
+      ...(typeof params.temperature === "number" ? { temperature: params.temperature } : {}),
+      ...(params.effort ? { reasoning_effort: params.effort } : {}),
+    },
   }
 }

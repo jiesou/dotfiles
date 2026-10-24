@@ -50,6 +50,11 @@ interface TokenResponse {
     scope?: string;
     inference_base_url?: string;
 }
+/** The Portal's edge firewall refused the request; nothing about the grant is wrong. */
+export declare class NousPortalEdgeBlockedError extends Error {
+    readonly retryAfterMs: number | undefined;
+    constructor(retryAfterMs: number | undefined);
+}
 /** Step 1 of the device-code flow: ask the Portal for a verification URL + code. */
 export declare function requestDeviceCode(options?: {
     portalUrl?: string;

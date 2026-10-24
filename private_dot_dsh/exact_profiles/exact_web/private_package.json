@@ -13,9 +13,9 @@
     "@jiesou/dsh-timeout-auto-reject": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-timeout-auto-reject",
     "@jiesou/dsh-webui-fix-pack": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/bundles/dsh-webui-fix-pack",
     "@local/dsh-focus-preset": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-focus-preset",
-    "dsh-context": "^0.62.2",
-    "dsh-lan": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-mobile/dsh-lan",
+    "dsh-context": "^0.62.3",
     "dsh-sandbox-landlock": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-sandbox-landlock",
+    "dsh-status-rotator": "^0.37.0",
     "dsh-subagent-background-only": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-subagent-background-only",
     "dsh-tool-deny": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-tool-deny",
     "dsh-ya-simple-shortcuts": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-ya-simple-shortcuts"
@@ -25,7 +25,6 @@
       "bundles": [
         "@deepseek-ai/dsh-base",
         "@deepseek-ai/dsh-web-app",
-        "dsh-lan",
         "@jiesou/dsh-timeout-auto-reject",
         "dsh-sandbox-landlock",
         "@anionex/dsh-turn-rewind",
@@ -38,7 +37,9 @@
         "dsh-context",
         "dsh-ya-simple-shortcuts",
         "@jiesou/dsh-stream-rules",
-        "@dsh-external/dsh-mobile"
+        "@dsh-external/dsh-mobile",
+        "@deepseek-ai/dsh-experimental-session-titles-bundle",
+        "dsh-status-rotator"
       ]
     }
   },

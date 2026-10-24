@@ -1,188 +1,169 @@
-import type { LanguageModelV3StreamPart, LanguageModelV3Usage, LanguageModelV3FinishReason } from "@ai-sdk/provider"
+export type StreamEvent =
+  | { type: "text-delta"; text?: string }
+  | { type: "reasoning-start" }
+  | { type: "reasoning-delta"; text?: string }
+  | { type: "reasoning-end" }
+  | {
+      type: "tool-call"
+      toolCallId?: string
+      toolName?: string
+      input?: unknown
+      args?: unknown
+      providerExecuted?: boolean
+    }
+  | {
+      type: "finish"
+      finishReason?: string
+      rawFinishReason?: string
+      totalUsage?: {
+        inputTokens?: number
+        outputTokens?: number
+        inputTokenDetails?: { cacheReadTokens?: number; cacheWriteTokens?: number }
+      }
+    }
+  | { type: "error"; error?: unknown }
+  | { type: string; [key: string]: unknown }
 
-type RawEvent = Record<string, unknown> & { type: string }
+export type MappedEvent =
+  | { kind: "text"; text: string }
+  | { kind: "reasoning"; text: string }
+  | { kind: "tool_call"; id: string; name: string; arguments: string; providerExecuted?: boolean }
+  | { kind: "finish"; finishReason: string; usage: WireUsage }
+  | { kind: "error"; text: string }
 
-function mapFinishReason(raw: string): LanguageModelV3FinishReason["unified"] {
-  switch (raw) {
-    case "stop":
-    case "end_turn":
-      return "stop"
-    case "tool_calls":
-    case "tool-calls":
-      return "tool-calls"
-    case "length":
-    case "max_tokens":
-    case "max-tokens":
-    case "max_output_tokens":
-      return "length"
-    case "content_filter":
-      return "content-filter"
-    default:
-      return "other"
-  }
+export type WireUsage = {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
 }
 
-function mapUsage(raw: Record<string, unknown>): LanguageModelV3Usage {
-  const inputDetails = (raw.inputTokenDetails ?? raw.input_token_details ?? {}) as Record<string, unknown>
-  const outputDetails = (raw.outputTokenDetails ?? raw.output_token_details ?? {}) as Record<string, unknown>
-  return {
-    inputTokens: {
-      total: typeof raw.inputTokens === "number" ? raw.inputTokens : typeof raw.prompt_tokens === "number" ? raw.prompt_tokens : undefined,
-      noCache: typeof inputDetails.noCacheTokens === "number" ? inputDetails.noCacheTokens : undefined,
-      cacheRead: typeof inputDetails.cacheReadTokens === "number" ? inputDetails.cacheReadTokens : undefined,
-      cacheWrite: typeof inputDetails.cacheWriteTokens === "number" ? inputDetails.cacheWriteTokens : undefined,
-    },
-    outputTokens: {
-      total: typeof raw.outputTokens === "number" ? raw.outputTokens : typeof raw.completion_tokens === "number" ? raw.completion_tokens : undefined,
-      text: typeof outputDetails.textTokens === "number" ? outputDetails.textTokens : undefined,
-      reasoning: typeof outputDetails.reasoningTokens === "number" ? outputDetails.reasoningTokens : undefined,
-    },
-  }
+export function emptyUsage(): WireUsage {
+  return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
 }
 
-function toStreamPart(event: RawEvent): LanguageModelV3StreamPart | null {
+export function mapStreamEvent(event: StreamEvent): MappedEvent {
   switch (event.type) {
-    case "start":
-      return { type: "stream-start", warnings: [] }
-
-    case "text-start":
-      return { type: "text-start", id: event.id as string }
     case "text-delta":
-      return { type: "text-delta", id: event.id as string, delta: (event.text ?? event.delta ?? "") as string }
-    case "text-end":
-      return { type: "text-end", id: event.id as string }
-
-    case "reasoning-start":
-      return { type: "reasoning-start", id: event.id as string }
+      return typeof event.text === "string" && event.text
+        ? { kind: "text", text: event.text }
+        : { kind: "error", text: "" }
     case "reasoning-delta":
-      return { type: "reasoning-delta", id: event.id as string, delta: (event.text ?? event.delta ?? "") as string }
+      return typeof event.text === "string" && event.text
+        ? { kind: "reasoning", text: event.text }
+        : { kind: "error", text: "" }
+    case "reasoning-start":
     case "reasoning-end":
-      return { type: "reasoning-end", id: event.id as string }
-
-    case "tool-input-start":
-      return {
-        type: "tool-input-start",
-        id: event.id as string,
-        toolName: event.toolName as string,
-        dynamic: event.dynamic as boolean | undefined,
-      }
-    case "tool-input-delta":
-      return { type: "tool-input-delta", id: event.id as string, delta: (event.delta ?? "") as string }
-    case "tool-input-end":
-      return { type: "tool-input-end", id: event.id as string }
-
+      return { kind: "error", text: "" }
     case "tool-call": {
-      const input = event.input ?? event.args ?? event.arguments
-      return {
-        type: "tool-call",
-        toolCallId: (event.toolCallId ?? event.id ?? "") as string,
-        toolName: event.toolName as string,
-        input: typeof input === "string" ? input : JSON.stringify(input ?? {}),
+      const id = (typeof event.toolCallId === "string" && event.toolCallId) || ""
+      const name = (typeof event.toolName === "string" && event.toolName) || "unknown"
+      const raw = event.input ?? event.args ?? {}
+      let args: string
+      try {
+        args =
+          typeof raw === "string"
+            ? raw
+            : JSON.stringify(raw && typeof raw === "object" ? raw : { value: raw })
+      } catch {
+        args = "{}"
       }
+      return { kind: "tool_call", id, name, arguments: args, providerExecuted: event.providerExecuted === true }
     }
-
-    case "finish-step": {
-      const usage = event.usage ?? event.totalUsage ?? {}
-      const rawReason = (event.finishReason ?? event.rawFinishReason ?? "stop") as string
-      return {
-        type: "finish",
-        finishReason: { unified: mapFinishReason(rawReason), raw: rawReason },
-        usage: mapUsage(typeof usage === "object" && usage !== null ? (usage as Record<string, unknown>) : {}),
+    case "finish": {
+      const usage = emptyUsage()
+      const total = event.totalUsage as
+        | { inputTokens?: number; outputTokens?: number; inputTokenDetails?: { cacheReadTokens?: number } }
+        | undefined
+      if (total) {
+        usage.inputTokens = total.inputTokens ?? 0
+        usage.outputTokens = total.outputTokens ?? 0
+        usage.cacheReadTokens = total.inputTokenDetails?.cacheReadTokens ?? 0
       }
+      const finishReason =
+        event.finishReason === "tool-calls"
+          ? "tool_calls"
+          : event.finishReason === "length"
+            ? "length"
+            : "stop"
+      return { kind: "finish", finishReason, usage }
     }
-
-    case "finish":
-      return null
-
-    case "response-metadata":
-      return {
-        type: "response-metadata",
-        id: event.id as string | undefined,
-        modelId: event.modelId as string | undefined,
-      }
-
-    case "error":
-      return { type: "error", error: event.error ?? event.message ?? "Unknown error" }
-
+    case "error": {
+      const err = event.error
+      const text =
+        typeof err === "string"
+          ? err
+          : err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : "Command Code stream error"
+      return { kind: "error", text }
+    }
     default:
-      return null
+      return { kind: "error", text: "" }
   }
 }
 
-// Assumes line-delimited JSON over SSE: one JSON object per `data:` line.
-// Multi-line `data:` fields are not supported — the buffer splits on `\n`.
-export function parseStreamEvents(body: ReadableStream<Uint8Array>): ReadableStream<LanguageModelV3StreamPart> {
-  const reader = body.getReader()
+export async function* readNdjsonLines(
+  stream: ReadableStream<Uint8Array>,
+): AsyncGenerator<string, void, unknown> {
+  const reader = stream.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
-
-  return new ReadableStream<LanguageModelV3StreamPart>({
-    async pull(controller) {
-      try {
-        while (true) {
-          const lines = buffer.split("\n")
-          // Strip trailing \r from Windows-style \r\n line endings
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i]
-            if (line !== undefined && line.endsWith("\r")) lines[i] = line.slice(0, -1)
-          }
-          buffer = lines.pop() ?? ""
-
-          for (const line of lines) {
-            const trimmed = line.trim()
-            if (!trimmed || trimmed.startsWith(":") || trimmed === "[DONE]") continue
-
-            let jsonStr = trimmed
-            if (jsonStr.startsWith("data: ")) jsonStr = jsonStr.slice(6)
-            if (jsonStr.startsWith("data:")) jsonStr = jsonStr.slice(5)
-            if (!jsonStr || jsonStr === "[DONE]") continue
-
-            let parsed: RawEvent
-            try {
-              parsed = JSON.parse(jsonStr)
-            } catch {
-              // intentionally silent: skip malformed SSE lines
-              continue
-            }
-
-            if (typeof parsed !== "object" || parsed === null || typeof parsed.type !== "string") continue
-
-            const part = toStreamPart(parsed)
-            if (part) controller.enqueue(part)
-          }
-
-          const { done, value } = await reader.read()
-          if (done) {
-            if (buffer.trim()) {
-              const trimmed = buffer.trim()
-              if (trimmed && trimmed !== "[DONE]" && !trimmed.startsWith(":")) {
-                let jsonStr = trimmed
-                if (jsonStr.startsWith("data: ")) jsonStr = jsonStr.slice(6)
-                if (jsonStr.startsWith("data:")) jsonStr = jsonStr.slice(5)
-                try {
-                  const parsed = JSON.parse(jsonStr)
-                  if (typeof parsed === "object" && parsed !== null && typeof parsed.type === "string") {
-                    const part = toStreamPart(parsed)
-                    if (part) controller.enqueue(part)
-                  }
-                } catch {
-                  // intentionally silent: skip malformed final buffer
-                }
-              }
-            }
-            controller.close()
-            return
-          }
-
-          buffer += decoder.decode(value, { stream: true })
-        }
-      } catch (err) {
-        controller.enqueue({ type: "error", error: err })
-        controller.close()
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      let idx: number
+      while ((idx = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, idx).trim()
+        buffer = buffer.slice(idx + 1)
+        if (line) yield line
       }
-    },
-    cancel() {
-      reader.cancel()
-    },
-  })
+    }
+    const tail = buffer.trim()
+    if (tail) yield tail
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+export async function* streamGenerateEvents(
+  url: string,
+  body: unknown,
+  headers: Record<string, string>,
+  signal?: AbortSignal,
+): AsyncGenerator<MappedEvent, void, unknown> {
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    })
+  } catch (err) {
+    yield { kind: "error", text: `network error: ${err instanceof Error ? err.message : String(err)}` }
+    return
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => "")
+    yield { kind: "error", text: `POST /alpha/generate → ${res.status} ${text.slice(0, 500)}` }
+    return
+  }
+  if (!res.body) {
+    yield { kind: "error", text: "empty stream body" }
+    return
+  }
+  for await (const line of readNdjsonLines(res.body)) {
+    let parsed: StreamEvent
+    try {
+      parsed = JSON.parse(line) as StreamEvent
+    } catch {
+      continue
+    }
+    const mapped = mapStreamEvent(parsed)
+    if (mapped.kind === "error" && mapped.text === "") continue
+    yield mapped
+  }
 }

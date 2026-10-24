@@ -34,3 +34,10 @@ Notes:
 - When the task is complete, disable the MCP tool to avoid consuming context for subsequent tasks.
 - This tool won't break.
 
+## Authentication
+
+You can use the `bw` (Bitwarden) CLI to log in.
+
+- Including 2FA (via TOTP)
+  - while `bw get totp <id>` requires a Premium, you can instead use `bw get item | jq -r .login.totp` to get the SHA seed and calculate the code yourself.
+- Still requires user confirmation: before post public content, especially things that cannot be undo.

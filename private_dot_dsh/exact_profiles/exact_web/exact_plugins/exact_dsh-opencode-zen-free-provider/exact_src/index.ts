@@ -38,13 +38,19 @@ const ZEN_CATALOG_URL = `${ZEN_BASE_URL}/models`
  * Context windows wider than the ones models.dev declares for the free tier.
  *
  * models.dev registers the free rows at the conservative 200K tier while the
- * backend serves 1M, and the window is client-side metadata — the declared
+ * backend serves more, and the window is client-side metadata — the declared
  * number is what the harness trims history against, so trusting the feed
  * throttles a model that would serve more.
+ *
+ * GLM 5.3 Flash is measured rather than inherited from its paid row: the free
+ * id routes to `perplexity/glm-5.3-flash`, which refuses anything past ~640K
+ * prompt tokens, so it declares 600K — inside the largest value the live
+ * endpoint has served (616,702) — instead of the paid row's 1M.
  */
 const CONTEXT_WINDOW_OVERRIDES: Record<string, number> = {
   'mimo-v2.6-flash-free': 1_048_576,
   'deepseek-v4.1-flash-free': 1_048_576,
+  'glm-5.3-flash-free': 614_400,
 }
 
 /**
@@ -211,6 +217,48 @@ let zenUserAgent: string | undefined
 
 const ZEN_URL_MARKERS = ['opencode.ai/inference', 'opencode.ai/zen']
 
+/**
+ * A replayed assistant message carries the model's reasoning field even when
+ * that turn produced no reasoning — the shape opencode's own client sends.
+ *
+ * `lowerAssistantMessage` (opencode `packages/ai/src/protocols/openai-chat.ts`)
+ * picks the field name from the model's declared reasoning field and writes `""`
+ * for an assistant turn with no reasoning part whenever the model requires one;
+ * `requireReasoning` follows a declared field, so every free id qualifies —
+ * models.dev declares `interleaved.field` for all of them. Zen's backend that
+ * validates this refuses the divergent shape with "The reasoning_content in the
+ * thinking mode must be passed back to the API".
+ *
+ * pi-ai pads the same way through `compat.requiresReasoningContentOnAssistantMessages`
+ * (declared on every model below), but that path is gated on `model.reasoning`,
+ * and a model with no declared effort ladder is `reasoning: false` here — no
+ * picker, which is not the same as no thinking. Those ids still replay real
+ * reasoning out of their thinking blocks, so their missing fields are filled
+ * here instead.
+ */
+export const withReplayedReasoning = (body: string, modelIds: ReadonlySet<string>): string => {
+  let payload: unknown
+  try {
+    payload = JSON.parse(body)
+  } catch {
+    return body
+  }
+  if (!isRecord(payload) || typeof payload.model !== 'string' || !modelIds.has(payload.model)) return body
+  if (!Array.isArray(payload.messages)) return body
+  let changed = false
+  for (const message of payload.messages) {
+    if (!isRecord(message) || message.role !== 'assistant') continue
+    if (typeof message.reasoning_content !== 'string') {
+      message.reasoning_content = ''
+      changed = true
+    }
+  }
+  return changed ? JSON.stringify(payload) : body
+}
+
+/** Models whose reasoning replay pi-ai's own padding cannot reach; see above. */
+const zenReasoningBackfill = new Set<string>()
+
 const zenFetch: typeof globalThis.fetch = (input, init) => {
   const url = typeof input === 'string'
     ? input
@@ -220,7 +268,9 @@ const zenFetch: typeof globalThis.fetch = (input, init) => {
   }
   const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined))
   headers.set('user-agent', zenUserAgent)
-  return zenNativeFetch(input, { ...init, headers })
+  const nextInit = { ...init, headers }
+  if (typeof nextInit.body === 'string') nextInit.body = withReplayedReasoning(nextInit.body, zenReasoningBackfill)
+  return zenNativeFetch(input, nextInit)
 }
 
 /**
@@ -279,23 +329,39 @@ export const requiredZenTools = (tools: readonly Tool[] = []): Tool[] => {
 // the transcript's system messages, so padding the list means rewriting the
 // leading `toolsAdded` (falling back to `context.tools`, which a context built
 // before normalization still carries).
-const normalizeReasoningContext = (context: TranscriptContext & { tools?: readonly Tool[] }): TranscriptContext => ({
-  ...context,
-  messages: context.messages.map((message, index) => {
-    // Pad the tool list where pi-ai keeps it: the leading system message.
-    if (index === 0 && message.role === 'system') {
-      return { ...message, toolsAdded: requiredZenTools(message.toolsAdded ?? context.tools ?? []) }
-    }
-    if (message.role !== 'assistant') return message
-    return {
-      ...message,
-      content: message.content.map(block =>
-        block.type === 'thinking' && block.thinking.trim().length > 0 && block.thinkingSignature === undefined
-          ? { ...block, thinkingSignature: 'reasoning_content' }
-          : block),
-    }
-  }),
-})
+const normalizeReasoningContext = (context: TranscriptContext & { tools?: readonly Tool[] }): TranscriptContext => {
+  const hasLeadingSystem = context.messages[0]?.role === 'system'
+  const baseMessages = hasLeadingSystem
+    ? context.messages.map((message, index) => {
+        if (index === 0 && message.role === 'system') {
+          return { ...message, toolsAdded: requiredZenTools(message.toolsAdded ?? context.tools ?? []) }
+        }
+        return message
+      })
+    : [
+        {
+          role: 'system' as const,
+          content: '',
+          toolsAdded: requiredZenTools(context.tools ?? []),
+          timestamp: Date.now(),
+        },
+        ...context.messages,
+      ]
+
+  return {
+    ...context,
+    messages: baseMessages.map((message) => {
+      if (message.role !== 'assistant') return message
+      return {
+        ...message,
+        content: message.content.map(block =>
+          block.type === 'thinking' && block.thinking.trim().length > 0 && block.thinkingSignature === undefined
+            ? { ...block, thinkingSignature: 'reasoning_content' }
+            : block),
+      }
+    }),
+  }
+}
 
 // Zen reports non-credential refusals (ended free promotions, region blocks) as
 // HTTP 401/403, which the harness classifies as AUTH and masks as "API key is
@@ -421,24 +487,27 @@ function reasoningLevelsFor(metadata: Record<string, unknown>): string[] {
 // `Default` (the harness's "no selection" path) is the *absent key* — leaving
 // `reasoning_effort` off the wire and letting the upstream choose. Each ladder
 // level the endpoint accepts lands at its own key with its own wire value; the
-// `off` key carries the upstream's literal close value when the feed names one
-// (e.g. `none`), so the selector's "Off" entry is a real switch rather than a
-// `no-op. Responses-model feeds name no close value and `/responses` rejects
-// both fabricated ones (`'off'` is an unknown variant, `'none'` unsupported
-// for this model). pi-ai sends nothing only when the key is explicitly `null`
-// (an absent key falls back to sending `'none'`), so `off: null` is the honest
-// "upstream decides" — it also drops "Off" from the selector, which is correct
-// because this endpoint offers no way to turn thinking down.
+// `off` key carries the upstream's literal close value only when the feed names
+// one (e.g. `none`), so the selector's "Off" entry is a real switch rather than
+// a no-op. A feed that names no close value gets `null`: nothing goes on the
+// wire and the "Off" entry drops out of the selector, which is the honest
+// reading — this endpoint offers no way to turn thinking down, so both the
+// default and the off path have to leave the parameter alone.
+//
+// Never fabricate a close value. Every chat/completions backend behind this
+// route rejects `'off'` as an unknown variant and fails the whole turn, while
+// pi-ai sends a fabricated `off` on the *default* path too — so one such value
+// broke every turn on a model with no `none` in its ladder (#4). No upstream
+// OpenCode protocol spells a close that way either: `packages/core/src/
+// variant.ts` derives close variants from the feed and translates `none` into
+// protocol-specific flags (`thinking: {type: "disabled"}`, `enable_thinking:
+// false`), never into an invented effort value.
 function reasoningMapFor(levels: readonly string[], api: ZenApi): ThinkingLevelMap {
   const map: ThinkingLevelMap = {}
   for (const key of PI_LEVEL_KEYS) {
     if (levels.includes(key)) map[key] = key
   }
-  if (api === 'openai-completions') {
-    map.off = levels.includes('none') ? 'none' : 'off'
-  } else {
-    map.off = null
-  }
+  map.off = api === 'openai-completions' && levels.includes('none') ? 'none' : null
   return map
 }
 
@@ -473,14 +542,20 @@ function buildModels(
       // Chat-completions models need nothing: pi-ai omits `strict` there, and
       // that API stays non-strict by default.
       const strictCompat = api === 'openai-responses' ? { supportsStrictMode: true as const } : {}
+      // opencode's own client writes `reasoning_content` on every replayed
+      // assistant message — empty when the turn produced none — for every model
+      // whose feed declares a reasoning field, which is all of these. pi-ai's
+      // flag reproduces that, but only for models it sees as reasoning ones, so
+      // the ladder-less ids fall through to `withReplayedReasoning`.
       const compat = baseCompat === undefined
-        ? { maxTokensField: 'max_tokens' as const, supportsReasoningEffort: false as const, ...strictCompat }
-        : { ...baseCompat, requiresReasoningContentOnAssistantMessages: false, ...strictCompat }
+        ? { maxTokensField: 'max_tokens' as const, supportsReasoningEffort: false as const, ...strictCompat, requiresReasoningContentOnAssistantMessages: true as const }
+        : { ...baseCompat, requiresReasoningContentOnAssistantMessages: true as const, ...strictCompat }
 
       // No ladder upstream ⇒ no selector: `reasoning: false` means "no effort
       // control", never "no thinking".
       const levels = reasoningLevelsFor(metadata)
       const controllable = levels.length > 0
+      if (!controllable) zenReasoningBackfill.add(id)
 
       const limit = isRecord(metadata.limit) ? metadata.limit : undefined
       const input = isRecord(metadata.modalities) && Array.isArray(metadata.modalities.input)
@@ -497,8 +572,8 @@ function buildModels(
         ...(controllable ? { thinkingLevelMap: reasoningMapFor(levels, api) } : {}),
         input: input.length > 0 ? input : ['text'],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        // The feed declares the 200K tier for both of these while the backend
-        // serves 1M, and the cap is client-side metadata: the declared value is
+        // The feed declares the 200K tier for these while the backend serves
+        // more, and the cap is client-side metadata: the declared value is
         // what the harness trims against, so mirroring the feed throttles a
         // model that would otherwise serve more. models.dev lists the *paid*
         // `deepseek-v4.1-flash` at 1M (`deepseek-v4-flash` likewise at 1M), and
@@ -585,7 +660,7 @@ export async function apply(ctx: Context, config: LiveConfig): Promise<void> {
       requestImagePixelBudget: 4_194_304,
       requestImageMaxBytes: opts.requestImageMaxBytes ?? DEFAULT_REQUEST_IMAGE_MAX_BYTES,
       retryPolicy: resolveRetryPolicy(opts.retryPolicy, `${name}: retryPolicy`),
-      piProvider,
+      piProvider: piProvider as any,
       modelErrors: new Map(),
       configuredMaxTokens: new Map(),
     }]])

@@ -41,7 +41,7 @@ const isWideSearch = (v) => {
   if (/\[timed out after \d+ms\]/.test(v)) return true
   const rest = v.replace(/ after \d+ms/g, " ")
   const numbers = rest.match(/\d+/g) ?? []
-  return numbers.some((n) => +n >= 20000)
+  return numbers.some((n) => +n > 20000)
 }
 
 export default [
@@ -52,13 +52,19 @@ export default [
   },
   {
     match: (v) =>
+      wildcard("systemd-run --user *")(v),
+    reject: true,
+    prompt: "Bypassing security permissions is prohibited, stop and explain instead of working around it",
+  },
+  {
+    match: (v) =>
       (wildcard("rm *")(v) || wildcard("\"rm *")(v) || wildcard("* rm *")(v) || wildcard("* -?-delete *")(v)) &&
       !wildcard("* rm */tmp/*")(v),
     reject: true,
     prompt: "Use `gio trash` command (best effort) or `mv` (immediate fallback if `gio trash` fails) instead of rm except in tmpdir",
   },
   {
-    match: (v) => /\bgh\s+(?:issue|pr)\s+(create|comment)\b|mcp__gh__create_(?:issue|pull_request)\b/.test(v),
+    match: (v) => /\b(?:gh|glab)\s+(?:issue|pr|mr)\s+(create|comment|note)\b|mcp__(?:gh|glab)__create_(?:issue|pull_request|merge_request)\b/.test(v),
     reject: true,
     prompt:
       "Users must explicitly confirm before publishing public content. Public issue/PR create is irreversible. If user's confirmation is given, call the same command again. BTW: did you checked `.github/ISSUE_TEMPLATE`? Follow template!",
@@ -164,7 +170,7 @@ Use broad search keywords instead of searching for outdated products.
 "You reap what you sow. Seek new, get new; Seek old, get old.`,
   },
   {
-    match: (v) => v.includes("pdf"),
+    match: (v) => v.includes(".pdf"),
     prompt: "Use the `markitdown` skill to read PDF files.",
   },
 ]

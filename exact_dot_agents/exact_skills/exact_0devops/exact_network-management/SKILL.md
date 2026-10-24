@@ -63,6 +63,7 @@ Internet
     │
     ├──── (13.x ←→ 11.x 通过 EasyTier 覆盖网络 — 10.144.x.x/24，跨越物理位置)
     ├──── (13.x ←→ 100.x 通过 EasyTier P2P 打洞，绕过 11.1 的 50M 电信)
+    ├──── (另有 FangHome_R2S 10.144.6.1/24、FangHome_Lizhai 10.144.8.1/16 两个家庭点，同一 EasyTier 网内)
     └──── (192.168.11.131/10.55.225.235 ←→ 10.55.2.118，跨越物理位置)
 ```
 
@@ -92,7 +93,7 @@ Internet
 | chenpc.lan | 192.168.11.192 | Fedora Bluefin Linux 桌面 |
 | hp-server.lan | 192.168.11.131 | Ubuntu Server (双网卡: 同时有 10.55.225.235) |
 | 360T5G-BCA2.lan | 192.168.11.118 | 360 T5G 硬路由 |
-| R7000-E772.lan | 192.168.11.843 | Netgear 网件 R7000 路由器，Merlin |
+| R7000-E772.lan | 192.168.11.243 | Netgear 网件 R7000 路由器，Merlin |
 | BatteryAngle-81a518.lan | 192.168.11.120 | 贴片机厂房排风扇的智能插座 |
 
 - 此网段网络设施的 IP 基本都通过 R2S 的 DHCP Server 设置了静态
@@ -243,6 +244,33 @@ ssh ubuntu@192.168.11.131 'sudo systemctl restart nftables-rdp-forward.service'
 
 _以上信息截止 2026.06.06_
 
+#### 192.168.8.0/24 — 校园网服务器网段
+
+| 设备 | IP | 角色 |
+|------|-----|------|
+| S7706 核心交换机 | 192.168.8.1 | 8.0/24 网关，web 管理 443（301 → `/simple/view/login.html`） |
+| 群晖 NAS | 192.168.8.244 | DSM，80/443/5000/5001/23/139/445 |
+
+校园核心自己就在路由这个网段，全网只需补 `192.168.8.0/24` 路由，写法与 10.55 网段一致。
+
+```
+hp-server(10.55.225.235) → 10.55.225.1 → 1.1.1.2(S7706) → 192.168.8.244   # 0.35ms
+11.x/13.x/100.x → EasyTier → eduGateway(10.55.2.118) → 10.55.2.1 → ...    # 4~5ms
+```
+
+| 设备 | 配置 |
+|------|------|
+| eduGateway | `network.route_srv`：`192.168.8.0/24 via 10.55.2.1`；`firewall.nat_srv`：lan → eth0 对该网段 MASQUERADE；`easytier.@easytier[0].proxy_network` 加 `192.168.8.0/24` |
+| hp-server | netplan `60-enp2s0-static.yaml` 主表加 `192.168.8.0/24 via 10.55.225.1`（本机直连校园网，无需 NAT） |
+| 100.1 | `network.@route[3]`：`192.168.8.0/24 via 192.168.100.100` |
+| 11.1 / 13.1 | 无配置，EasyTier 广播后自动学到 `192.168.8.0/24 dev tun0` |
+
+配置约束：
+
+- 校园核心没有到 `192.168.11.x` / `10.144.x` 的回程路由，经 eduGateway 出去必须 MASQUERADE。srcnat 按 oifname 分发，`tun0` 来的流量同样落进 `srcnat_lan`，一条 lan 源 NAT 覆盖全部来源
+- fw4 的 `config nat` 中 `dest_ip` 只接受单值，写成列表会被整条跳过（`option 'dest_ip' must not be a list`）。覆盖多个网段要各开一个 section
+- hp-server 的 `ip rule 100: from 192.168.11.0/24 lookup 100` 默认走 GRE，`192.168.8.0/24` 只进主表，不进 table 100
+
 ---
 
 ### 192.168.100.0/24 — 学校,WY信息中心 外部路由器网段
@@ -250,7 +278,7 @@ _以上信息截止 2026.06.06_
 | 设备 | IP | 角色 |
 | ---------- | --------------- | ------------------------------------------------------- |
 | 外部公网拨号路由器 | 192.168.100.1 | ImmortalWrt, PPPoE 出口, DHCP 服务器, OpenClash fake-IP |
-| eduGateway | 192.168.100.100 | ImmortalWrt，外部路由器前的终端节点，EasyTier 10.144.100.100/24；eth1 当前 `2408:8340:2841:d300:2ef0:5dff:fe80:40c5` + `fd71:431d:5f6c::/64` |
+| eduGateway | 192.168.100.100 | ImmortalWrt，外部路由器前的终端节点，EasyTier 10.144.100.100/24；eth1 当前 `2408:8340:2820:ed40:2ef0:5dff:fe80:40c5`（前缀随 PPPoE 变动）+ `fd71:431d:5f6c::/64` |
 
 #### eduGateway 防非法 RA（2026-09-17）
 
@@ -444,13 +472,13 @@ uci commit 3cat
 service 3cat restart # 已通过 luci-app-3proxy 配置好服务
 ```
 
-**100.100 加 GOST 转发：**
+**100.100 加 GOST（是 socks `:20080` / ss `:20090` 独立入口，不是 3cat 转发链的中间跳）：**
 ```
 /etc/gost/gost.yaml # 编辑配置
 service gost restart # 已通过 luci-app-gost 配置好服务
 ```
 
-100.100 访问 11 网段的设备，理论上是通过 EasyTier 实现的，不需要额外操作。
+100.100 访问 11 网段是走 GRE（`192.168.11.0/24 via 172.16.69.2`），不需要额外操作。
 
 ## 验证命令
 

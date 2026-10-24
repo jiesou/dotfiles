@@ -1,8 +1,5 @@
 {
   "dependencies": {
-    "@code-yeongyu/comment-checker": "^0.7.0",
-    "@opencode-ai/plugin": "1.18.16",
-    "oh-my-opencode": "^3.17.5",
-    "opencode-queue": "^0.11.2"
+    "@opencode-ai/plugin": "^0.0.0-next-17444"
   }
 }

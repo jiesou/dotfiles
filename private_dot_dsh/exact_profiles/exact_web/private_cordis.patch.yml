@@ -1,17 +1,16 @@
 # Web-profile patch layer. MCP servers live in ~/.dsh/cordis.patch.yml
 # (machine-global); the MCP Manager panel edits that file via patchFile below.
-- id: webserver
+# The /api browser-trust fence reads trustedHosts from the `connection` row
+# (populated from `ctx.webStartup.trustedHosts`). A trustedHosts key on
+# web-runtime is dead config and no longer admits anything.
+- id: connection
   config:
-    host: 0.0.0.0
-    port: !!js ctx.webStartup.port ?? 3080
-- id: web-runtime
-  inject: [ webStartup ]
-  config:
-    openBrowser: !!js ctx.webStartup.openBrowser
-    printUrl: true
-    surfaceContext: true
     trustedHosts:
       - chenpc.lan
+      - hp-book.lan
+      - hp-book
+      # 裸 IP 访问的授权(dsh 绑 loopback,socat 投放到局域网;LAN IP 变了改这里)
+      - 192.168.11.192
 - insert:
     - id: tool-deny
       name: dsh-tool-deny
@@ -55,6 +54,9 @@
           - mcp__tinyfish__run_web_automation_async
           - mcp__tinyfish__save_profile_setup_session
           - mcp__tinyfish__start_profile_setup_session
+          - mcp__tinyfish__cancel_deep_research
+          - mcp__tinyfish__get_deep_research
+          - mcp__tinyfish__start_deep_research
     - id: subagent-background-only
       name: 'dsh-subagent-background-only'
 - id: session-query-sqlite
@@ -66,6 +68,7 @@
   config:
     provider: cpa
     model: deepseek-v4.1-flash
+    reasoningEffort: low
 - id: ui-settings-general
   name: "@deepseek-ai/dsh-client-ui-settings-general"
   config:
@@ -82,6 +85,16 @@
         baseURL: http://192.168.11.192:8317/v1
         displayName: CPA
         models:
+          - id: gemini-4-argon-high
+            name: Gemini 4 Argon (High)
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
           - id: gemini-3.8-flash-high
             name: Gemini 3.8 Flash (High)
             contextWindow: 1048576
@@ -94,44 +107,6 @@
               low: low
               medium: medium
               high: high
-          - id: gemini-3.1-pro-low
-            name: Gemini 3.1 Pro (Low)
-            contextWindow: 1048576
-            maxTokens: 65536
-            input:
-              - text
-              - image
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
-          - id: claude-sonnet-5-5-high
-            name: Claude Sonnet 5.5 (High)
-            contextWindow: 1000000
-            maxTokens: 128000
-            input:
-              - text
-              - image
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
-              max: max
-          - id: claude-opus-5-5-high
-            name: Claude Opus 5.5 (High)
-            contextWindow: 1000000
-            maxTokens: 128000
-            input:
-              - text
-              - image
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
-              max: max
           - id: hy4-preview-f
             name: Hy4 preview (x0.00)
             contextWindow: 1000000
@@ -142,20 +117,6 @@
           - id: hy4-preview
             name: Hy4 preview (x0.29)
             contextWindow: 1000000
-            maxTokens: 64000
-            reasoningEfforts:
-              off: null
-              high: high
-          - id: hy3
-            name: Hy3 (x0.00)
-            contextWindow: 192000
-            maxTokens: 64000
-            reasoningEfforts:
-              off: null
-              high: high
-          - id: hy3-x
-            name: Hy3 (x) (x0.05)
-            contextWindow: 192000
             maxTokens: 64000
             reasoningEfforts:
               off: null
@@ -179,54 +140,9 @@
               high: high
               low: low
               max: max
-          - id: glm-5.2
-            name: GLM-5.2 (x0.79)
-            contextWindow: 1000000
-            maxTokens: 48000
-            reasoningEfforts:
-              off: null
-              low: high
-              high: high
-              max: max
-          - id: glm-5.1
-            name: GLM-5.1 (x0.79)
-            contextWindow: 200000
-            maxTokens: 48000
-            reasoningEfforts:
-              off: null
-              high: high
-          - id: glm-5v-turbo
-            name: GLM-5v-Turbo (x0.71)
-            contextWindow: 200000
-            maxTokens: 64000
-            input:
-              - text
-              - image
-            reasoningEfforts:
-              off: null
-              high: high
           - id: kimi-k3-1
             name: Kimi-K3 (x1.62)
             contextWindow: 1000000
-            maxTokens: 32000
-            input:
-              - text
-              - image
-            reasoningEfforts:
-              off: null
-              low: low
-              high: high
-              max: max
-          - id: kimi-k2.7
-            name: Kimi-K2.7-Code (x0.57)
-            contextWindow: 256000
-            maxTokens: 32000
-            reasoningEfforts:
-              off: null
-              high: high
-          - id: kimi-k2.6
-            name: Kimi-K2.6 (x0.52)
-            contextWindow: 256000
             maxTokens: 32000
             input:
               - text
@@ -293,6 +209,33 @@
               medium: medium
               high: high
               max: max
+          - id: deepseek-v4.1-flash-1017
+            name: deepseek-v4.1-flash-1017
+            contextWindow: 1000000
+            maxTokens: 64000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+          - id: claude-opus-5-5-high
+            name: claude-opus-5-5-high
+            input:
+              - text
+              - image
+            maxTokens: 128000
+            compat:
+              forceAdaptiveThinking: true
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+              max: max
+            contextWindow: 1000000
         retryPolicy:
           mode: always
       jiji-luna:
@@ -741,6 +684,7 @@
   config:
     transcriptView: detailed
     performanceUsage: detailed
+    collapseTiming: next-input
 - id: ui-theme
   name: "@deepseek-ai/dsh-client-ui-theme"
   config:
@@ -779,3 +723,8 @@
   disabled: false
 - id: ime-multiline-commit
   disabled: false
+- id: web
+  name: "@deepseek-ai/dsh-web"
+  config:
+    searchProvider: deepseek-search-api
+    fetchProvider: deepseek-fetch-api

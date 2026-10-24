@@ -27,6 +27,10 @@ const TOKEN_PATH = '/api/oauth/token';
 const POLL_INTERVAL_CAP_MS = 5_000;
 /** Refresh the access token this long before its stated expiry. */
 const ACCESS_REFRESH_SKEW_MS = 120_000;
+/** Attempts one refresh makes while the Portal's edge firewall answers instead of the endpoint. */
+const EDGE_BLOCK_ATTEMPTS = 3;
+/** Cap on the wait an edge refusal's `Retry-After` may ask for. */
+const EDGE_BLOCK_RETRY_CAP_MS = 8_000;
 const formHeaders = { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' };
 function form(body) {
     return new URLSearchParams(body).toString();
@@ -46,6 +50,43 @@ async function readError(response) {
         // fall through to the raw body
     }
     return text.length > 0 ? text : `HTTP ${response.status}`;
+}
+function sleep(ms, signal) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, ms);
+        signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(signal.reason instanceof Error ? signal.reason : new Error('aborted'));
+        }, { once: true });
+    });
+}
+/**
+ * True when the Portal's own endpoint never saw the request: Vercel's Security
+ * Checkpoint in front of `portal.nousresearch.com` answers non-browser clients
+ * itself (403 `x-vercel-mitigated: deny`, 429 `challenge`) with a plain-text
+ * page that repeats the status text and closes with the edge request id the
+ * `x-vercel-id` header names (`hkg1::…`). The grant stays valid — this is a
+ * wait, never a re-login.
+ */
+function edgeBlocked(response, detail) {
+    if (response.status !== 403 && response.status !== 429)
+        return false;
+    if (response.headers.get('x-vercel-mitigated') !== null)
+        return true;
+    return /\d{3,4}::|^forbidden\b/i.test(detail.trim());
+}
+function retryAfterMs(response) {
+    const seconds = Number(response.headers.get('retry-after'));
+    return Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds * 1_000, EDGE_BLOCK_RETRY_CAP_MS) : undefined;
+}
+/** The Portal's edge firewall refused the request; nothing about the grant is wrong. */
+export class NousPortalEdgeBlockedError extends Error {
+    retryAfterMs;
+    constructor(retryAfterMs) {
+        super('Nous Portal edge firewall challenged the request (the Portal never answered the token'
+            + ' endpoint). Credentials are kept; try again shortly');
+        this.retryAfterMs = retryAfterMs;
+    }
 }
 /** Step 1 of the device-code flow: ask the Portal for a verification URL + code. */
 export async function requestDeviceCode(options = {}) {
@@ -81,13 +122,7 @@ export async function requestDeviceCode(options = {}) {
 export async function pollForToken(challenge, options = {}) {
     const portalUrl = (options.portalUrl ?? DEFAULT_PORTAL_URL).replace(/\/+$/, '');
     const clientId = options.clientId ?? DEFAULT_CLIENT_ID;
-    const sleep = options.sleep ?? ((ms, signal) => new Promise((resolve, reject) => {
-        const timer = setTimeout(resolve, ms);
-        signal?.addEventListener('abort', () => {
-            clearTimeout(timer);
-            reject(signal.reason instanceof Error ? signal.reason : new Error('aborted'));
-        }, { once: true });
-    }));
+    const sleepFn = options.sleep ?? sleep;
     const deadline = Date.now() + challenge.expiresInSeconds * 1_000;
     let waitMs = challenge.intervalMs;
     while (Date.now() < deadline) {
@@ -111,7 +146,10 @@ export async function pollForToken(challenge, options = {}) {
         // but prose ("Authorization is still pending") in `error_description`, and
         // readError prefers the latter; match either spelling.
         const kind = detail.trim().toLowerCase();
-        if (kind === 'authorization_pending' || kind.endsWith('pending')) {
+        if (edgeBlocked(response, detail)) {
+            // The edge answered instead of the endpoint: the approval is unaffected.
+        }
+        else if (kind === 'authorization_pending' || kind.endsWith('pending')) {
             options.onPending?.();
         }
         else if (kind === 'slow_down' || kind.startsWith('slow')) {
@@ -120,7 +158,7 @@ export async function pollForToken(challenge, options = {}) {
         else {
             throw new Error(`Nous Portal device approval failed: ${detail}`);
         }
-        await sleep(waitMs, options.signal);
+        await sleepFn(waitMs, options.signal);
     }
     throw new Error('Nous Portal device code expired before approval');
 }
@@ -149,20 +187,30 @@ export async function deviceCodeLogin(options = {}) {
  */
 export async function refreshAccessToken(grant, signal) {
     const portalUrl = (grant.portalUrl ?? DEFAULT_PORTAL_URL).replace(/\/+$/, '');
-    const response = await fetch(`${portalUrl}${TOKEN_PATH}`, {
-        method: 'POST',
-        headers: formHeaders,
-        body: form({
-            grant_type: 'refresh_token',
-            client_id: grant.clientId ?? DEFAULT_CLIENT_ID,
-            refresh_token: grant.refreshToken,
-        }),
-        signal,
-    });
-    if (!response.ok) {
-        throw new Error(`Nous Portal token refresh failed (${await readError(response)}); sign in again`);
+    for (let attempt = 1;; attempt++) {
+        // The Portal's own client presents the refresh token as `x-nous-refresh-token`
+        // and keeps it in the grant body; send both so either read path accepts it.
+        const response = await fetch(`${portalUrl}${TOKEN_PATH}`, {
+            method: 'POST',
+            headers: { ...formHeaders, 'x-nous-refresh-token': grant.refreshToken },
+            body: form({
+                grant_type: 'refresh_token',
+                client_id: grant.clientId ?? DEFAULT_CLIENT_ID,
+                refresh_token: grant.refreshToken,
+            }),
+            signal,
+        });
+        if (response.ok)
+            return await response.json();
+        const detail = await readError(response);
+        if (!edgeBlocked(response, detail)) {
+            throw new Error(`Nous Portal token refresh failed (${detail}); sign in again`);
+        }
+        const waitMs = retryAfterMs(response);
+        if (attempt >= EDGE_BLOCK_ATTEMPTS)
+            throw new NousPortalEdgeBlockedError(waitMs);
+        await sleep(waitMs ?? attempt * 1_000, signal);
     }
-    return await response.json();
 }
 /**
  * Resolves fresh inference credentials from the stored Portal grant, caching

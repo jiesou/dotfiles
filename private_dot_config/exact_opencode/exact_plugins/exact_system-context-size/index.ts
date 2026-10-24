@@ -1,39 +1,60 @@
-import { type Plugin, tool } from "@opencode-ai/plugin";
-import { analyzeSystemPrompt } from "./report";
+import { analyzeSystemPrompt } from "./report"
 
-let capturedSections: string[] | null = null;
-let captureStamp = 0;
-let lastReport = "";
+let capturedSections: string[] | null = null
+let captureStamp = 0
 
 function buildReport(): string {
   if (!capturedSections || capturedSections.length === 0) {
-    return "No system prompt captured yet. Send any message first so `experimental.chat.system.transform` fires.";
+    return "No system prompt captured yet. Send any message first so the session context hook fires."
   }
-  return analyzeSystemPrompt(capturedSections);
+  return analyzeSystemPrompt(capturedSections)
 }
 
-export default (async () => {
-  return {
-    "experimental.chat.system.transform": async (
-      _input: any,
-      output: { system: string[] },
-    ) => {
-      capturedSections = [...output.system];
-      captureStamp = Date.now();
-      lastReport = buildReport();
-    },
+export default {
+  id: "opencode.system-context-size",
+  setup: async (ctx: any) => {
+    ctx.tool.list().then((list: any[]) => {
+      console.log("[DEBUG TOOLS]:", list.map((t: any) => t.name || t.id))
+    }).catch(console.error)
 
-    tool: {
-      "system-context-report": tool({
+    await ctx.tool.transform((tools: any) => {
+      tools.add({
+        name: "system-context-report",
         description:
-          "No args.",
-        args: {},
-        async execute() {
-          return buildReport() + (captureStamp
-            ? `\n\n---\nCaptured: ${new Date(captureStamp).toISOString()} (${capturedSections!.length} array sections)`
-            : "");
+          "Analyze the actual system prompt assembled by opencode, showing per-section size breakdown (Base / Environment / Skills / MCP / Instructions / Plugin reminders) with sub-item expansion. No args. Send any chat message first so the hook can capture the live system prompt.",
+        input: {
+          type: "object",
+          properties: {},
+          additionalProperties: false,
         },
-      }),
-    },
-  };
-}) satisfies Plugin;
+        options: { codemode: false },
+        execute: async () => {
+          try {
+            const report =
+              buildReport() +
+              (captureStamp
+                ? `\n[Captured: ${new Date(captureStamp).toISOString()}]`
+                : "")
+            return {
+              output: { report },
+              content: [{ type: "text", text: report }],
+            }
+          } catch (err) {
+            const msg = `Failed to generate report: ${err instanceof Error ? err.message : String(err)}`
+            return {
+              output: { error: msg },
+              content: [{ type: "text", text: msg }],
+            }
+          }
+        },
+      })
+    })
+
+    await ctx.session.hook("context", (event: any) => {
+      capturedSections = event.system.map((part: any) => part.text)
+      captureStamp = Date.now()
+    }).catch((err: any) => {
+      console.error("[system-context-size] context hook registration failed:", err)
+    })
+  },
+}

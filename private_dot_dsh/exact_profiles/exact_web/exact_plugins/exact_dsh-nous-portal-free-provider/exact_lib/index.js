@@ -31,7 +31,7 @@ import { deepEqualJson } from '@deepseek-ai/dsh-util-values';
 import { DEFAULT_INFERENCE_URL, DEFAULT_MODELS_URL, DEFAULT_PORTAL_URL, deviceCodeLogin, NousTokenManager, refreshAccessToken } from './oauth.js';
 import { fetchFreeModels } from './models.js';
 export { DEFAULT_CLIENT_ID, DEFAULT_INFERENCE_URL, DEFAULT_PORTAL_URL, DEFAULT_SCOPE } from './oauth.js';
-export { deviceCodeLogin, NousTokenManager, pollForToken, requestDeviceCode } from './oauth.js';
+export { deviceCodeLogin, NousPortalEdgeBlockedError, NousTokenManager, pollForToken, requestDeviceCode } from './oauth.js';
 export { fetchFreeModels, parseFreeModels } from './models.js';
 export const name = 'nous-portal-free-provider';
 export const inject = ['llm'];

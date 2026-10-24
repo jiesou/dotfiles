@@ -1,5 +1,3 @@
-import type { Plugin } from "@opencode-ai/plugin"
-
 const MODELS_URL = "https://api.cline.bot/api/v1/ai/cline/models"
 const PROVIDER_ID = "cline-pass"
 
@@ -38,66 +36,55 @@ async function fetchFreeModels() {
   const res = await fetch(MODELS_URL)
   if (!res.ok) return []
   const body: { data: OpenRouterModel[] } = await res.json()
-
   return body.data.filter((m) => m.id.endsWith(":free"))
 }
 
-function toModelEntry(m: OpenRouterModel): Record<string, any> {
-  const params = m.supported_parameters ?? []
-  const supportsReasoning = params.some((p) => ["reasoning", "reasoning_effort"].includes(p))
-  const supportsTools = params.includes("tools")
-  const supportsTemperature = params.includes("temperature")
+export default {
+  id: "opencode.cline-free-models",
+  setup: async (ctx) => {
+    let freeModels: OpenRouterModel[] = []
+    const refresh = async () => {
+      freeModels = await fetchFreeModels()
+      if (ctx.model?.reload) await ctx.model.reload()
+    }
 
-  const entry: Record<string, any> = {
-    name: m.name,
-    id: m.id,
-  }
+    if (ctx.model?.transform) {
+      await ctx.model.transform((modelsCatalog: any) => {
+        for (const m of freeModels) {
+          const params = m.supported_parameters ?? []
+          const supportsReasoning = params.some((p) =>
+            ["reasoning", "reasoning_effort"].includes(p),
+          )
+          const supportsTools = params.includes("tools")
 
-  if (m.family) entry.family = m.family
+          const entry = {
+            name: m.name,
+            modelID: m.id,
+            capabilities: {
+              tools: supportsTools,
+              input: (m.architecture?.input_modalities ?? ["text"]).filter(
+                (x: string) => x !== "output",
+              ),
+              output: (m.architecture?.output_modalities ?? ["text"]).filter(
+                (x: string) => x !== "input",
+              ),
+            },
+            limit: {
+              context: m.context_length || m.top_provider?.context_length || 0,
+              output: m.top_provider?.max_completion_tokens || 0,
+            },
+            cost: [{ input: 0, output: 0, cache: { read: 0, write: 0 } }],
+          }
 
-  if (m.context_length || m.top_provider?.max_completion_tokens != null) {
-    entry.limit = {}
-    if (m.context_length) entry.limit.context = m.context_length
-    if (m.top_provider?.max_completion_tokens != null) entry.limit.output = m.top_provider.max_completion_tokens
-  }
+          modelsCatalog.update(PROVIDER_ID, m.id, (model: any) => {
+            Object.assign(model, entry)
+          })
+        }
+      })
+    }
 
-  entry.cost = { input: 0, output: 0 }
-
-  if (m.architecture?.input_modalities || m.architecture?.output_modalities) {
-    entry.modalities = {}
-    if (m.architecture.input_modalities) entry.modalities.input = m.architecture.input_modalities
-    if (m.architecture.output_modalities) entry.modalities.output = m.architecture.output_modalities
-  }
-
-  if (supportsTools) entry.tool_call = true
-  if (supportsReasoning) entry.reasoning = true
-  if (supportsTemperature) entry.temperature = true
-
-  if (supportsReasoning) {
-    entry.interleaved = { field: "reasoning_details" }
-  }
-
-  return entry
+    await refresh()
+    const timer = setInterval(() => void refresh().catch(console.error), 60_000)
+    return () => clearInterval(timer)
+  },
 }
-
-export default (async () => {
-  const freeModels = await fetchFreeModels()
-  if (freeModels.length === 0) return {}
-
-  return {
-    config: async (cfg: Record<string, any>) => {
-      const provider = cfg.provider?.[PROVIDER_ID]
-      if (!provider) return
-
-      const models: Record<string, any> = {}
-      for (const m of freeModels) {
-        models[m.id] = toModelEntry(m)
-      }
-
-      provider.models = {
-        ...(provider.models || {}),
-        ...models,
-      }
-    },
-  }
-}) satisfies Plugin

@@ -24,7 +24,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm';
 import z from '@deepseek-ai/schemastery';
 export { DEFAULT_CLIENT_ID, DEFAULT_INFERENCE_URL, DEFAULT_PORTAL_URL, DEFAULT_SCOPE } from './oauth.js';
-export { deviceCodeLogin, NousTokenManager, pollForToken, requestDeviceCode } from './oauth.js';
+export { deviceCodeLogin, NousPortalEdgeBlockedError, NousTokenManager, pollForToken, requestDeviceCode } from './oauth.js';
 export type { DeviceCodeChallenge, InferenceCredential, NousPortalGrant } from './oauth.js';
 export { fetchFreeModels, parseFreeModels } from './models.js';
 export type { NousPortalModel } from './models.js';
