@@ -87,6 +87,12 @@ export default [
     prompt: `Correctly await via script/target matching—instead of using \`sleep [long duration]\` to poll (invalid). Tip: Don't "poll" the subagent settle, just return and it will notify`,
   },
   {
+    match: (v) => v.includes("nohup "),
+    reject: true,
+    prompt:
+      "You don't need nohup, use tmux directly!",
+  },
+  {
     match: (v) =>
       !(
         v.includes("tmux") ||
