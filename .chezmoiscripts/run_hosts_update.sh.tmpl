@@ -36,8 +36,9 @@ END { for (i = 1; i <= n; i++) print buf[i] }
 ' - "$target" > "$tmp"
 
 cmp -s "$tmp" "$target" || {
+  echo "chezmoi-hosts-update: checking..." >&2
+  entries | grep -vxF -f "$target" | sed 's/^/chezmoi-hosts-update: + /' >&2
   sudo cp "$tmp" "$target"
-  echo "chezmoi-hosts-update: updated $target" >&2
 }
 
 {{ if $termux.in_termux -}}
