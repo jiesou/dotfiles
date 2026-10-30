@@ -7,10 +7,12 @@
   config:
     trustedHosts:
       - chenpc.lan
+      - chenTPL15.lan
       - hp-book.lan
       - hp-book
       # 裸 IP 访问的授权(dsh 绑 loopback,socat 投放到局域网;LAN IP 变了改这里)
       - 192.168.11.192
+      - 192.168.11.160
 - insert:
     - id: tool-deny
       name: dsh-tool-deny
@@ -227,8 +229,6 @@
               - text
               - image
             maxTokens: 128000
-            compat:
-              forceAdaptiveThinking: true
             reasoningEfforts:
               off: null
               low: low

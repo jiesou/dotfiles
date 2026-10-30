@@ -1,8 +1,13 @@
 tap "anomalyco/tap", trusted: true
 tap "espressif/eim"
 tap "ublue-os/experimental-tap"
+tap "ublue-os/tap", trusted: { casks: ["antigravity-ide-linux"] }
 # Arduino command-line interface
 brew "arduino-cli"
+# Open-source, cross-platform JavaScript runtime environment
+brew "node"
+# Secure and free password manager for all of your devices
+brew "bitwarden-cli"
 # Resource monitor. C++ version and continuation of bashtop and bpytop
 brew "btop"
 # Incredibly fast JavaScript runtime, bundler, test runner, and package manager
@@ -11,6 +16,8 @@ brew "bun"
 brew "ccache"
 # Manage your dotfiles across multiple diverse machines, securely
 brew "chezmoi"
+# Wrap Gemini CLI, Codex, Claude Code, Qwen Code as an API service
+brew "cliproxyapi", restart_service: :changed
 # Statistics utility to count lines of code
 brew "cloc"
 # Cross-platform make
@@ -21,8 +28,16 @@ brew "ddrescue"
 brew "deno"
 # USB programmer
 brew "dfu-util"
+# GNU debugger
+brew "gdb"
 # GitHub command-line tool
 brew "gh"
+# Open-source GitLab command-line tool
+brew "glab"
+# Open source programming language to build simple/reliable/efficient software
+brew "go"
+# CLI email client written in Rust
+brew "himalaya"
 # Update of iperf: measures TCP, UDP, and SCTP bandwidth
 brew "iperf3"
 # Simple terminal UI for git commands
@@ -35,12 +50,12 @@ brew "neovim"
 brew "ninja"
 # Port scanning utility for large networks
 brew "nmap"
-# Open-source, cross-platform JavaScript runtime environment
-brew "node"
 # Fast, disk space efficient package manager
 brew "pnpm"
 # Coreutils progress viewer
 brew "progress"
+# Rust toolchain installer
+brew "rustup"
 # Display and control your Android device
 brew "scrcpy"
 # Simple TTY terminal I/O application
@@ -49,12 +64,18 @@ brew "tio"
 brew "unar"
 # Extremely fast Python package installer and resolver, written in Rust
 brew "uv"
+# Dynamic analysis tools (memory, debug, profiling)
+brew "valgrind"
 # The AI coding agent built for the terminal.
-brew "anomalyco/tap/opencode", trusted: true
+brew "anomalyco/tap/opencode", link: false, trusted: true
+# OpenCode V2 - the AI coding agent for the terminal
+brew "anomalyco/tap/opencode-v2", trusted: true
 # ESP-IDF Installation Manager - CLI tool for setting up ESP-IDF development environment
 brew "espressif/eim/eim", trusted: true
 # OpenAI's official ChatGPT desktop app
 cask "ublue-os/experimental-tap/chatgpt-linux", trusted: true
+# Terminal-based AI coding assistant
+cask "claude-code@latest"
 # OpenAI's coding agent that runs in your terminal
 cask "codex"
 # Brings the power of Copilot coding agent directly to your terminal
@@ -85,13 +106,16 @@ vscode "qassimfarid.ejs-language-support"
 vscode "qwtel.sqlite-viewer"
 vscode "slint.slint"
 vscode "sumneko.lua"
+vscode "tencent-cloud.coding-copilot"
 vscode "vue.volar"
+uv "git-filter-repo"
 flatpak "app.zen_browser.zen"
 flatpak "be.alexandervanhee.gradia"
 flatpak "ca.desrt.dconf-editor"
 flatpak "cc.arduino.IDE2"
 flatpak "cn.feishu.Feishu"
 flatpak "cn.lceda.LCEDAPro"
+flatpak "cn.lceda.LCEDAPro", remote: "https://dl.flathub.org/build-repo/327949"
 flatpak "com.baidu.NetDisk"
 flatpak "com.bambulab.BambuStudio"
 flatpak "com.belmoussaoui.Authenticator"
@@ -104,6 +128,7 @@ flatpak "com.github.marhkb.Pods"
 flatpak "com.github.tchx84.Flatseal"
 flatpak "com.github.unrud.VideoDownloader"
 flatpak "com.github.wwmm.easyeffects"
+flatpak "com.google.Antigravity", remote: "flatpark", url: "https://dl.flatpark.org/"
 flatpak "com.heroicgameslauncher.hgl"
 flatpak "com.mattjakeman.ExtensionManager"
 flatpak "com.moonlight_stream.Moonlight"
@@ -114,6 +139,7 @@ flatpak "com.ranfdev.DistroShelf"
 flatpak "com.rustdesk.RustDesk"
 flatpak "com.st.STM32CubeMX"
 flatpak "com.tencent.WeChat"
+flatpak "com.tencent.WorkBuddy", remote: "flatpark", url: "https://dl.flatpark.org/"
 flatpak "com.termius.Termius"
 flatpak "com.usebottles.bottles"
 flatpak "com.valvesoftware.Steam"
@@ -124,7 +150,6 @@ flatpak "dev.zed.Zed-Preview"
 flatpak "im.riot.Riot"
 flatpak "io.dbeaver.DBeaverCommunity"
 flatpak "io.github.Faugus.faugus-launcher"
-flatpak "io.github.ellie_commons.jorts"
 flatpak "io.github.flattool.Ignition"
 flatpak "io.github.flattool.Warehouse"
 flatpak "io.github.ilya_zlobintsev.LACT"
@@ -133,6 +158,7 @@ flatpak "io.github.kolunmi.Bazaar"
 flatpak "io.github.kukuruzka165.materialgram"
 flatpak "io.github.nozwock.Packet"
 flatpak "io.github.pieterdd.RcloneShuttle"
+flatpak "io.github.pieterdd.StretchBreak"
 flatpak "io.github.ra3xdh.qucs_s"
 flatpak "io.github.radiolamp.mangojuice"
 flatpak "io.github.ungoogled_software.ungoogled_chromium"
@@ -149,6 +175,7 @@ flatpak "net.agalwood.Motrix"
 flatpak "net.lutris.Lutris"
 flatpak "net.sapples.LiveCaptions"
 flatpak "org.audacityteam.Audacity"
+flatpak "org.blender.Blender"
 flatpak "org.cockpit_project.CockpitClient"
 flatpak "org.fcitx.Fcitx5"
 flatpak "org.freecad.FreeCAD"
@@ -193,5 +220,10 @@ flatpak "org.prismlauncher.PrismLauncher"
 flatpak "org.remmina.Remmina"
 flatpak "org.videolan.VLC"
 flatpak "org.wireshark.Wireshark"
+flatpak "page.codeberg.elly_code.jorts"
 flatpak "page.codeberg.libre_menu_editor.LibreMenuEditor"
 flatpak "page.tesk.Refine"
+npm "@deepseek-ai/dsh.bak-0.1.3-alpha.2-09101259"
+npm "@deepseek-ai/dsh"
+npm "@deepseek-harness-tui/dsh-tui"
+npm "@openchamber/web"
