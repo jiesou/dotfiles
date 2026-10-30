@@ -1,0 +1,45 @@
+#!/bin/sh
+{{ $termux := includeTemplate "termux.yaml.tmpl" . | fromYaml -}}
+set -eu
+
+entries() {
+cat <<'EOF'
+10.144.69.2      chenTPL15 chenTPL15.lan
+10.144.69.1      hp-book hp-book.lan
+192.168.13.1     pveimmortalwrt pveimmortalwrt.lan
+192.168.13.10    400g3pve 400g3pve.lan
+192.168.13.101   casaos casaos.lan
+192.168.13.102   homeassistant homeassistant.lan
+192.168.11.192   chenpc chenpc.lan
+192.168.11.1     NanoPi_R2s NanoPi_R2s.lan
+192.168.11.131   hp-server hp-server.lan
+192.168.100.100  eduGatewayImmortalWrt eduGatewayImmortalWrt.lan
+192.168.100.1    wyUnicomImmortalWrt wyUnicomImmortalWrt.lan
+EOF
+}
+
+{{ if $termux.in_termux -}}
+target="$HOME/.local/share/chezmoi-hosts"
+hook=/data/adb/service.d/chezmoi-hosts.sh
+[ -f "$target" ] || cp /system/etc/hosts "$target"
+{{ else -}}
+target=/etc/hosts
+{{ end -}}
+
+if missing=$(entries | grep -vxF -f "$target"); then
+  printf '%s\n' "$missing" | sudo tee -a "$target" > /dev/null
+  echo "chezmoi-hosts: updated $target" >&2
+else
+  echo "chezmoi-hosts: already up to date" >&2
+fi
+
+{{ if $termux.in_termux -}}
+cat <<EOS | sudo tee "$hook" > /dev/null
+#!/system/bin/sh
+chcon u:object_r:system_file:s0 $target
+umount /system/etc/hosts 2>/dev/null || true
+mount --bind $target /system/etc/hosts
+EOS
+sudo chmod 755 "$hook"
+sudo nsenter -t 1 -m -- "$hook"
+{{ end -}}
