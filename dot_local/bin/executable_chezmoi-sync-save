@@ -18,7 +18,6 @@ DIRS=(
   "$HOME/.dsh/.agent-presets"
   "$HOME/.dsh/AGENTS.md"
   "$HOME/.dsh/cordis.patch.yml"
-  "$HOME/.dsh/settings.yaml"
   "$HOME/.dsh/.credentials.yaml"
 )
 
