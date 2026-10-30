@@ -26,17 +26,15 @@ hook=/data/adb/service.d/chezmoi-hosts-update.sh
 target=/etc/hosts
 {{ end -}}
 
-list=$(mktemp)
 merged=$(mktemp)
-trap 'rm -f "$list" "$merged"' EXIT
-entries > "$list"
+trap 'rm -f "$merged"' EXIT
 
-awk '{for (i = 2; i <= NF; i++) print $i}' "$list" | grep -vwF -f - "$target" > "$merged"
-cat "$list" >> "$merged"
+entries | awk '{for (i = 2; i <= NF; i++) print $i}' | grep -vwF -f - "$target" > "$merged"
+entries >> "$merged"
 
 if ! cmp -s "$merged" "$target"; then
   echo "chezmoi-hosts-update: checking..." >&2
-  grep -vxF -f "$target" "$list" | sed 's/^/chezmoi-hosts-update: + /' >&2
+  entries | grep -vxF -f "$target" | sed 's/^/chezmoi-hosts-update: + /' >&2
   sudo cp "$merged" "$target"
 fi
 
