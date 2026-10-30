@@ -22,14 +22,6 @@ EOF
 target="$HOME/.local/share/chezmoi-hosts-update"
 hook=/data/adb/service.d/chezmoi-hosts-update.sh
 [ -f "$target" ] || cp /system/etc/hosts "$target"
-cat <<EOS | sudo tee "$hook" > /dev/null
-#!/system/bin/sh
-chcon u:object_r:system_file:s0 $target
-umount /system/etc/hosts 2>/dev/null
-mount --bind $target /system/etc/hosts
-EOS
-sudo chmod 755 "$hook"
-sudo nsenter -t 1 -m -- "$hook"
 {{ else -}}
 target=/etc/hosts
 {{ end -}}
@@ -39,15 +31,23 @@ merged=$(mktemp)
 trap 'rm -f "$list" "$merged"' EXIT
 entries > "$list"
 
-awk '
-FNR == NR { for (i = 2; i <= NF; i++) own[$i] = 1; next }
-/^[ \t]*#/ { print; next }
-{ for (i = 2; i <= NF; i++) if ($i in own) next; print }
-' "$list" "$target" > "$merged"
+awk '{for (i = 2; i <= NF; i++) print $i}' "$list" | grep -vwF -f - "$target" > "$merged"
 cat "$list" >> "$merged"
 
-cmp -s "$merged" "$target" || {
+if ! cmp -s "$merged" "$target"; then
   echo "chezmoi-hosts-update: checking..." >&2
   grep -vxF -f "$target" "$list" | sed 's/^/chezmoi-hosts-update: + /' >&2
   sudo cp "$merged" "$target"
-}
+fi
+
+{{ if $termux.in_termux -}}
+hook=/data/adb/service.d/chezmoi-hosts-update.sh
+cat <<EOS | sudo tee "$hook" > /dev/null
+#!/system/bin/sh
+chcon u:object_r:system_file:s0 $target
+umount /system/etc/hosts 2>/dev/null
+mount --bind $target /system/etc/hosts
+EOS
+sudo chmod 755 "$hook"
+sudo nsenter -t 1 -m -- "$hook"
+{{ end -}}
