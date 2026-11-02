@@ -59,6 +59,15 @@
           - mcp__tinyfish__cancel_deep_research
           - mcp__tinyfish__get_deep_research
           - mcp__tinyfish__start_deep_research
+          - mcp__tinyfish__cancel_dataset_run
+          - mcp__tinyfish__create_dataset
+          - mcp__tinyfish__delete_dataset
+          - mcp__tinyfish__get_dataset
+          - mcp__tinyfish__get_dataset_rows
+          - mcp__tinyfish__list_datasets
+          - mcp__tinyfish__list_deep_research
+          - mcp__tinyfish__plan_dataset
+          - mcp__tinyfish__populate_dataset
     - id: subagent-background-only
       name: 'dsh-subagent-background-only'
 - id: session-query-sqlite
@@ -69,8 +78,7 @@
   name: "@deepseek-ai/dsh-agent-default-model"
   config:
     provider: cpa
-    model: deepseek-v4.1-flash
-    reasoningEffort: low
+    model: gemini-3.8-flash-high
 - id: ui-settings-general
   name: "@deepseek-ai/dsh-client-ui-settings-general"
   config:
@@ -97,6 +105,7 @@
               low: low
               medium: medium
               high: high
+            contextWindow: 1000000
           - id: gemini-3.8-flash-high
             name: Gemini 3.8 Flash (High)
             contextWindow: 1048576
@@ -225,17 +234,17 @@
               high: high
           - id: claude-opus-5-5-high
             name: claude-opus-5-5-high
+            contextWindow: 1000000
+            maxTokens: 128000
             input:
               - text
               - image
-            maxTokens: 128000
             reasoningEfforts:
               off: null
               low: low
               medium: medium
               high: high
               max: max
-            contextWindow: 1000000
         retryPolicy:
           mode: always
       jiji-luna:
@@ -675,6 +684,34 @@
               - text
               - image
         apiKeyEnv: ZAI_CODING_CN_API_KEY
+      cline-pass:
+        apiKeyEnv: CLINE_PASS_API_KEY
+        api: openai-completions
+        baseURL: https://api.cline.bot/api/v1
+        models:
+          - id: cline-pass/deepseek-v4.1-flash
+            name: DeepSeek V4.1 Flash
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+          - id: cline-pass/glm-5.3-flash
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+            name: GLM 5.3 Flash
+        displayName: Cline Pass
 - id: bash-sandbox
   name: "@deepseek-ai/dsh-bash-sandbox"
   config:
@@ -682,7 +719,7 @@
 - id: ui-chat
   name: "@deepseek-ai/dsh-client-ui-chat"
   config:
-    transcriptView: compact
+    transcriptView: detailed
     collapseTiming: next-input
     performanceUsage: detailed
 - id: ui-theme

@@ -18,8 +18,6 @@ brew "ccache"
 brew "chezmoi"
 # Wrap Gemini CLI, Codex, Claude Code, Qwen Code as an API service
 brew "cliproxyapi", restart_service: :changed
-# Statistics utility to count lines of code
-brew "cloc"
 # Cross-platform make
 brew "cmake"
 # GNU data recovery tool
@@ -64,10 +62,6 @@ brew "tio"
 brew "unar"
 # Extremely fast Python package installer and resolver, written in Rust
 brew "uv"
-# Dynamic analysis tools (memory, debug, profiling)
-brew "valgrind"
-# The AI coding agent built for the terminal.
-brew "anomalyco/tap/opencode", link: false, trusted: true
 # OpenCode V2 - the AI coding agent for the terminal
 brew "anomalyco/tap/opencode-v2", trusted: true
 # ESP-IDF Installation Manager - CLI tool for setting up ESP-IDF development environment

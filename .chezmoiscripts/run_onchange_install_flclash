@@ -1,0 +1,37 @@
+#!/bin/sh
+set -eu
+
+[ -z "${REMOTE_CONTAINERS:-}" ] || { echo "run_onchange_install_flclash: running in container, skipping" >&2; exit 0; }
+
+printf "run_onchange_install_flclash: ? [y/N]: "
+read -r confirm || :
+case "$confirm" in
+    [yY]*) ;;
+    *) exit 0 ;;
+esac
+
+TMP_DIR=$(mktemp -d /tmp/flclash.XXXXXX)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+echo "run_onchange_install_flclash: Downloading latest release via gh..."
+gh release download -R chen08209/FlClash -p "*linux-amd64.deb" -O "$TMP_DIR/flclash.deb" --clobber
+
+echo "run_onchange_install_flclash: Unpacking..."
+ar x "$TMP_DIR/flclash.deb" --output "$TMP_DIR"
+mkdir -p "$TMP_DIR/extracted"
+tar -xJ -f "$TMP_DIR/data.tar.xz" -C "$TMP_DIR/extracted"
+
+echo "run_onchange_install_flclash: Installing to /opt/FlClash..."
+sudo mkdir -p /opt/FlClash
+sudo cp -a "$TMP_DIR/extracted/opt/FlClash/." /opt/FlClash/
+sudo chown -R root:root /opt/FlClash
+sudo chmod -R 755 /opt/FlClash
+sudo restorecon -RF /opt/FlClash
+
+echo "run_onchange_install_flclash: Installing desktop entry and icons to ~/.local/share/..."
+mkdir -p "$HOME/.local/share/applications" "$HOME/.local/share/icons"
+cp "$TMP_DIR/extracted/usr/share/applications/FlClash.desktop" "$HOME/.local/share/applications/"
+cp -a "$TMP_DIR/extracted/usr/share/icons/." "$HOME/.local/share/icons/"
+sed -i 's|^Exec=FlClash %U|Exec=/opt/FlClash/FlClash %U|' "$HOME/.local/share/applications/FlClash.desktop"
+
+echo "run_onchange_install_flclash: Done"
