@@ -8,12 +8,63 @@
 - 合科泰 (Hottech): `https://list.szlcsc.com/brand/11439.html`
 
 ### 搜索方式
-- **全局搜索**: `https://so.szlcsc.com/global.html?k=<关键词>`
+
+**优先用搜索 API（可 curl，无需浏览器、不受 WAF 拦）**：
+
+```bash
+curl -sS 'https://so.szlcsc.com/query/product' \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Origin: https://so.szlcsc.com' \
+  -H 'Referer: https://so.szlcsc.com/global.html?k=ABS210' \
+  -A 'Mozilla/5.0' -X POST --data '{
+    "currentPage":1,"pageSize":30,
+    "catalogIdFilter":"","brandIdFilter":"","standardFilter":"","arrangeFilter":"",
+    "labelFilter":"","authenticationFilter":"","keyword":"ABS210",
+    "sortNumber":6,
+    "satisfyStockType":"","startPrice":"","endPrice":"","demandNumber":"",
+    "spotFilter":1,"discountFilter":1,"hasDataFile":false,
+    "brandPlaceFilter":"","secondKeyword":"","queryParameterValue":"","lastParamName":""
+  }'
+```
+
+- 返回 `result.searchResult`：
+  - `productRecordList[].productVO`：`productCode`、`productModel`、`productGradePlateName`、`encapsulationModel`、`stockNumber`、`recentlySalesCount`、`productPriceList`、`productMinEncapsulationNumber`、`convesionRatio`、`productUnit`
+  - `totalCount`、`countPage`、`pageSize`
+- **排序 `sortNumber`**（响应 `querySortBySign` 回显，可确认生效）：
+
+  | sortNumber | 含义 |
+  |:--:|---|
+  | 0 | 综合排序（默认） |
+  | 1 | 价格升序 |
+  | 2 | 价格降序 |
+  | 6 | **销量** |
+  | 8 / 9 | 库存（jx / sx） |
+  | 10~13 | 广东仓 / 江苏仓 库存（jx / sx） |
+
+- **分页**：改 `currentPage`；每页 `pageSize` 最大取 30（和网页一致）。
+- `productPriceList[].productPrice` 是人民币（¥）。
+- `销量` 顺序通常与 `recentlySalesCount` 一致；偶有置顶/推广位导致首项不严格单调，一律以返回顺序为准。
+- 请求不要太密集，连续快速请求会偶发空响应，间隔 1~2s 重试即可。
+- 必带 `Origin`/`Referer`/`User-Agent`，否则可能被边缘节点拒绝。
+
+**浏览器方式（API 不便时）**：
+- 全局搜索页：`https://so.szlcsc.com/global.html?k=<关键词>`
+- 销量排序：搜索页排序条点击文本「销量」（内部触发 `sortNumber=6`）。直接改 URL 的 `?sortNumber=6` 会被记入 query，但服务端不生效，必须点按钮。
+- 网页数据结构在 `window.__NEXT_DATA__.props.pageProps.soData.searchResult.productRecordList`，与 API 同构，可整块读取。
+- 站点对 curl 请求页面返回 403 WAF，页面必须走浏览器；但上面的 `POST /query/product` 不受此限。
+
+**品牌/分类页（网页）**：
 - **品牌内搜索**: 进入 `https://list.szlcsc.com/brand/<id>.html` 品牌页后 input[placeholder="在结果中再搜索"]
 - **品牌内排序**: 进入 `https://list.szlcsc.com/brand/<id>.html` 品牌页后点击 button#searchListButton
 - **分类+品牌过滤**: `https://list.szlcsc.com/catalog/<分类ID>.html?brand=<品牌ID>`
 - 分类ID: 陶瓷谐振器(无源)=530, 无源晶振=537, 贴片电阻=439
 - 使用品牌页面的"在结果中再搜索"文本框搜索特定型号
+
+### 其他公开检索入口（拿规格/库存用）
+- **EasyEDA 检索**：`https://easyeda.com/api/eda/product/search?keyword=<词>&page=1&pageSize=10`，返回型号、封装、价格阶梯、库存、C 编号，无销量。
+- **LCSC 商品页规格**：`https://www.lcsc.com/product-detail/C<编号>.html`，页面内嵌 schema.org JSON-LD `PropertyValue`，可直接解析 VR/IO/IFSM/Vf/封装等参数。
+- **JLC SMT 检索**：`POST https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList`，body `{"currentPage":1,"pageSize":30,"keyword":"<词>"}`，返回 C 编号、库存、价格、基础库/扩展库；忽略排序参数。
 
 ### 产品详情页
 - 格式: `https://item.szlcsc.com/<C编号>.html`

@@ -45,7 +45,7 @@ get-transcript.py 支持平台：
 ```
 你是视频内容总结助手。按照要求执行：
 
-1. 运行 `python3 "{SKILL_DIR}/scripts/get-transcript.py" "{VIDEO_URL}"` 下载视频的字幕文稿。
+1. 运行 `python3 "{SKILL_DIR}/scripts/get-transcript.py" "{VIDEO_URL}"` 下载视频的字幕文稿（若输出 `comments: failed` 且需要评论补充，直接重跑相同命令即可断点重试补全评论）。
 2. 读取脚本打印的字幕缓存文件。
 3. 从字幕缓存文件 YAML frontmatter 提取元数据( title, uploader/channel, duration, upload_date, views )。
 4. 根据视频类型生成对应的中文摘要。

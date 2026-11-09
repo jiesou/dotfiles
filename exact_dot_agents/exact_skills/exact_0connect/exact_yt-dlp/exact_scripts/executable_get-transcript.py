@@ -36,6 +36,7 @@ COOKIES = ("--cookies-from-browser", "brave:~/.var/app/com.brave.Browser/config/
 EJS = ("--remote-components", "ejs:github")
 
 DOWNLOAD_TIMEOUT = float(os.environ.get("GET_TRANSCRIPT_DL_TIMEOUT") or 1800)
+COMMENTS_TIMEOUT = float(os.environ.get("GET_TRANSCRIPT_COMMENTS_TIMEOUT") or 15)
 RETRIES = max(1, int(os.environ.get("GET_TRANSCRIPT_RETRIES") or 3))
 
 # Cookie 解密依赖系统 keyring。锁着时 B 站拿不到 AI 字幕（会退化到 ASR），
@@ -307,7 +308,20 @@ def _fmt_comments(data: list) -> str:
 BILI_MODE = {"hot": 3, "recent": 1}
 
 
-def _fetch_bili_comments(tmp: Path, vid: str, order: str, out: str) -> bool:
+def _comment_error_reason(err_text: str) -> str:
+    low = err_text.lower()
+    if "comments are turned off" in low or "disabled" in low:
+        return "disabled"
+    if "ssl" in low or "handshake" in low:
+        return "ssl_error"
+    if "429" in low or "too many requests" in low:
+        return "rate_limited"
+    if "reset by peer" in low or "connection reset" in low:
+        return "connection_reset"
+    return "error"
+
+
+def _fetch_bili_comments(tmp: Path, vid: str, order: str, out: str) -> Tuple[bool, Optional[str]]:
     mode = BILI_MODE.get(order, 1)
     code = (
         "import sys, json, asyncio, urllib.request, urllib.parse\n"
@@ -372,21 +386,21 @@ def _fetch_bili_comments(tmp: Path, vid: str, order: str, out: str) -> bool:
     try:
         r = subprocess.run(
             [*_bili_python_cmd(), "-c", code, vid, str(mode)],
-            capture_output=True, text=True, check=False, timeout=120)
+            capture_output=True, text=True, check=False, timeout=COMMENTS_TIMEOUT)
     except subprocess.TimeoutExpired:
-        sys.stderr.write(f"bilibili-api-python {order} comments timed out\n")
-        return False
+        sys.stderr.write(f"bilibili-api-python {order} comments timed out after {COMMENTS_TIMEOUT:.0f}s\n")
+        return False, "timeout"
     if r.returncode != 0 or not r.stdout.strip():
         sys.stderr.write(f"bilibili-api-python {order} comments failed (exit {r.returncode}):\n")
         for ln in (r.stderr or "").splitlines()[-10:]:
             sys.stderr.write(f"  {ln}\n")
-        return False
+        return False, _comment_error_reason(r.stderr or "")
     _, _, payload = r.stdout.partition("\n")
     (tmp / out).write_text(payload, "utf-8")
-    return True
+    return True, None
 
 
-def _fetch_yt_comments(yt: list[str], url: str, tmp: Path, sort: str, out: str) -> bool:
+def _fetch_yt_comments(yt: list[str], url: str, tmp: Path, sort: str, out: str) -> Tuple[bool, Optional[str]]:
     try:
         r = subprocess.run(
             [*yt, *COOKIES, *EJS,
@@ -398,20 +412,47 @@ def _fetch_yt_comments(yt: list[str], url: str, tmp: Path, sort: str, out: str) 
              "--print-to-file", "%(comments)j", str(tmp / out),
              "-o", str(tmp / "c.%(ext)s"),
              url],
-            capture_output=True, text=True, check=False, timeout=120)
+            capture_output=True, text=True, check=False, timeout=COMMENTS_TIMEOUT)
     except subprocess.TimeoutExpired:
-        sys.stderr.write(f"yt-dlp {sort} comments timed out\n")
-        return False
+        sys.stderr.write(f"yt-dlp {sort} comments timed out after {COMMENTS_TIMEOUT:.0f}s\n")
+        return False, "timeout"
     for ln in (r.stderr or "").splitlines():
         if not ln.startswith("[download]"):
             sys.stderr.write(f"{ln}\n")
     if r.returncode != 0:
         sys.stderr.write(f"yt-dlp {sort} comments failed (exit {r.returncode})\n")
-        return False
-    return (tmp / out).exists() and (tmp / out).stat().st_size > 0
+        return False, _comment_error_reason(r.stderr or "")
+    ok = (tmp / out).exists() and (tmp / out).stat().st_size > 0
+    return ok, None if ok else "error"
 
 
-def _fetch(yt: list[str], url: str, tmp: Path, keep_ts: bool = False) -> Tuple[Optional[Path], list[str], str, bool, str]:
+def _fetch_comments_flow(yt: list[str], url: str, plat: str, vid: str, tmp: Path) -> Tuple[str, Optional[str]]:
+    comment_err = None
+    if plat == "youtube":
+        ok1, r1 = _fetch_yt_comments(yt, url, tmp, "top", "comments-hot.json")
+        ok2, r2 = _fetch_yt_comments(yt, url, tmp, "new", "comments-recent.json")
+        if not ok1 and not ok2:
+            comment_err = r1 or r2 or "error"
+    elif plat == "bilibili":
+        ok1, r1 = _fetch_bili_comments(tmp, vid, "hot", "comments-hot.json")
+        ok2, r2 = _fetch_bili_comments(tmp, vid, "recent", "comments-recent.json")
+        if not ok1 and not ok2:
+            comment_err = r1 or r2 or "error"
+    comments = _read_comments(tmp)
+    return comments, comment_err
+
+
+def _format_comment_block(comments: str, comment_err: Optional[str]) -> Tuple[Optional[str], Optional[str], str]:
+    if comments:
+        return None, comments, "yes"
+    if not comment_err:
+        return None, None, "no"
+    if comment_err == "disabled":
+        return "disabled by uploader", "## Comments\n\n> `comments: disabled by uploader`", "disabled by uploader"
+    return f"failed ({comment_err})", f"## Comments\n\n> `comments: failed ({comment_err}) — rerun to retry`", f"failed ({comment_err}, rerun to retry)"
+
+
+def _fetch(yt: list[str], url: str, tmp: Path, keep_ts: bool = False) -> Tuple[Optional[Path], list[str], str, bool, str, Optional[str]]:
     plat = _platform(url)
     sub_langs = {
         "youtube": "en,es,en-US,es-419,zh-Hans,zh-Hant,zh,zh-CN,zh-TW,zh-HK,ja",
@@ -455,12 +496,7 @@ def _fetch(yt: list[str], url: str, tmp: Path, keep_ts: bool = False) -> Tuple[O
     id_file = tmp / "id.txt"
     vid = (id_file.read_text("utf-8", errors="replace").strip() if id_file.exists() else "") or _vid(url) or ""
 
-    if plat == "youtube":
-        _fetch_yt_comments(yt, url, tmp, "top", "comments-hot.json")
-        _fetch_yt_comments(yt, url, tmp, "new", "comments-recent.json")
-    elif plat == "bilibili":
-        _fetch_bili_comments(tmp, vid, "hot", "comments-hot.json")
-        _fetch_bili_comments(tmp, vid, "recent", "comments-recent.json")
+    comments, comment_err = _fetch_comments_flow(yt, url, plat, vid, tmp)
 
     skip = {"comments-hot.json", "comments-recent.json", "meta.txt", "id.txt"}
     subs = sorted(tmp.glob("*.vtt")) or sorted(
@@ -470,8 +506,7 @@ def _fetch(yt: list[str], url: str, tmp: Path, keep_ts: bool = False) -> Tuple[O
     )
     if subs and _clean_subtitle(subs[0], keep_ts).strip():
         meta = _read_meta(tmp)
-        comments = _read_comments(tmp)
-        return subs[0], meta, comments, False, vid
+        return subs[0], meta, comments, False, vid, comment_err
 
     sys.stderr.write("no usable subtitles, falling back to x-asr transcription\n")
     _warn_keyring(errs)
@@ -479,18 +514,17 @@ def _fetch(yt: list[str], url: str, tmp: Path, keep_ts: bool = False) -> Tuple[O
     if not wav:
         sys.stderr.write("audio download failed, no fallback possible\n")
         # 评论在这之前已经抓到了，没稿也要交出去（纯 BGM 片下评论往往是唯一信息源）
-        return None, _read_meta(tmp), _read_comments(tmp), False, vid
+        return None, _read_meta(tmp), comments, False, vid, comment_err
     meta = _read_meta(tmp)
     dur = meta[2] or "?"
     sys.stderr.write(f"transcribing audio ({dur}), this may take a while, please wait longer...\n")
     text = _transcribe(wav, keep_ts)
     if not text:
         sys.stderr.write("transcription failed\n")
-        return None, meta, _read_comments(tmp), False, vid
+        return None, meta, comments, False, vid, comment_err
     txt = tmp / "transcript.txt"
     txt.write_text(text, "utf-8")
-    comments = _read_comments(tmp)
-    return txt, meta, comments, True, vid
+    return txt, meta, comments, True, vid, comment_err
 
 
 def _fetch_local(src: Path, tmp: Path, keep_ts: bool = False) -> Tuple[Optional[Path], list[str], str, bool, str]:
@@ -583,6 +617,37 @@ def main(argv: list[str]) -> int:
     cached = _cached(vid, keep_ts) if vid else None
     if cached:
         text = cached.read_text("utf-8", errors="replace")
+        fail_m = re.search(r"^comments:\s*failed\s*(?:\(([^)]+)\))?", text, re.M)
+        if fail_m and not is_local:
+            plat = _platform(url)
+            if plat in ("youtube", "bilibili"):
+                sys.stderr.write(f"[resume] transcript cached, retrying comments for {vid}...\n")
+                yt = _yt_dlp_cmd()
+                with tempfile.TemporaryDirectory(prefix="work-comments-", dir=str(CACHE)) as td:
+                    tmp = Path(td)
+                    comments, comment_err = _fetch_comments_flow(yt, url, plat, vid, tmp)
+                    fm_val, body_block, status_disp = _format_comment_block(comments, comment_err)
+                    if comments:
+                        new_text = re.sub(r"^comments:.*?\n", "", text, flags=re.M)
+                        if "\n## Comments" in new_text:
+                            new_text = re.split(r"\n## Comments", new_text)[0].rstrip() + "\n\n" + comments
+                        else:
+                            new_text = new_text.rstrip() + "\n\n" + comments
+                        cached.write_text(new_text, "utf-8")
+                        print(f"PATCHED_COMMENTS:{cached}")
+                        print(f"  comments: yes")
+                        return 0
+                    else:
+                        new_text = re.sub(r"^comments:.*?\n", f"comments: {fm_val}\n", text, flags=re.M)
+                        if "\n## Comments" in new_text:
+                            new_text = re.split(r"\n## Comments", new_text)[0].rstrip() + "\n\n" + (body_block or "")
+                        else:
+                            new_text = new_text.rstrip() + "\n\n" + (body_block or "")
+                        cached.write_text(new_text, "utf-8")
+                        print(f"CACHED:{cached}")
+                        print(f"  comments: {status_disp}")
+                        return 0
+
         metadata = dict(re.findall(r"^(title|uploader|channel|duration): (.+)$", text, re.M))
         print(f"CACHED:{cached}")
         if metadata.get("title"):
@@ -592,6 +657,9 @@ def main(argv: list[str]) -> int:
             print(f"  channel:  {channel}")
         if metadata.get("duration"):
             print(f"  duration: {metadata['duration']}")
+        cm_m = re.search(r"^comments:\s*(.+)$", text, re.M)
+        if cm_m:
+            print(f"  comments: {cm_m.group(1)}")
         return 0
     CACHE.mkdir(parents=True, exist_ok=True)
     yt = _yt_dlp_cmd()
@@ -599,8 +667,9 @@ def main(argv: list[str]) -> int:
         tmp = Path(td)
         if is_local:
             sub_file, meta, comments, transcribed, vid = _fetch_local(src_file, tmp, keep_ts)
+            comment_err = None
         else:
-            sub_file, meta, comments, transcribed, vid = _fetch(yt, url, tmp, keep_ts)
+            sub_file, meta, comments, transcribed, vid, comment_err = _fetch(yt, url, tmp, keep_ts)
         if not sub_file and not comments:
             return 3
         text = "" if not sub_file else (
@@ -613,6 +682,7 @@ def main(argv: list[str]) -> int:
         name = f"{today}-{vid}{'' if sub_file else '-notranscript'}{'-ts' if keep_ts else ''}-{_slug(title)}.md"
         path = CACHE / name
         plat = "local" if is_local else _platform(url)
+        fm_val, body_block, status_disp = _format_comment_block(comments, comment_err)
         fields = {
             "video_id": vid,
             "title": title,
@@ -623,6 +693,8 @@ def main(argv: list[str]) -> int:
             "url": url,
             "cached_at": today,
         }
+        if fm_val:
+            fields["comments"] = fm_val
         if transcribed:
             fields["transcribed_by"] = "x-asr"
         if not sub_file:
@@ -630,8 +702,8 @@ def main(argv: list[str]) -> int:
         lines = _front_matter(fields)
         lines.extend(["", "## Transcript", "",
                       text if sub_file else "_(no speech in audio — nothing to transcribe)_"])
-        if comments:
-            lines.append(comments)
+        if body_block:
+            lines.append(body_block)
         path.write_text("\n".join(lines), "utf-8")
         source = "x-asr" if transcribed else plat
         print(f"{'NEW' if sub_file else 'NO_TRANSCRIPT'}:{path}")
@@ -642,7 +714,7 @@ def main(argv: list[str]) -> int:
         if duration:
             print(f"  duration: {duration}")
         print(f"  source:   {source}")
-        print(f"  comments: {'yes' if comments else 'no'}")
+        print(f"  comments: {status_disp}")
         return 0 if sub_file else 3
 
 

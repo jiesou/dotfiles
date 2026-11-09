@@ -1,0 +1,10 @@
+? Verifying lockfile against supply-chain policies (8 entries)...
+Progress: resolved 0, reused 1, downloaded 0, added 0
+✗ Lockfile failed supply-chain policy check (8 entries in 4.1s)
+Error: ERR_PNPM_UNUSED_PATCH
+
+  × removing a package
+  ╰─▶ The following patches were not used: @anionex/dsh-turn-rewind@0.3.9
+  help: Either remove them from "patchedDependencies" or update them to match
+        packages in your dependencies.
+

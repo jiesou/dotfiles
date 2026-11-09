@@ -52,6 +52,7 @@
           - mcp__tinyfish__pause_monitor
           - mcp__tinyfish__resume_monitor
           - mcp__tinyfish__run_monitor
+          - mcp__tinyfish__update_monitor
           - mcp__tinyfish__run_web_automation
           - mcp__tinyfish__run_web_automation_async
           - mcp__tinyfish__save_profile_setup_session
@@ -78,7 +79,7 @@
   name: "@deepseek-ai/dsh-agent-default-model"
   config:
     provider: cpa
-    model: gemini-3.8-flash-high
+    model: qoduck
 - id: ui-settings-general
   name: "@deepseek-ai/dsh-client-ui-settings-general"
   config:
@@ -97,6 +98,7 @@
         models:
           - id: gemini-4-argon-high
             name: Gemini 4 Argon (High)
+            contextWindow: 1000000
             input:
               - text
               - image
@@ -105,7 +107,6 @@
               low: low
               medium: medium
               high: high
-            contextWindow: 1000000
           - id: gemini-3.8-flash-high
             name: Gemini 3.8 Flash (High)
             contextWindow: 1048576
@@ -118,28 +119,6 @@
               low: low
               medium: medium
               high: high
-          - id: hy4-preview-f
-            name: Hy4 preview (x0.00)
-            contextWindow: 1000000
-            maxTokens: 64000
-            reasoningEfforts:
-              off: null
-              high: high
-          - id: hy4-preview
-            name: Hy4 preview (x0.29)
-            contextWindow: 1000000
-            maxTokens: 64000
-            reasoningEfforts:
-              off: null
-              high: high
-          - id: glm-5.3
-            name: GLM-5.3 (x0.79)
-            contextWindow: 1000000
-            maxTokens: 48000
-            reasoningEfforts:
-              high: high
-              low: low
-              max: max
           - id: glm-5.3-flash
             name: GLM-5.3-Flash (x0.06)
             contextWindow: 1000000
@@ -155,18 +134,6 @@
             name: Kimi-K3 (x1.62)
             contextWindow: 1000000
             maxTokens: 32000
-            input:
-              - text
-              - image
-            reasoningEfforts:
-              off: null
-              low: low
-              high: high
-              max: max
-          - id: minimax-m3
-            name: MiniMax-M3 (x0.25)
-            contextWindow: 512000
-            maxTokens: 128000
             input:
               - text
               - image
@@ -195,19 +162,7 @@
               low: low
               high: high
               max: max
-          - id: deepseek-v4.1-flash-sg
-            name: Deepseek-V4.1-Flash (sg)
-            contextWindow: 1000000
-            maxTokens: 128000
-            input:
-              - text
-              - image
-            reasoningEfforts:
-              off: null
-              low: low
-              high: high
-              max: max
-          - id: qfmodel
+          - id: qwen-3.8-flash
             name: Qwen3.8-Flash
             contextWindow: 1000000
             maxTokens: 131072
@@ -220,20 +175,8 @@
               medium: medium
               high: high
               max: max
-          - id: deepseek-v4.1-flash-1017
-            name: deepseek-v4.1-flash-1017
-            contextWindow: 1000000
-            maxTokens: 64000
-            input:
-              - text
-              - image
-            reasoningEfforts:
-              off: null
-              low: low
-              medium: medium
-              high: high
           - id: claude-opus-5-5-high
-            name: claude-opus-5-5-high
+            name: Claude Opus 5.5 (High)
             contextWindow: 1000000
             maxTokens: 128000
             input:
@@ -245,6 +188,37 @@
               medium: medium
               high: high
               max: max
+          - id: claude-sonnet-5-5-high
+            name: Claude Sonnet 5.5 (High)
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+          - id: cn/hy4free
+            name: hy4free
+            contextWindow: 1000000
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
+          - id: qoduck
+            name: qoduck
+            input:
+              - text
+              - image
+            reasoningEfforts:
+              off: null
+              low: low
+              medium: medium
+              high: high
         retryPolicy:
           mode: always
       jiji-luna:
@@ -719,8 +693,9 @@
 - id: ui-chat
   name: "@deepseek-ai/dsh-client-ui-chat"
   config:
-    transcriptView: detailed
+    transcriptView: standard
     collapseTiming: next-input
+    foldedReplies: all
     performanceUsage: detailed
 - id: ui-theme
   name: "@deepseek-ai/dsh-client-ui-theme"
@@ -756,6 +731,7 @@
   config:
     insightsEntry: hide
     defaultPlacement: tab
+  disabled: true
 - id: hide-like-dislike
   disabled: false
 - id: ime-multiline-commit
@@ -765,3 +741,7 @@
   config:
     searchProvider: deepseek-search-api
     fetchProvider: deepseek-fetch-api
+- id: experimental-inspector
+  disabled: true
+- id: session-inspector
+  disabled: true

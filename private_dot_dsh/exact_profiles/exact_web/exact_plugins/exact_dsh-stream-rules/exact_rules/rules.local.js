@@ -59,7 +59,7 @@ export default [
   {
     match: (v) =>
       (wildcard("rm *")(v) || wildcard("\"rm *")(v) || wildcard("* rm *")(v) || wildcard("* -?-delete *")(v)) &&
-      !wildcard("* rm */tmp/*")(v),
+      !wildcard("*/tmp/*")(v),
     reject: true,
     prompt: "Use `gio trash` command (best effort) or `mv` (immediate fallback if `gio trash` fails) instead of rm except in tmpdir",
   },
@@ -177,6 +177,6 @@ Use broad search keywords instead of searching for outdated products.
   },
   {
     match: (v) => v.includes(".pdf"),
-    prompt: "Use the `markitdown` skill to read PDF files.",
+    prompt: "Use the `mineru` skill to read PDF files.",
   },
 ]

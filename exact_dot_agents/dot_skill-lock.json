@@ -337,6 +337,55 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-10-03T16:54:26.364Z",
       "updatedAt": "2026-10-03T16:54:26.364Z"
+    },
+    "mineru": {
+      "source": "opendatalab/MinerU",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/opendatalab/MinerU.git",
+      "skillPath": "skills/mineru/SKILL.md",
+      "skillFolderHash": "647ec1347a389852c8e4db9e0b87ed369fd13ed1",
+      "installedAt": "2026-11-03T03:01:41.344Z",
+      "updatedAt": "2026-11-03T03:01:41.344Z"
+    },
+    "startup-competitors": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ferdinandobons/startup-skill.git",
+      "skillPath": "startup-competitors/SKILL.md",
+      "skillFolderHash": "4de0967edbf0cc292ab9a50e265ec347174a5261",
+      "pluginName": "startup",
+      "installedAt": "2026-11-04T08:54:13.324Z",
+      "updatedAt": "2026-11-04T08:54:13.324Z"
+    },
+    "startup-design": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ferdinandobons/startup-skill.git",
+      "skillPath": "startup-design/SKILL.md",
+      "skillFolderHash": "740ff2df2909b9c618abc23430725b02bb487a70",
+      "pluginName": "startup",
+      "installedAt": "2026-11-04T08:54:13.325Z",
+      "updatedAt": "2026-11-04T08:54:13.325Z"
+    },
+    "startup-pitch": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ferdinandobons/startup-skill.git",
+      "skillPath": "startup-pitch/SKILL.md",
+      "skillFolderHash": "1c51b23f6e80ee1271a46da14c08c34d5d83dfdb",
+      "pluginName": "startup",
+      "installedAt": "2026-11-04T08:54:13.325Z",
+      "updatedAt": "2026-11-04T08:54:13.325Z"
+    },
+    "startup-positioning": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ferdinandobons/startup-skill.git",
+      "skillPath": "startup-positioning/SKILL.md",
+      "skillFolderHash": "36696ccbe2be8bf3a1ea3eee017c00e0c6eb6812",
+      "pluginName": "startup",
+      "installedAt": "2026-11-04T08:54:13.326Z",
+      "updatedAt": "2026-11-04T08:54:13.326Z"
     }
   },
   "lastSelectedAgents": [

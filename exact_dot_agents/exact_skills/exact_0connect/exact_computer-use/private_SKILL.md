@@ -21,12 +21,6 @@ Turn OFF:
 sed -i '/- id: mcp-computer-use-linux/{n;n;s/disabled: false/disabled: true/}' ~/.dsh/cordis.patch.yml
 ```
 
-Verify current state (`disabled:` line of the entry):
-
-```sh
-sed -n '/- id: mcp-computer-use-linux/{n;n;p;}' ~/.dsh/cordis.patch.yml
-```
-
 Notes:
 
 - HMR applies the change in place; no DSH restart.

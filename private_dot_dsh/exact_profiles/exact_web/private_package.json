@@ -13,7 +13,6 @@
     "@jiesou/dsh-timeout-auto-reject": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-timeout-auto-reject",
     "@jiesou/dsh-webui-fix-pack": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/bundles/dsh-webui-fix-pack",
     "@local/dsh-focus-preset": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-focus-preset",
-    "dsh-context": "^0.62.3",
     "dsh-sandbox-landlock": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-sandbox-landlock",
     "dsh-status-rotator": "^0.37.0",
     "dsh-subagent-background-only": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-subagent-background-only",
@@ -27,19 +26,16 @@
         "@deepseek-ai/dsh-web-app",
         "@jiesou/dsh-timeout-auto-reject",
         "dsh-sandbox-landlock",
-        "@anionex/dsh-turn-rewind",
         "@local/dsh-focus-preset",
         "@jiesou/dsh-webui-fix-pack",
         "@jiesou/dsh-cline-free-provider",
         "@jiesou/dsh-opencode-zen-free-provider",
-        "@jiesou/dsh-nous-portal-free-provider",
         "@bill9109/dsh-web-ui-notify",
-        "dsh-context",
         "dsh-ya-simple-shortcuts",
         "@jiesou/dsh-stream-rules",
-        "@dsh-external/dsh-mobile",
         "@deepseek-ai/dsh-experimental-session-titles-bundle",
-        "dsh-status-rotator"
+        "dsh-status-rotator",
+        "@deepseek-ai/dsh-experimental-inspector-profile"
       ]
     }
   },
