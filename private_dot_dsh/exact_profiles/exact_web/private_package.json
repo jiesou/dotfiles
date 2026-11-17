@@ -2,7 +2,6 @@
   "name": "dsh-profile-web",
   "private": true,
   "dependencies": {
-    "@anionex/dsh-turn-rewind": "0.3.9",
     "@bill9109/dsh-web-ui-notify": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-web-ui-notify",
     "@dsh-external/dsh-mobile": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-mobile",
     "@jiesou/dsh-cline-free-provider": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-cline-free-provider",

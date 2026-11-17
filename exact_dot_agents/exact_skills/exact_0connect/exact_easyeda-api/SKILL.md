@@ -555,6 +555,25 @@ await eda.sch_PrimitiveComponent.create({libraryUuid: "...", uuid: "dev-uuid"}, 
 await eda.sch_PrimitiveComponent.create({libraryUuid: "...", uuid: "dev-uuid"}, 50, 0, "", 0, false, true, true);
 ```
 
+### Schematic Wire Net vs NetLabel (Do Not Double-Label)
+
+**When creating schematic wires with `eda.sch_PrimitiveWire.create(line, net)`, the wire itself already displays and carries the net name.**
+
+```javascript
+// WRONG: Creating wire with net AND creating NetLabel on the same wire
+// This causes duplicate, stacked text labels on the schematic canvas!
+const wire = await eda.sch_PrimitiveWire.create([[x1, y1, x2, y2]], 'HOST_DP');
+await eda.sch_PrimitiveAttribute.createNetLabel(x1, y1, 'HOST_DP'); // DUPLICATE!
+
+// CORRECT: Just pass the net name to create() — the wire displays its own name cleanly
+const wire = await eda.sch_PrimitiveWire.create([[x1, y1, x2, y2]], 'HOST_DP');
+```
+
+- Do NOT call `eda.sch_PrimitiveAttribute.createNetLabel(x, y, net)` on a wire that already specifies `net`.
+- Only use `createNetLabel` when explicitly placing a standalone net label.
+- For Power / Ground, prefer `eda.sch_PrimitiveComponent.createNetFlag('Ground' | 'Power', net, x, y)`.
+
+
 ### Document State (CRITICAL)
 
 **After creating a project, you MUST open it before operating on documents within it.**

@@ -144,7 +144,7 @@ export default [
   {
     match: (v) => v.includes("UNKNOWN: unknown error, write"),
     prompt:
-      "The bash toolcall is broken; the /tmp directory might be full. Clean /tmp first!",
+      "The bash toolcall is broken; the /tmp directory might be full. Clean /tmp first! Use the `write` to overwrite a junk to reclaiming a few bytes, and then proceed with a large cleanup.",
   },
   {
     match: isWideSearch,

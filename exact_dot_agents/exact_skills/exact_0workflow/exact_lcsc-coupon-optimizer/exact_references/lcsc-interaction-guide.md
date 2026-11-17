@@ -1,15 +1,21 @@
 # LCSC 立创商城交互指南
 
+本指南只记录商城搜索、购物车、商品数据、结算、领券与历史购买查询的操作方式和响应字段。优惠券资格、金额目标、运费与拆单政策统一见[coupons.md](coupons.md)。采购排除及决策流程见[技能主文档](../SKILL.md)。以下站点接口均为内部实现，可能变化；操作前先用当前页面核实。
+
 ## 一、品牌页与搜索
 
-### 品牌 ID 查找
-- 毫欧 (Milliohm): `https://list.szlcsc.com/brand/12131.html`
-- 杭晶 (HCI): `https://list.szlcsc.com/brand/12047.html`
-- 合科泰 (Hottech): `https://list.szlcsc.com/brand/11439.html`
+### 品牌页
 
-### 搜索方式
+- 毫欧（Milliohm）：`https://list.szlcsc.com/brand/12131.html`
+- 杭晶（HCI）：`https://list.szlcsc.com/brand/12047.html`
+- 合科泰（Hottech）：`https://list.szlcsc.com/brand/11439.html`
+- 品牌内搜索：进入品牌页后使用 `input[placeholder="在结果中再搜索"]`。
+- 品牌内排序：点击 `button#searchListButton`。
+- 分类+品牌过滤：`https://list.szlcsc.com/catalog/<分类ID>.html?brand=<品牌ID>`；分类ID示例：陶瓷谐振器(无源)=530、无源晶振=537、贴片电阻=439。
 
-**优先用搜索 API（可 curl，无需浏览器、不受 WAF 拦）**：
+### 搜索 API
+
+优先使用搜索 API（可 curl；网页请求可能受 WAF 限制）：
 
 ```bash
 curl -sS 'https://so.szlcsc.com/query/product' \
@@ -28,176 +34,146 @@ curl -sS 'https://so.szlcsc.com/query/product' \
   }'
 ```
 
-- 返回 `result.searchResult`：
-  - `productRecordList[].productVO`：`productCode`、`productModel`、`productGradePlateName`、`encapsulationModel`、`stockNumber`、`recentlySalesCount`、`productPriceList`、`productMinEncapsulationNumber`、`convesionRatio`、`productUnit`
-  - `totalCount`、`countPage`、`pageSize`
-- **排序 `sortNumber`**（响应 `querySortBySign` 回显，可确认生效）：
+- `result.searchResult.productRecordList[].productVO` 包含 `productCode`、`productModel`、`productGradePlateName`、`encapsulationModel`、`stockNumber`、`recentlySalesCount`、`productPriceList`、`productMinEncapsulationNumber`、`convesionRatio`、`productUnit` 等字段；同时关注 `totalCount`、`countPage`、`pageSize`。
+- 排序 `sortNumber`：0综合（默认）、1价格升序、2价格降序、6销量、8/9库存（jx/sx）、10–13广东仓/江苏仓库存（jx/sx）。响应的 `querySortBySign` 可用于确认排序是否生效。
+- 销量顺序通常与 `recentlySalesCount` 一致；若有置顶/推广位，以接口返回顺序为准。
+- 分页用 `currentPage`；每页 `pageSize` 最大30。请求不要太密集，连续快速请求偶发空响应时，间隔1–2秒后重试。
+- 请求需带 `Origin`、`Referer`、`User-Agent`。
 
-  | sortNumber | 含义 |
-  |:--:|---|
-  | 0 | 综合排序（默认） |
-  | 1 | 价格升序 |
-  | 2 | 价格降序 |
-  | 6 | **销量** |
-  | 8 / 9 | 库存（jx / sx） |
-  | 10~13 | 广东仓 / 江苏仓 库存（jx / sx） |
+### 浏览器搜索
 
-- **分页**：改 `currentPage`；每页 `pageSize` 最大取 30（和网页一致）。
-- `productPriceList[].productPrice` 是人民币（¥）。
-- `销量` 顺序通常与 `recentlySalesCount` 一致；偶有置顶/推广位导致首项不严格单调，一律以返回顺序为准。
-- 请求不要太密集，连续快速请求会偶发空响应，间隔 1~2s 重试即可。
-- 必带 `Origin`/`Referer`/`User-Agent`，否则可能被边缘节点拒绝。
+- 全局搜索：`https://so.szlcsc.com/global.html?k=<关键词>`。
+- 网页排序需点击排序条上的“销量”（触发 `sortNumber=6`）；只改 URL 中的 `sortNumber` 不会让服务端排序生效。
+- 页面数据可从 `window.__NEXT_DATA__.props.pageProps.soData.searchResult.productRecordList` 读取，与 API 结构相近。
 
-**浏览器方式（API 不便时）**：
-- 全局搜索页：`https://so.szlcsc.com/global.html?k=<关键词>`
-- 销量排序：搜索页排序条点击文本「销量」（内部触发 `sortNumber=6`）。直接改 URL 的 `?sortNumber=6` 会被记入 query，但服务端不生效，必须点按钮。
-- 网页数据结构在 `window.__NEXT_DATA__.props.pageProps.soData.searchResult.productRecordList`，与 API 同构，可整块读取。
-- 站点对 curl 请求页面返回 403 WAF，页面必须走浏览器；但上面的 `POST /query/product` 不受此限。
+### 其他公开检索入口
 
-**品牌/分类页（网页）**：
-- **品牌内搜索**: 进入 `https://list.szlcsc.com/brand/<id>.html` 品牌页后 input[placeholder="在结果中再搜索"]
-- **品牌内排序**: 进入 `https://list.szlcsc.com/brand/<id>.html` 品牌页后点击 button#searchListButton
-- **分类+品牌过滤**: `https://list.szlcsc.com/catalog/<分类ID>.html?brand=<品牌ID>`
-- 分类ID: 陶瓷谐振器(无源)=530, 无源晶振=537, 贴片电阻=439
-- 使用品牌页面的"在结果中再搜索"文本框搜索特定型号
-
-### 其他公开检索入口（拿规格/库存用）
-- **EasyEDA 检索**：`https://easyeda.com/api/eda/product/search?keyword=<词>&page=1&pageSize=10`，返回型号、封装、价格阶梯、库存、C 编号，无销量。
-- **LCSC 商品页规格**：`https://www.lcsc.com/product-detail/C<编号>.html`，页面内嵌 schema.org JSON-LD `PropertyValue`，可直接解析 VR/IO/IFSM/Vf/封装等参数。
-- **JLC SMT 检索**：`POST https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList`，body `{"currentPage":1,"pageSize":30,"keyword":"<词>"}`，返回 C 编号、库存、价格、基础库/扩展库；忽略排序参数。
+- EasyEDA：`https://easyeda.com/api/eda/product/search?keyword=<词>&page=1&pageSize=10`，返回型号、封装、价格梯度、库存和 C 编号，无销量。
+- LCSC 商品页：`https://www.lcsc.com/product-detail/C<编号>.html`，页面内嵌 schema.org JSON-LD `PropertyValue`，可提取 VR/IO/IFSM/Vf/封装等规格。
+- JLC SMT：`POST https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList`，body 示例 `{"currentPage":1,"pageSize":30,"keyword":"<词>"}`，返回 C 编号、库存、价格、基础库/扩展库；忽略排序参数。
 
 ### 产品详情页
-- 格式: `https://item.szlcsc.com/<C编号>.html`
-- 注意: C编号不一定是数字ID，先从搜索结果中获取准确URL
-- 部分重定向: `https://item.szlcsc.com/XXXX.html` 可能重定向到 MRO 或其他产品
+
+- 商品页通常使用内部 `productId`（如 `https://item.szlcsc.com/<productId>.html`），不是把 C 编号拼到路径；优先使用搜索结果中的实际 URL。
+- C 编号不一定是数字 ID。部分 `item.szlcsc.com` 链接会重定向到 MRO 或其他产品。
 
 ## 二、购物车操作
 
-### 购物车 API
-- 查看购物车: `GET https://cart-api.szlcsc.com/cart/display?isInit=true&cartCode=<cartCode>`
-- 获取分组列表: `GET https://cart-api.szlcsc.com/cart/group/list`
-- 购物车代码存储在 cookie 中，RoboRig 购物车的 cartCode 在页面加载时从 API 返回
-- 响应中包含的 `convesionRatio` 表示每"份"对应多少个元件
+### 读取购物车
 
-### 购物车页面操作
-- 页面上每个产品的数量控件使用 `input[class*="num"]` 定位
-- 产品的 spinbutton 按 API 返回的产品列表顺序排列
-- 修改数量: 通过点击 spinbutton 右侧的 "+" 按钮（使用鼠标坐标点击）
-  - 获取 spinbutton 的 boundingBox
-  - 计算 "+" 位置: `x = box.x + box.width + 20, y = box.y + box.height / 2`
-  - 每点击一次增加一个最小包装单位 (convesionRatio)
-- 从产品页添加: 填写 `input` 然后点击 `button:has-text("加入购物车")`
+- 分组列表：`GET https://cart-api.szlcsc.com/cart/group/list`。
+- 购物车内容：`GET https://cart-api.szlcsc.com/cart/display?isInit=true&cartCode=<cartCode>`。
+- 购物车代码保存在 cookie 中；从已登录页面/API 响应获取，不猜测。
+- API 响应中的 `convesionRatio` 表示每“份”对应的元件数。
 
-### 购物车数据结构 (API响应)
+普通购物车的关键响应字段：
+
 ```json
 {
   "currentlyProductList": [{
     "shopCarId": "xxx",
     "productCode": "Cxxxxxx",
     "productModel": "型号名",
-    "productNumber": 3,           // 购买份数
-    "convesionRatio": 20,         // 每份件数
-    "productConsultPrice": 0.1507,// 参考单价（不含折扣）
-    "lineMoney": 9.04,            // 行金额
-    "productGradePlateName": "Milliohm(毫欧)", // 品牌
+    "productNumber": 3,
+    "convesionRatio": 20,
+    "productConsultPrice": 0.1507,
+    "lineMoney": 9.04,
+    "productGradePlateName": "Milliohm(毫欧)",
     "encapsulationModel": "0805",
-    "productPriceDiscountList": [ // 折扣活动
-      {"discount": 0.95, "price": 0.07942}
-    ],
-    "priceDiscount": null,        // 当前应用的价格折扣
+    "productPriceDiscountList": [{"discount": 0.95, "price": 0.07942}],
+    "priceDiscount": null,
     "stockNumber": 4540,
     "isChecked": true,
     "checked": true
   }],
   "cartTotalSize": 9,
-  "cartSelfMoney": 52.60,        // 总金额
-  "discountMoney": 2.95           // 折扣总额
+  "cartSelfMoney": 52.60,
+  "discountMoney": 2.95
 }
 ```
 
-## 三、产品数据获取
+分组购物车结构见“同一购物车内按订单分组”。
 
-### 从产品页提取价格
-- 价格梯度文本: 页面文字中包含 `50+¥0.07942` 格式的梯度价格
-- 关键字段:
-  - 现货: `现货[：:]\s*([\d,]+)` 
-  - 起订量: `起订量[：:]\s*(\d+)` 或 `最小起订量\s*(\d+)`
-  - 价格梯度: `(\d+)[+]\s*[￥¥](\d+\.\d+)`
-- 注意: 价格分为"售价"(原价)和折扣价，折扣价通过 `productPriceDiscountList[].price` 计算
+### 修改购物车
 
-### 产品价格层级理解
-- `productConsultPrice`: 参考单价（不随数量变化）
-- `productPriceList`: 价格梯度（根据购买数量自动应用）
-  - `startPurchasedNumber` / `endPurchasedNumber`: 数量区间
-  - `productPrice`: 该区间的单价
-- `productPriceDiscountList`: 折扣活动（如 5月现货让利95折/94折）
-- `productDiscountPrice`: 最终折扣价（已应用折扣活动）
-- `lineMoney`: 实际行金额（= 数量 × 实际计费单价）
-- LCSC的计费逻辑是 `lineMoney = productNumber × convesionRatio × productConsultPrice`，价格梯度在购物车中不自动应用，需要在提交时由系统重新计算。
+- 页面数量控件：`input[class*="num"]`；spinbutton 通常按 API 返回的商品顺序排列。
+- UI 修改数量：点击 spinbutton 右侧“+”按钮；每次增加一个最小包装单位（`convesionRatio`）。可用控件 bounding box 定位，按钮大致在 `x = box.x + box.width + 20, y = box.y + box.height / 2`。
+- API 加入：`POST https://cart-api.szlcsc.com/cart/add/normal`，JSON：`{"cartKeyStr":"0~<productId>~RMB~CN~<份数>","cartCode":"...","requestSource":"pc"}`。其中 `productId` 不是 C 编号，应取搜索 API 的 `productVO.productId`。
+- API 改数量：`POST https://cart-api.szlcsc.com/cart/update`，form：`cartKey=<shopCarMapKey>&productNumber=<份数>&cartCode=<cartCode>`；数量不能为0。
+- 删除没有可靠公开接口，使用 UI：行内“删除”，再点击弹窗中同名“删除”按钮（不是 OK/Cancel）。
+- 从产品页加入：填写页面输入框后点击“加入购物车”。
+- 所有修改后重新读取购物车，确认实际数量和行金额；请求超时先检查是否已执行，避免盲目重试。
+- 购物车自定义编号：实测先由 UI 在商品行打开「自定义编号」、输入并失焦保存，触发 `POST https://cart-api.szlcsc.com/async/edit/material`，form 为 `materialCode=<文字>&productId=<数字>&productCode=<C编号>`；成功返回 `ok:true`。可用当前 UI 请求验证后的接口批量填写并回读 `materialCode`。
+- 编号**按账号及商品共享**，同商品在其他购物车也会显示相同编号。原购物车受保护时应先核对影响范围；本次任务用户明确允许同步。商城允许中文、空格、连字符；`/` 会报“物料编码内包含特殊字符”。提交前保护已有非空编号。
+- 新增商品可能自动勾选；逐一恢复勾选状态时要等待每次保存，再用 `isInit=false` 回读，避免连续修改导致状态丢失。仅操作目标商品，保留用户其他分组的勾选状态。
+- 购物车范围和采购边界见[技能主文档](../SKILL.md)。
 
-## 四、订单结算页
+## 三、产品数据及计费字段
 
-### 结算入口
-- 点击购物车页面的 `button:has-text("结算")`
-- 结算页 URL: `https://order.szlcsc.com/member/perfect.html?traceId=xxx`
+- 产品页常见字段：现货 `现货[：:]\s*([\d,]+)`；起订量 `起订量[：:]\s*(\d+)` 或 `最小起订量\s*(\d+)`；价格梯度 `(\d+)[+]\s*[￥¥](\d+\.\d+)`。
+- 页面价格梯度常见格式如 `50+¥0.07942`。价格分为售价和折扣价；折扣价可从 `productPriceDiscountList[].price` 等字段读取。
+- `productConsultPrice` 是参考价，`productPriceList` 是梯度，`productDiscountPrice` 是活动计费价；不能假设某档价格已自动选中。
+- 搜索响应中的促销价位于 `productRecordList[].priceDiscount.priceList[].price`，不在 `productVO` 中。候选价仅供预测。
+- 购物车实际计费以当前 `lineMoney`（已含折扣及行金额取分）为准；改数量或价格变化后重新读取。不要从截短单价反算，也不要为恢复旧金额改动受保护的原购物车。
+- 实际件数通常按 `productNumber × convesionRatio` 计算；`minBuyNumber` 的单位需根据页面/响应验证，不能只看包装倍数。部分商品的 `minBuyNumber` 大于1（例如某些 WS2812C 为100）；对MOQ和数量倍数分别核实。
 
-### 优惠券
-- 默认勾选"优惠组合"，系统自动选择最优券组合
-- 品牌券自动匹配到对应品牌的产品，只要满¥16即自动使用
-- 优惠券区域显示在"使用优惠券/采购晶"折叠面板中
-- 三张品牌券可同时使用（分属不同品牌）
+## 四、结算页
 
-### 摘要信息提取
+- UI 入口：点击购物车页面“结算”。结算页常见 URL：`https://order.szlcsc.com/member/perfect.html?traceId=xxx`。
+- 默认“优惠组合”会自动选券；需要时取消自动组合并检查券面板中的实际选择。页面选券结果才是该订单资格和金额的证据。
+- 摘要通常包含总金额、运费、商品折扣、优惠券、包装费和应付总金额。
+- 订单商品行通常包含序号、型号/品牌/封装/编号、数量、折扣单价/原价、金额和交货方式；品牌字段可用 `productGradePlateName`。
+- 页面按钮文本可能为“提交订单”。券的资格、互斥和运费判断见[coupons.md](coupons.md)。
+
+## 五、券 API 查询
+
+以下调用需在已登录商城的浏览器页面上下文中使用 `fetch(url, {credentials:'include'})`；curl 直连可能被 WAF/ACL 拦截。规则解释见[coupons.md](coupons.md)。
+
+- 券中心全量：`GET https://activity.szlcsc.com/activity/coupon?couponType=&sortColumn=&sortType=&searchValue=&searchCatalogStr=&searchBrandNameStr=&catalogId=`。`result.couponModelVOListMap` 分区数组字段包括 `couponName`、`couponAmount`、`minOrderMoney`、`brandIds`、`brandNames`、`couponType`、`uuid`。
+- 领券：`GET https://activity.szlcsc.com/getCoupon/<uuid>`，成功响应示例 `{"result":"success"}`。
+- 账户未用券：`GET https://activity.szlcsc.com/member/couponList/page?currentPage=1&pageSize=60&isExpire=false&couponTypeList=&keywords=&couponUseStatus=no`。`result.pageVO.dataList[]` 包含 `useBeginTime`、`useEndTime`、`isFreeExpress`、`useChannel` 等字段。
+
+## 六、历史购买查询
+
+在已登录商城的浏览器中查询：
+
+```text
+GET https://order-api.szlcsc.com/member/oftenbuy/list?currentPage=1&pageSize=100&sortField=time&sortType=desc&orderTimeBegin=2020-01-01&orderTimeEnd=<今天YYYY-MM-DD>
 ```
-总金额：¥56.45
-运费：¥9
-商品折扣：-¥2.98
-优惠券：-¥45
-包装费：（限免）¥1
-应付总金额：¥17.47
-```
 
-### 订单商品列表
-- 表格行包含: 序号, 商品信息(型号+品牌+封装+编号), 数量, 单价(折扣价+原价), 金额, 交货方式
-- 品牌通过 `productGradePlateName` 字段区分
+- 响应 `result.page.dataList[]`（常购物料）关注 `productCode`、`productModel`、`brandName`、`catalogNames`、`orderFinalNumberTotal`、`lastOrderTime`。
+- 按返回分页信息递增 `currentPage`，覆盖所需历史；不能只查第一页就断定未买过。
+- 这是常购物料视图，不是完整库存账。要追溯具体订单时查看商城“我的订单”；不要输出无关订单、地址或电话。接口失败时标记未核实，不编造已购结论。
+- 如何用历史记录排除重复采购，见[技能主文档](../SKILL.md)。
 
-## 五、优惠券规则
+## 七、浏览器交互速查
 
-### 通用规则
-- 满16减15品牌券: 同一品牌商品总价 ≥ ¥16 即可使用
-- 三张不同品牌券可叠加使用（同一订单）
-- 优惠券在结算页自动选择最优组合
-- 可通过取消"优惠组合"复选框手动配置
+- 产品页输入框通常为页面第一个 `input`；加入购物车使用 `button:has-text("加入购物车")`。
+- 购物车数量输入框可用 `input[class*="num"]`；结算按钮通常为 `button:has-text("结算")`。
+- 多余标签页可用浏览器标签管理操作关闭。页面选择器可能变化，先检查当前 DOM。
+- 页面正则提取仅作辅助；价格梯度可能因渲染问题而混乱，必要时结合 API 响应核对。
 
-### 已知品牌券
-| 品牌 | 门槛 | 减免 | 品类 |
-|------|:----:|:----:|------|
-| 杭晶 (HCI) | ¥16 | ¥15 | 晶振/谐振器 |
-| 毫欧 (Milliohm) | ¥16 | ¥15 | 电阻/采样电阻 |
-| 合科泰 (Hottech) | ¥16 | ¥15 | 二极管/三极管 |
+## 八、同一购物车内按订单分组
 
-### 包邮
-- 应用邮费券后实付满¥9.9包邮（全场）
-- 运费通常为¥9（京东快递特惠）
-- 需要领取"9.9自营免邮券"或订单金额满足条件
+**2026-11 结构，站点可能变化：**
 
-### 已知限制
-- 产品的最小起购量 (min_qty) 和倍数 (qty_multiple) 通常对应 convesionRatio
-- 部分产品 MOQ 为 5 或 10，部分为 50（如合科泰 BAT54 系列）
-- 价格梯度的实际应用不清晰，购物车行金额 = productNumber × convesionRatio × productConsultPrice
+- 首次点击“创建分组”后入口会变成“管理分组(N)”；之后在管理弹窗中创建分组。
+- 开启分组后，购物车行不再位于 `shoppingCartVO.rmbCnShoppingCart`，改读 `shoppingCartVO.cartItemGroups[].rmbCnShoppingCart.currentlyProductList`。空分组可能没有该字段。
+- 分组列表：`GET /cart/item/group/list?cartCode=...`；字段为 `result.cartItemGroupList[].cartItemGroupId/cartItemGroupName/cartItemCount`。
+- 勾选商品：`POST /cart/update/checked`，form：`ck=<shopCarId以~连接>&cartCode=...`。回读勾选状态并刷新页面；只改 DOM checkbox 不可靠。
+- 移入分组：`POST /cart/item/group/move`，form：`cartItemGroupId=...&shoppingCartIds=<shopCarId以逗号连接>`。操作后回读分组和行金额。
+- 行容器可用 `ul.cv-auto`，文本包含 C 编号；不要假定编号在第一项 `li` 或链接元素内。
+- 同一 SKU 的购物车行无法简单拆分到两个组；具体订单分配策略见[coupons.md](coupons.md)。
 
-## 六、浏览器交互注意事项
+## 九、绑定发货接口
 
-### Playwright 操作
-- 产品页输入框: `input` 选择器（通常是页面第一个）
-- 加入购物车: `button:has-text("加入购物车")`
-- 购物车数量修改: 用 `input[class*="num"]` 找到输入框，鼠标点击右侧区域模拟 "+" 按钮
-- 结算: `button:has-text("结算")`
-- 提交订单: `button:has-text("提交订单")`
-- 关闭多余标签页: `browser_tabs close` index
+优先由页面操作产生真实请求，再查看网络响应，避免猜测参数。以下接口为2026-11-11实测的站点内部接口，可能变化；仅在登录会话使用，不要把地址或联系人 ID 存入 skill。
 
-### 数据提取
-- 优先通过 API (`cart-api.szlcsc.com`) 获取购物车精确数据
-- 产品页数据通过正则从页面文本提取
-- 价格梯度格式可能因页面渲染问题而混乱
+- `POST https://order-api.szlcsc.com/async/order/perfect/delivery/express/list`：读取 `deliveryExpressList[]` 的 `fullAmountFreeExpressVO` 和 `expressCalculteVO.freightMoney/discountFreightMoney/actualFreightMoney`，区分原运费、抵扣和实付邮费。
+- `GET https://order-api.szlcsc.com/async/select/wait/bind/order/list?...`：参数沿用当前 UI 请求；读取 `allowBindOrderList/unAllowBindOrderList` 及 `notAllowBindReason/isFullAmountFreeOrder`。
+- 可打开绑定窗口或读取前端标志，只说明当前页面未被对应条件拦截，不代表支付后绑定成功。运费与绑定政策及日期核验记录见[coupons.md](coupons.md)。
 
+## 十、兼容替代规格核验案例
+
+- 商品页标注 SOP-4 不足以证明封装兼容；检查数据手册的引脚跨度、脚距及 CTR 档。已核验的 UMW LTV-354T 引脚跨度约10mm，与7mm小型 LTV354 封装不同，不能仅凭型号相似宣称可替换。
+- 端子除5.08mm脚距外，还需核对本体高度、针脚截面、孔径及脚中心到外壳边缘尺寸。

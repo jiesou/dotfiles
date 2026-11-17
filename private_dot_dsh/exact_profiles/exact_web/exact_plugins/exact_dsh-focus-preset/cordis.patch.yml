@@ -76,6 +76,9 @@
             config:
               maxBytes: 65536
 
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+
           # ── shell ───────────────────────────────────────────────────────────────────
 
           # `shell-env` stays in the HOST composition: `apps/cli/src/web.ts` injects it to

@@ -1,11 +1,12 @@
 ---
 name: computer-use
 description: Enable mcp-computer-use-linux. USE when you need to control the user's own Linux Desktop.
+disable-model-invocation: true
 ---
 
 # Computer Use
 
-Toggle `mcp-computer-use-linux` in `~/.dsh/cordis.patch.yml`:
+Toggle `mcp-computer-use-linux` in `~/.dsh/profiles/web/cordis.patch.yml`:
 
 Turn ON:
 
@@ -13,7 +14,7 @@ Turn ON:
 sed -i '/- id: mcp-computer-use-linux/{n;n;s/disabled: true/disabled: false/}' ~/.dsh/cordis.patch.yml
 ```
 
-When the task is complete, disable the MCP tool to avoid consuming context for subsequent tasks.
+Ask the user whether they would like to disable the tool, after the user confirms that the task is complete, disable the MCP tool to avoid consuming context for subsequent tasks.
 
 Turn OFF:
 

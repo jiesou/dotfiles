@@ -5,20 +5,20 @@ description: Enable mcp-playwright. USE when you need to control the user's own 
 
 # Browser Use
 
-Toggle `mcp-playwright` in `~/.dsh/cordis.patch.yml`:
+Toggle `mcp-playwright` in `~/.dsh/profiles/web/cordis.patch.yml`:
 
 Turn ON:
 
 ```sh
-sed -i '/- id: mcp-playwright/{n;n;s/disabled: true/disabled: false/}' ~/.dsh/cordis.patch.yml
+sed -i '/- id: mcp-playwright/{n;n;s/disabled: true/disabled: false/}' ~/.dsh/profiles/web/cordis.patch.yml
 ```
 
-When the task is complete, disable the MCP tool to avoid consuming context for subsequent tasks.
+Ask the user whether they would like to disable the tool, after the user confirms that the task is complete, disable the MCP tool to avoid consuming context for subsequent tasks.
 
 Turn OFF:
 
 ```sh
-sed -i '/- id: mcp-playwright/{n;n;s/disabled: false/disabled: true/}' ~/.dsh/cordis.patch.yml
+sed -i '/- id: mcp-playwright/{n;n;s/disabled: false/disabled: true/}' ~/.dsh/profiles/web/cordis.patch.yml
 ```
 
 Notes:

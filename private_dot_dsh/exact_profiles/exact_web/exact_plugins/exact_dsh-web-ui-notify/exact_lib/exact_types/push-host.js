@@ -113,7 +113,7 @@ export function createPushHost(ctx) {
         if (session?.header?.origin === 'subagent')
             return false;
         const agent = ctx.agents.get(id);
-        return agent !== undefined && ctx.agents.roots().includes(agent);
+        return agent !== undefined && session?.header?.origin !== 'subagent';
     };
     ctx.on('session/event', (session, event) => {
         if (event?.type !== 'turn/end' && event?.type !== 'approval/asked')
