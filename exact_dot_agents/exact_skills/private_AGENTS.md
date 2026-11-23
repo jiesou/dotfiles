@@ -15,7 +15,7 @@
 
 默认加上。
 
-只有需要模型在合适场景自动触发的通用 skill 不加 —— 即顶层那批 skill，以及 bypass-cf-403、cpp-style、gh、markitdown、yt-dlp、watch-video 这类 0connect 内的常用 skill。其余一律加。
+只有需要模型在合适场景自动触发的通用 skill 不加 —— 即顶层那批 skill，以及 bypass-cf-403、cpp-style、gh、markitdown、yt-dlp、watch-video 这类 0connect 内的常用 skill。其余一律 **主动加** 。
 
 安装他人的skill，也视类型加上。
 

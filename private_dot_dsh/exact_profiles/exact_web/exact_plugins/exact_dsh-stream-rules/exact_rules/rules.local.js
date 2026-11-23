@@ -36,14 +36,6 @@ const isBlockedTmp = (command) => {
   return true
 }
 
-const isWideSearch = (v) => {
-  if (!/(?:^|[\s;&|(])(rg|ripgrep|grep|egrep|fgrep|find|fd|fdfind|locate|plocate)(?=[\s"']|$)/.test(v)) return false
-  if (/\[timed out after \d+ms\]/.test(v)) return true
-  const rest = v.replace(/ after \d+ms/g, " ")
-  const numbers = rest.match(/\d+/g) ?? []
-  return numbers.some((n) => +n > 20000)
-}
-
 export default [
   {
     match: isBlockedTmp,
@@ -82,7 +74,7 @@ export default [
       "Users must explicitly confirm before `git push --force`. Is it irreversible? If user's confirmation is given, call the same command again.",
   },
   {
-    match: (v) => +v.match(/\bsleep\s+(\d+)/)?.[1] > 20,
+    match: (v) => +v.match(/\bsleep|timeout\s+(\d+)/)?.[1] > 20,
     reject: true,
     prompt: `Correctly await via script/target matching—instead of using \`sleep [long duration]\` to poll (invalid). Tip: Don't "poll" the subagent settle, just return and it will notify`,
   },
@@ -147,10 +139,6 @@ export default [
       "The bash toolcall is broken; the /tmp directory might be full. Clean /tmp first! Use the `write` to overwrite a junk to reclaiming a few bytes, and then proceed with a large cleanup.",
   },
   {
-    match: isWideSearch,
-    prompt: `别全屏搜了！全盘搜索浪费时间！找不到就找不到：先想"这东西按项目约定应该在哪"，在**明确的范围**里找； —— 值得花代价的才派 subagent 去拿原始信息源（gh / fetch 全文）`,
-  },
-  {
     match: (v) => v.includes("opencode-ai/opencode"),
     prompt:
       "The GitHub repository for opencode.ai is anomalyco/opencode (formerly sst/opencode), NOT opencode-ai/opencode (it is a standalone, old, go-implemented agent, now archived).",
@@ -161,7 +149,7 @@ export default [
       "The GitHub repository for Mihomo Kernel is https://github.com/MetaCubeX/mihomo/tree/Meta",
   },
   {
-    match: (v) => v.includes("curl") && v.includes("api.github.com"),
+    match: (v) => (v.includes("curl") || v.includes("web_fetch")) && v.includes("api.github.com"),
     prompt:
       "Prefer using `gh` cli over `curl https://api.github.com/...`. gh offers more requests limits.",
   },

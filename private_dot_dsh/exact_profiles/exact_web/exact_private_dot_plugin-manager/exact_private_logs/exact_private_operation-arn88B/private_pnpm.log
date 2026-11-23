@@ -1,0 +1,10 @@
+✓ Lockfile passes supply-chain policies (verified 3d ago)
+Packages: +15
++++++++++++++++
+Progress: resolved 15, reused 15, downloaded 4, added 15, done
+[WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
+
+dependencies:
++ dsh-tinyfish-search 0.21.0
+
+Done in 1s using pnpm v12.21.0

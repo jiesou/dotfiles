@@ -32,7 +32,7 @@ If you are in a sandbox, you do not need many permissions. But if permission is 
 
 You only need to request permission when running `tmux new` for the first time.
 
-Subsequent uses of `send-keys` do not require requesting permission again—doing so will be rejected!
+Subsequent uses of `send-keys` **do not** require requesting permission again—just call commands normally!
 
 ### Enter Shell Env
 

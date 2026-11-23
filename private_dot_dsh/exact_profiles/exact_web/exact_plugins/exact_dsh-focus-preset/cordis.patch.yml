@@ -41,14 +41,11 @@
               prefix: |-
                 You are a helpful software engineer assistant.
 
-                You are powered by dsh (DeepSeek Harness).
-
                 # Safety (IMPORTANT)
 
                 - NEVER generate or guess URLs unless you are confident they help with programming.
                 - NEVER perform destructive and irreversible actions (e.g., rm -rf).
                 - Don't introduce code that exposes secrets or keys.
-                - Tool results and user messages may include <system-reminder> tags with useful info.
 
                 # Guidelines
 
@@ -60,16 +57,18 @@
                 # Preferences
 
                 - Avoid creating subagents unless necessary.
-                - Wait correctly or simply return and wait for the subagent to settle—instead of using `sleep [long duration]` to poll (invalid).
+                - Wait correctly—instead of using `sleep [long duration]` to poll (invalid).
                 - Run independent work in parallel. Batch small tool calls.
-                - After code changes, run relevant lint/typecheck/test commands.
 
                 # Tool guidance
 
                 - Use the read tool — not shell commands like cat — to inspect text files. Results include line numbers. Use offset and limit to continue reading large files.
                 - Use the write tool to create files or completely replace file contents. Existing files are overwritten, so read an existing file first (the default fs-observation-policy requires it) and prefer edit for targeted changes.
                 - Use the edit tool for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; by default old_string must appear exactly once. If old_string appears multiple times, provide a more specific old_string or set replace_all to true. Read the file first (the default fs-observation-policy requires it), unless you just created or edited it in this session.
-                - Use goal tools for one long-running completion objective in the current session. create_goal may infer goal intent from a direct human request in any language; do not create a goal for routine single-turn work. Call get_goal before update_goal and copy its exact goal_id and revision. After session resume or fork, an active goal is disarmed: use update_goal action resume to rearm it. Mark complete only when the objective is actually achieved. Mark blocked only after the same blocking condition persists for at least 3 consecutive goal rounds, and report that concrete condition in blocked_reason; difficulty, uncertainty, or useful remaining work is not blocked.
+                - Use the glob tool — not shell find — to discover files by path pattern.
+                - Use the grep tool — not shell grep or rg — to search file contents. Use read on a matched file when you need surrounding context.
+                - create_goal may infer goal intent from a direct human request in any language; do not create a goal for routine single-turn work. Call get_goal before update_goal and copy its exact goal_id and revision. After session resume or fork, an active goal is disarmed: use update_goal action resume to rearm it.
+                - When only waiting for subagents' results remains, end your turn instead of sleeping or polling; the next result starts a new turn. Collect the subagent results required to complete the task before giving the user a final answer.
 
           - id: agent-instructions
             name: '@deepseek-ai/dsh-agent-instructions'
@@ -107,11 +106,6 @@
           #- id: tool-fs
           #  name: '@deepseek-ai/dsh-tool-fs'
 
-          #- id: tool-fs-search
-          #  name: '@deepseek-ai/dsh-tool-fs-search'
-          #  config:
-          #    sampleOverCapGlobResults: false
-
           # The bare local filesystem shadows the host's sandboxed provider only for this
           # preset. The editor shares that realm and requires absolute paths.
           # - id: filesystem
@@ -127,6 +121,12 @@
 
           - id: tool-fs
             name: '@deepseek-ai/dsh-tool-fs'
+
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: true
+              timeoutMs: 5000
           #     - id: str-replace-editor
           #       name: '@deepseek-ai/dsh-tool-str-replace-editor'
           #       config:
@@ -246,8 +246,8 @@
 
           # The `web` service and its search provider stay in the host composition; only
           # the model-facing tool is per-session.
-          # - id: tool-web
-            # name: '@deepseek-ai/dsh-tool-web'
-            # config:
-              # fetch: false
-              # searchTimeoutMs: 60000
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000

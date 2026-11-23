@@ -383,6 +383,22 @@ SSH 均可直接通过密钥接入以下设备：
 | WiFi: CMCC-SDyb | `2QiA74UZ` |
 | WiFi: CMCC-SprF | `2QiA74UZ` |
 
+### Oxylabs ISP 落地（美国 Comcast AS7922）
+
+ByteVirt HK 上跑的独立 sing-box 实例，把流量从美国 ISP IP 出去：
+
+| 项 | 值 |
+| --- | --- |
+| 账号 | dashboard.oxylabs.io，Google `jiechushou@gmail.com` 直接登录（有 $5 欢迎额度） |
+| 实例 | `vps-isp-us`，Dedicated ISP Proxies $3.3/IP/月，出口 `48.47.189.234`（AS7922 Comcast） |
+| 上游 | `disp.oxylabs.io:8001`，`user-disp_fc468c51` / `ZZkxlOV_ts7b`；VPS IP 已白名单 |
+| VPS 入口 | `23.175.201.177:38521`(socks5) / `:38522`(http)，用户 `oxy` 密码 `b96b1cMWIiyWe7` |
+| 服务 | `sing-box-oxylabs.service` + `/etc/sing-box/oxylabs-isp.json`（不影响原 config.json） |
+
+```bash
+curl -x http://oxy:b96b1cMWIiyWe7@23.175.201.177:38522 https://ip.oxylabs.io/location
+```
+
 ## OpenClash 配置
 
 **重要：** 绝大多数 (99%) 问题和 openclash/mihomo **无关** ，不要绕弯路去研究 openclash。不要自以为是！

@@ -12,7 +12,7 @@ Use `uvx` for isolated MinerU commands.
 Use stateless `mineru-kit parse` for ordinary PDFs. It uses local Standard parsing, writes Markdown, reads all PDF pages by default, and does not start Doclib.
 
 ```bash
-MINERU_HOME="$PWD/.agents/tmp/mineru" uvx --from mineru mineru-kit parse "document.pdf" -o ".agents/tmp/document.md" --tier standard
+uvx --from mineru mineru-kit parse .agents/notes/research/standard-parts/datasheets/AS5047P_DS000324.pdf -o .agents/tmp/AS5047P.md --tier standard
 ```
 
 Set a task-appropriate output path and do not overwrite unrelated files. Add `--pages 1-10` for a bounded read. Omit `--tier standard` only when relying on the CLI default. The Markdown format is the default, so do not add `--format`.
@@ -26,9 +26,9 @@ If Standard models are missing, ask before downloading them. Standard and Advanc
 Use Doclib only for indexed search, cached reads, or stable page/block locators. It is a background service and is not needed for ordinary PDF conversion.
 
 ```bash
-MINERU_HOME="$PWD/.agents/tmp/mineru" uvx mineru server status --json
-MINERU_HOME="$PWD/.agents/tmp/mineru" uvx mineru server start
-MINERU_HOME="$PWD/.agents/tmp/mineru" uvx mineru server stop
+uvx mineru server status --json
+uvx mineru server start
+uvx mineru server stop
 ```
 
 Check status first and start only if stopped. **Stop Doclib when the task is finished, even if it was already running beforehand.** Do not leave MinerU resident in the background or kill its processes by name.

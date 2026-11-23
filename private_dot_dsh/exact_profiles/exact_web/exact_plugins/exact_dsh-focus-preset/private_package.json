@@ -1,12 +1,49 @@
 {
-  "name": "@local/dsh-focus-preset",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Focus agent preset: the standard preset without the web tool and with spawn-only delegation.",
+  "name": "@jiesou/dsh-focus-preset",
+  "version": "0.1.2",
+  "description": "Focus agent preset for dsh: a leaner standard preset with a compact persona prompt and spawn-only delegation",
+  "files": [
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "release": "npm version patch && git push --follow-tags"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "agent-preset",
+    "preset",
+    "focus"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiesou/dsh-focus-preset.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.2.0-rc.2 <0.3"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "compatibility": {
+      "dsh": ">=0.2.0-rc.2 <0.3",
+      "dshReleases": {
+        "0.2.2-rc.2": "compatible"
+      },
+      "profiles": [
+        "web",
+        "headless"
+      ]
     }
   }
 }

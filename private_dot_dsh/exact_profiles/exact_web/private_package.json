@@ -11,12 +11,14 @@
     "@jiesou/dsh-stream-rules": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-stream-rules",
     "@jiesou/dsh-timeout-auto-reject": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-timeout-auto-reject",
     "@jiesou/dsh-webui-fix-pack": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-webui-fix-pack/bundles/dsh-webui-fix-pack",
-    "@local/dsh-focus-preset": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-focus-preset",
-    "dsh-sandbox-landlock": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-sandbox-landlock",
+    "@jiesou/dsh-focus-preset": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-focus-preset",
     "dsh-status-rotator": "^0.37.0",
     "dsh-subagent-background-only": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-subagent-background-only",
+    "dsh-tinyfish-search": "^0.21.0",
     "dsh-tool-deny": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-tool-deny",
-    "dsh-ya-simple-shortcuts": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-ya-simple-shortcuts"
+    "dsh-ya-simple-shortcuts": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-ya-simple-shortcuts",
+    "dsh-sandbox-better": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-sandbox-better",
+    "dsh-sandbox-landlock": "link:/var/home/chen/.dsh/profiles/web/plugins/dsh-sandbox-landlock"
   },
   "dsh": {
     "profile": {
@@ -25,7 +27,8 @@
         "@deepseek-ai/dsh-web-app",
         "@jiesou/dsh-timeout-auto-reject",
         "dsh-sandbox-landlock",
-        "@local/dsh-focus-preset",
+        "dsh-sandbox-better",
+        "@jiesou/dsh-focus-preset",
         "@jiesou/dsh-webui-fix-pack",
         "@jiesou/dsh-cline-free-provider",
         "@jiesou/dsh-opencode-zen-free-provider",
@@ -34,7 +37,8 @@
         "@jiesou/dsh-stream-rules",
         "@deepseek-ai/dsh-experimental-session-titles-bundle",
         "dsh-status-rotator",
-        "@deepseek-ai/dsh-experimental-inspector-profile"
+        "@deepseek-ai/dsh-experimental-inspector-profile",
+        "dsh-tinyfish-search"
       ]
     }
   },
